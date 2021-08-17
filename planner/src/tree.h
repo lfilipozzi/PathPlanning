@@ -86,7 +86,7 @@ namespace Planner {
 		Node* CreateRootNode(const T& start)
 		{
 			m_rootNode = makeScope<Node>(start);
-			m_exploredNodeMap.insert(std::make_pair(start, m_rootNode.get()));
+			m_exploredNodeMap.insert({start, m_rootNode.get()});
 			m_kdTree.buildIndex(flann::Matrix<double>((double*)&(m_rootNode->GetState()), 1, m_dimensions));
 			return m_rootNode.get();
 		}
@@ -173,7 +173,7 @@ namespace Planner {
 
 			// Add the node to the map and k-d tree
 			m_kdTree.addPoints(flann::Matrix<double>((double*)&(newNode->GetState()), 1, m_dimensions));
-			m_exploredNodeMap.insert(std::make_pair(newNode->GetState(), newNode));
+			m_exploredNodeMap.insert({newNode->GetState(), newNode});
 
 			return newNode;
 		}

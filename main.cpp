@@ -94,46 +94,9 @@ int main(int /*argc*/, char** /*argv*/)
 	for (auto point : path) {
 		std::cout << "x=" << point.x() << ", y=" << point.y() << std::endl;
 	}
-
-	rrt.Clear();
 	
 	return 0;
 }
-
-// int main(void) {
-// 	T pointA;
-// 	Planner::Scope<Planner::Tree<T,2>::Node> nodeA= Planner::makeScope<Planner::Tree<T,2>::Node>(pointA);
-// 	
-// 	T pointB;
-// 	Planner::Scope<Planner::Tree<T,2>::Node> nodeB= Planner::makeScope<Planner::Tree<T,2>::Node>(pointB);
-// 	
-// 	std::unordered_map<T, Planner::Tree<T,2>::Node*> m_exploredNodeMap;
-// 	m_exploredNodeMap.insert(std::make_pair(nodeA->GetState(), nodeA.get()));
-// 	m_exploredNodeMap.insert(std::make_pair(nodeB->GetState(), nodeB.get()));
-// 	
-// 	nodeA.reset();
-// 	m_exploredNodeMap.clear();
-// 	
-// // 	m_exploredNodeMap.clear();
-// // 	node.reset();
-// }
-
-// int main(void) {
-// 	T pointA;
-// 	T pointB;
-// 	T pointC;
-// 	T pointD;
-// 	
-// 	Planner::Tree<T,2> tree;
-// 	auto nodeA = tree.CreateRootNode(pointA);
-// 	auto nodeB = tree.Extend(pointB, nodeA);
-// 	auto nodeC = tree.Extend(pointC, nodeB);
-// 	auto nodeD = tree.Extend(pointD, nodeB);
-// 	
-// 	tree.Clear();
-// }
-
-
 
 
 
