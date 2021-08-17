@@ -1,0 +1,12 @@
+---
+Language:        Cpp
+BasedOnStyle: WebKit
+BreakConstructorInitializers: AfterColon
+ConstructorInitializerAllOnOneLineOrOnePerLine: 'false'
+NamespaceIndentation: All
+TabWidth: '4'
+UseTab: Always
+IndentPPDirectives: BeforeHash
+SortIncludes: 'false'
+...
+
