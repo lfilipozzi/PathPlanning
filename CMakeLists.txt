@@ -20,3 +20,6 @@ add_executable(pathPlanning
 	main.cpp
 )
 target_link_libraries(${PROJECT_NAME} flann)
+
+enable_testing()
+add_subdirectory(planner/tests)

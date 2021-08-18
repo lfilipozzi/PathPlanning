@@ -28,7 +28,7 @@ namespace Planner {
 			* @brief Compute the depth of the node in the tree.
 			* @return The depth.
 			*/
-			unsigned int GetDepth() const
+			[[nodiscard]] unsigned int GetDepth() const
 			{
 				unsigned int depth = 0;
 				for (Node* parent = m_parent; parent != nullptr; parent = parent->m_parent) {
@@ -51,6 +51,30 @@ namespace Planner {
 			const Vertex& GetState() const { return m_state; }
 			Vertex& GetState() { return m_state; }
 
+			/**
+			 * @brief Check if the current node if a child of @node.
+			 * @return True if the @this is a child of @node, false otherwise.
+			 */
+			[[nodiscard]] bool IsChildOf(const Node* const node) const
+			{
+				Node* parent = m_parent;
+				while (parent != nullptr) {
+					if (parent == node)
+						return true;
+					parent = parent->m_parent;
+				}
+				return false;
+			}
+
+			/**
+			 * @brief Check if the current node is a parent of @node.
+			 * @return True if @this is a parent of @node, false otherwise.
+			 */
+			[[nodiscard]] bool IsParentOf(const Node* const node) const
+			{
+				return node->IsChildOf(this);
+			}
+
 		private:
 			/**
 			* @brief Set @node as a child of the current node.
@@ -64,10 +88,33 @@ namespace Planner {
 				return m_children.back().get();
 			}
 
+			/**
+			 * @brief Remove the node @node. @node must be a child of the 
+			 * current node.
+			 * @details This method does not delete the node @node and its 
+			 * children, it only remove the ownership of @node by its parent.
+			 * @param node The child to remove.
+			 * @return A smart pointer owning the removed child and its possible
+			 * children.
+			 */
+			Scope<Node> RemoveChild(Node* node)
+			{
+				Scope<Node> childScope;
+				for (auto it = m_children.begin(); it != m_children.end(); it++) {
+					if (it->get() == node) {
+						childScope = std::move(*it);
+						m_children.erase(it);
+						return childScope;
+					}
+				}
+				// TODO add false assertion here if node is not a child of *this
+				return childScope;
+			}
+
 		private:
 			std::vector<Scope<Node>> m_children;
 			Vertex m_state;
-			Node* m_parent;
+			Node* m_parent = nullptr;
 		};
 
 	public:
@@ -77,8 +124,8 @@ namespace Planner {
 		/**
 		 * @brief Constructor.
 		 */
-		Tree() :
-			m_exploredNodeMap(20), m_kdTree(flann::KDTreeSingleIndexParams()) {};
+		Tree(size_t mapBucketCound = 20) :
+			m_exploredNodeMap(mapBucketCound), m_kdTree(flann::KDTreeSingleIndexParams()) {};
 		~Tree() = default;
 
 		/**
@@ -105,14 +152,14 @@ namespace Planner {
 			flann::Matrix<VertexType> query;
 			query = flann::Matrix<VertexType>((VertexType*)&state, 1, sizeof(state) / sizeof(VertexType));
 
-			flann::Matrix<int> indices(new int[query.rows * nn], query.rows, 1);
-			flann::Matrix<VertexType> dists(new VertexType[query.rows * nn], query.rows, 1);
+			flann::Matrix<int> indices(new int[query.rows], query.rows, nn);
+			flann::Matrix<VertexType> dists(new VertexType[query.rows], query.rows, nn);
 			int n = m_kdTree.knnSearch(query, indices, dists, nn, flann::SearchParams());
 
 			std::vector<Node*> nodes;
 			nodes.reserve(n);
 			for (unsigned int i = 0; i < n; i++) {
-				Vertex point = (Vertex)m_kdTree.getPoint(indices[i][0]);
+				Vertex point = (Vertex)m_kdTree.getPoint(indices[0][i]);
 				nodes.push_back(m_exploredNodeMap[point]);
 			}
 
@@ -156,18 +203,18 @@ namespace Planner {
 		*/
 		Node* Extend(const Vertex& target, Node* source = nullptr)
 		{
-			// TODO: check that source belongs to tree in debug
+			// TODO: check that source belongs to tree in debug using IsChildOf or IsParentOf
+
+			// Check if the target is already in the tree
+			auto search = m_exploredNodeMap.find(target);
+			if (search != m_exploredNodeMap.end())
+				return search->second;
 
 			// Get source node (use nearest node if necessary, return if there is no nearest node)
 			source = source ? source : GetNearestNode(target);
 			if (!source) {
 				return nullptr;
 			}
-
-			// Check if the target is already in the tree
-			auto search = m_exploredNodeMap.find(target);
-			if (search != m_exploredNodeMap.end())
-				return search->second;
 
 			// Create the new node and connect it to its parent
 			Node* newNode = source->AddChild(makeScope<Node>(target));
@@ -177,6 +224,41 @@ namespace Planner {
 			m_exploredNodeMap.insert({ newNode->GetState(), newNode });
 
 			return newNode;
+		}
+
+		/**
+		 * @brief Change the parent of @child to @newParent. 
+		 * @details If child is not a parent of newParent, the method does not 
+		 * change the hierarchy of any other nodes, including the relationship 
+		 * between @child and its children and @newParent and its 
+		 * children.
+		 * Both @child and @newParent must not be nullptr.
+		 * @param child The child node.
+		 * @param newParent The new parent of child.
+		 */
+		void Rewire(Node* child, Node* newParent)
+		{
+			// TODO assert that child and newParent are not empty in debug
+
+			// Delete parenthood between child and its parent or de-anchor this node as the root node
+			Node* oldParent = child->GetParent();
+			Scope<Node> childScope;
+			if (oldParent)
+				childScope = oldParent->RemoveChild(child);
+			else
+				childScope = std::move(m_rootNode);
+
+			// The hierarchy must be modified if newParent is a child of child
+			if (newParent->IsChildOf(child)) {
+				Scope<Node> newParentScope = newParent->GetParent()->RemoveChild(newParent);
+				if (oldParent)
+					oldParent->AddChild(std::move(newParentScope));
+				else
+					m_rootNode = std::move(newParentScope);
+			}
+
+			// Add the child to parent
+			newParent->AddChild(std::move(childScope));
 		}
 
 		/**
