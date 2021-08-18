@@ -6,8 +6,8 @@
 
 namespace Planner {
 
-	template <typename T, unsigned int Dimensions, class Hash = std::hash<T>>
-	class RRTStar : public PathPlanner<T> {
+	template <typename Vertex, unsigned int Dimensions, class Hash = std::hash<Vertex>, typename VertexType = double>
+	class RRTStar : public PathPlanner<Vertex> {
 	public:
 		/**
 		* @brief Tunable parameters of the RRT algorithm.
@@ -17,7 +17,7 @@ namespace Planner {
 			double stepSize = 0.1;
 			double optimalSolutionTolerance = 1;
 		};
-		
+
 	public:
 		/**
 		 * @brief Constructor.
@@ -25,8 +25,8 @@ namespace Planner {
 		 * @param validator
 		 * @param hash
 		 */
-		RRTStar(Scope<StateSpace<T>>&& stateSpace, Scope<StateValidator<T>>&& validator) :
-			PathPlanner<T>(std::move(stateSpace), std::move(validator)) {};
+		RRTStar(Scope<StateSpace<Vertex>>&& stateSpace, Scope<StateValidator<Vertex>>&& validator) :
+			PathPlanner<Vertex>(std::move(stateSpace), std::move(validator)) {};
 		virtual ~RRTStar() = default;
 
 		Parameters& GetParameters() { return m_parameters; }
@@ -39,17 +39,17 @@ namespace Planner {
 
 			for (unsigned int k = 0; k < m_parameters.maxIteration; k++) {
 				// Create a random configuration
-				T randomState = this->m_stateSpace->CreateRandomState();
+				Vertex randomState = this->m_stateSpace->CreateRandomState();
 				// Check if a collision-free path between the state and the tree exists
 				auto [newState, nearNode] = GetCollisionFreePath(randomState);
 				if (!newState)
 					continue;
 			}
 		}
-		
-		virtual std::vector<T> GetPath()
+
+		virtual std::vector<Vertex> GetPath()
 		{
-			std::vector<T> path;
+			std::vector<Vertex> path;
 
 			auto node = m_solutionNode;
 			if (!node)
@@ -63,11 +63,11 @@ namespace Planner {
 			}
 			return path;
 		}
-		
+
 		/**
 		 * @brief Clear the tree.
 		 */
-		void Clear() 
+		void Clear()
 		{
 			m_tree.Clear();
 			m_solutionNode = nullptr;
@@ -76,7 +76,7 @@ namespace Planner {
 	private:
 		Parameters m_parameters;
 
-		Tree<T, Dimensions, Hash> m_tree;
-		typename Tree<T, Dimensions, Hash>::Node* m_solutionNode = nullptr;
+		Tree<Vertex, Dimensions, Hash, VertexType> m_tree;
+		typename Tree<Vertex, Dimensions, Hash, VertexType>::Node* m_solutionNode = nullptr;
 	};
 }

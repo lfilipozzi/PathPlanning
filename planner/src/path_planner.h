@@ -9,15 +9,15 @@ namespace Planner {
 
 	/**
 	 * @brief Solve path planning problems.
-	 * @details Templated class where T is the type of the vertices. The data 
-	 * must be doubles arranged contiguously in memory. T must be copy 
+	 * @details Templated class where Vertex is the type of the vertices. Its 
+	 * data must be arranged contiguously in memory. Vertex must be copy 
 	 * assignable and copy constructible. A specialized template of std::hash 
-	 * for T must be defined.
+	 * for Vertex must be defined.
 	 */
-	template <typename T>
+	template <typename Vertex>
 	class PathPlanner {
 	public:
-		PathPlanner(Scope<StateSpace<T>>&& stateSpace, Scope<StateValidator<T>>&& validator) :
+		PathPlanner(Scope<StateSpace<Vertex>>&& stateSpace, Scope<StateValidator<Vertex>>&& validator) :
 			m_stateSpace(std::move(stateSpace)), m_stateValidator(std::move(validator)) { }
 		virtual ~PathPlanner() = default;
 
@@ -29,20 +29,20 @@ namespace Planner {
 		/**
 		 * @brief Return the optimal collision-free path.
 		 */
-		virtual std::vector<T> GetPath() = 0;
+		virtual std::vector<Vertex> GetPath() = 0;
 
-		void SetInitState(const T& init) { m_init = init; }
-		void SetGoalState(const T& goal) { m_goal = goal; }
-		const T& GetInitState() const { return m_init; }
-		const T& GetGoalState() const { return m_goal; }
-		T& GetInitState() { return m_init; }
-		T& GetGoalState() { return m_goal; }
+		void SetInitState(const Vertex& init) { m_init = init; }
+		void SetGoalState(const Vertex& goal) { m_goal = goal; }
+		const Vertex& GetInitState() const { return m_init; }
+		const Vertex& GetGoalState() const { return m_goal; }
+		Vertex& GetInitState() { return m_init; }
+		Vertex& GetGoalState() { return m_goal; }
 
 	protected:
-		Scope<StateSpace<T>> m_stateSpace;
-		Scope<StateValidator<T>> m_stateValidator;
+		Scope<StateSpace<Vertex>> m_stateSpace;
+		Scope<StateValidator<Vertex>> m_stateValidator;
 
-		T m_init;
-		T m_goal;
+		Vertex m_init;
+		Vertex m_goal;
 	};
 }

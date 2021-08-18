@@ -5,7 +5,7 @@
 
 #include <eigen3/Eigen/Dense>
 
-using T = Eigen::Vector2d;
+using Vertex = Eigen::Vector2d;
 
 template <class T>
 inline void hash_combine(std::size_t& seed, const T& v)
@@ -16,12 +16,11 @@ inline void hash_combine(std::size_t& seed, const T& v)
 
 namespace std {
 	template <>
-	struct hash<T>
-	{
-		std::size_t operator()(const T& state) const
+	struct hash<Vertex> {
+		std::size_t operator()(const Vertex& state) const
 		{
-			using std::size_t;
 			using std::hash;
+			using std::size_t;
 			using std::string;
 
 			std::size_t seed = 0;
@@ -32,42 +31,42 @@ namespace std {
 	};
 }
 
-class TestStateValidator : public Planner::StateValidator<Eigen::Vector2d> {
+class TestStateValidator : public Planner::StateValidator<Vertex> {
 public:
-	virtual bool ValidateState(const T& state) override
+	virtual bool ValidateState(const Vertex& state) override
 	{
 		const double width = 5;
 		const double height = 5;
 		return state.x() >= 0 && state.y() >= 0 && state.x() < width && state.y() < height;
 	}
 
-	virtual bool ValidateTransition(const T& /*from*/, const T& /*to*/) override
+	virtual bool ValidateTransition(const Vertex& /*from*/, const Vertex& /*to*/) override
 	{
 		return true;
 	}
 };
 
-class TestStateSpace : public Planner::StateSpace<Eigen::Vector2d> {
+class TestStateSpace : public Planner::StateSpace<Vertex> {
 public:
-	virtual double ComputeDistance(const T& from, const T& to) const override
+	virtual double ComputeDistance(const Vertex& from, const Vertex& to) const override
 	{
-		T delta = from - to;
+		Vertex delta = from - to;
 		return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
 	}
 
-	virtual T CreateRandomState() override
+	virtual Vertex CreateRandomState() override
 	{
 		const double width = 5;
 		const double height = 5;
-		return T(drand48() * width, drand48() * height);
+		return Vertex(drand48() * width, drand48() * height);
 	}
 
-	virtual T CreateIncrementalState(const T& source, const T& target, double stepSize) override
+	virtual Vertex CreateIncrementalState(const Vertex& source, const Vertex& target, double stepSize) override
 	{
-		T delta = target - source;
+		Vertex delta = target - source;
 		delta = delta / delta.norm();
 
-		T val = source + delta * stepSize;
+		Vertex val = source + delta * stepSize;
 		return val;
 	}
 };
@@ -77,26 +76,23 @@ int main(int /*argc*/, char** /*argv*/)
 	Planner::Scope<TestStateSpace> stateSpace = Planner::makeScope<TestStateSpace>();
 	Planner::Scope<TestStateValidator> validator = Planner::makeScope<TestStateValidator>();
 
-	Planner::RRT<Eigen::Vector2d, 2> rrt(std::move(stateSpace), std::move(validator));
+	Planner::RRT<Vertex, 2> rrt(std::move(stateSpace), std::move(validator));
 
-	Planner::RRT<Eigen::Vector2d, 2>::Parameters parameters;
+	Planner::RRT<Vertex, 2>::Parameters parameters;
 	rrt.SetParameters(parameters);
 
-	Eigen::Vector2d start = { 0.0, 0.0 };
-	Eigen::Vector2d goal = { 2.0, 2.0 };
+	Vertex start = { 0.0, 0.0 };
+	Vertex goal = { 2.0, 2.0 };
 	rrt.SetInitState(start);
 	rrt.SetGoalState(goal);
 
 	rrt.SearchPath();
-	std::vector<Eigen::Vector2d> path = rrt.GetPath();
+	std::vector<Vertex> path = rrt.GetPath();
 
 	std::cout << "Path: " << std::endl;
 	for (auto point : path) {
 		std::cout << "x=" << point.x() << ", y=" << point.y() << std::endl;
 	}
-	
+
 	return 0;
 }
-
-
-
