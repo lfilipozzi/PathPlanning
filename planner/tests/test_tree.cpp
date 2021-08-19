@@ -22,7 +22,7 @@ namespace Planner {
 		assert(nodeD->GetDepth() == 3);
 	}
 
-	void TestNodeIsChildOf()
+	void TestNodeIsDescendantOf()
 	{
 		Planner::Tree<Vertex, 2> tree;
 
@@ -36,12 +36,12 @@ namespace Planner {
 		auto nodeC = tree.Extend(pointC, nodeB);
 		auto nodeD = tree.Extend(pointD, nodeC);
 
-		assert(nodeB->IsChildOf(nodeA));
-		assert(nodeC->IsChildOf(nodeA));
-		assert(!nodeA->IsChildOf(nodeD));
+		assert(nodeB->IsDescendantOf(nodeA));
+		assert(nodeC->IsDescendantOf(nodeA));
+		assert(!nodeA->IsDescendantOf(nodeD));
 	}
 
-	void TestNodeIsParentOf()
+	void TestNodeIsAncestorOf()
 	{
 		Planner::Tree<Vertex, 2> tree;
 
@@ -55,9 +55,33 @@ namespace Planner {
 		auto nodeC = tree.Extend(pointC, nodeB);
 		auto nodeD = tree.Extend(pointD, nodeC);
 
-		assert(nodeA->IsParentOf(nodeB));
-		assert(nodeA->IsParentOf(nodeC));
-		assert(!nodeD->IsParentOf(nodeA));
+		assert(nodeA->IsAncestorOf(nodeB));
+		assert(nodeA->IsAncestorOf(nodeC));
+		assert(!nodeD->IsAncestorOf(nodeA));
+	}
+
+	void TestNodeReplaceChild()
+	{
+		Planner::Tree<Vertex, 2> tree;
+
+		Vertex pointA = { 0, 0 };
+		Vertex pointB = { 1, 0 };
+		Vertex pointC = { 2, 0 };
+		Vertex pointD = { 3, 0 };
+		Vertex pointE = { 4, 0 };
+		
+		auto nodeA = tree.CreateRootNode(pointA);
+		auto nodeB = tree.Extend(pointB, nodeA);
+		auto nodeC = tree.Extend(pointC, nodeB);
+		auto nodeD = tree.Extend(pointD, nodeC);
+
+		auto scopeE = makeScope<GenericNode<Vertex>>(pointE);
+		auto nodeE = scopeE.get();
+		auto scope = nodeA->ReplaceChild(nodeB, std::move(scopeE), true);
+
+		assert(nodeA->IsAncestorOf(nodeE));
+		assert(nodeE->IsAncestorOf(nodeC));
+		assert(scope->GetParent() == nullptr);
 	}
 
 	void TestGetNearestNodes()
@@ -128,8 +152,9 @@ namespace Planner {
 int main()
 {
 	Planner::TestNodeGetDepth();
-	Planner::TestNodeIsChildOf();
-	Planner::TestNodeIsParentOf();
+	Planner::TestNodeIsDescendantOf();
+	Planner::TestNodeIsAncestorOf();
+	Planner::TestNodeReplaceChild();
 	Planner::TestGetNearestNodes();
 	Planner::TestGetNearestNode();
 	Planner::TestReparent();

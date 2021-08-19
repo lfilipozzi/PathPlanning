@@ -16,11 +16,17 @@ namespace Planner {
 			double optimalSolutionTolerance = 1;
 		};
 
+		/**
+		 * @brief Node metadata used by RRT star.
+		 */
+		struct NodeMetadata {
+			double costFromGoal = 0;
+		};
+
 	public:
 		/**
 		 * @brief Constructor.
 		 * @param stateSpace
-		 * @param hash
 		 */
 		RRTStar(Scope<StateSpace<Vertex>>&& stateSpace) :
 			PathPlanner<Vertex>(std::move(stateSpace)) {};
@@ -52,25 +58,25 @@ namespace Planner {
 				// Find the best parent for newNode
 				auto bestParentNode = nearestNode;
 				[[maybe_unused]] auto [transitionCost, transitionCollisionFree] = this->m_stateSpace->SteerExactly(nearestNode->GetState(), newState);
-				double bestCost = nearestNode->GetCostFromGoal() + transitionCost;
+				double bestCost = nearestNode->meta.costFromGoal + transitionCost;
 				for (auto node : nearNodes) {
 					auto [transitionCost, transitionCollisionFree] = this->m_stateSpace->SteerExactly(node->GetState(), newState);
-					double cost = node->GetCostFromGoal() + transitionCost;
+					double cost = node->meta.costFromGoal + transitionCost;
 					if (cost < bestCost && transitionCollisionFree) {
 						bestParentNode = node;
 						bestCost = cost;
 					}
 				}
 				auto newNode = m_tree.Extend(newState, bestParentNode);
-				newNode->SetCostFromGoal(bestCost);
+				newNode->meta.costFromGoal = bestCost;
 
 				// Reparent the nearest neighbor if necessary
 				for (auto node : nearNodes) {
 					auto [transitionCost, transitionCollisionFree] = this->m_stateSpace->SteerExactly(newNode->GetState(), node->GetState());
-					double cost = newNode->GetCostFromGoal() + transitionCost;
-					if (cost < node->GetCostFromGoal() && transitionCollisionFree) {
+					double cost = newNode->meta.costFromGoal + transitionCost;
+					if (cost < node->meta.costFromGoal && transitionCollisionFree) {
 						m_tree.Reparent(node, newNode);
-						node->SetCostFromGoal(cost);
+						node->meta.costFromGoal = cost;
 					}
 				}
 
@@ -111,7 +117,7 @@ namespace Planner {
 	private:
 		Parameters m_parameters;
 
-		Tree<Vertex, Dimensions, Hash, VertexType> m_tree;
-		typename Tree<Vertex, Dimensions, Hash, VertexType>::Node* m_solutionNode = nullptr;
+		Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType> m_tree;
+		typename Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType>::Node* m_solutionNode = nullptr;
 	};
 }

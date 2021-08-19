@@ -23,7 +23,6 @@ namespace Planner {
 		/**
 		 * @brief Constructor.
 		 * @param stateSpace
-		 * @param hash
 		 */
 		RRT(Scope<StateSpace<Vertex>>&& stateSpace) :
 			PathPlanner<Vertex>(std::move(stateSpace)) {};
@@ -87,7 +86,7 @@ namespace Planner {
 	private:
 		Parameters m_parameters;
 
-		Tree<Vertex, Dimensions, Hash, VertexType> m_tree;
-		typename Tree<Vertex, Dimensions, Hash, VertexType>::Node* m_solutionNode = nullptr;
+		Tree<Vertex, Dimensions, VoidClass, Hash, VertexType> m_tree;
+		typename Tree<Vertex, Dimensions, VoidClass, Hash, VertexType>::Node* m_solutionNode = nullptr;
 	};
 }

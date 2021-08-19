@@ -17,3 +17,7 @@ add_test(testRRT testRRT)
 add_executable(testRRTStar test_rrt_star.cpp)
 target_link_libraries(testRRTStar flann)
 add_test(testRRTStar testRRTStar)
+
+add_executable(testAStar test_a_star.cpp)
+target_link_libraries(testAStar flann)
+add_test(testAStar testAStar)
