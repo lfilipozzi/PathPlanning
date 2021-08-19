@@ -3,7 +3,6 @@
 #include <eigen3/Eigen/Dense>
 
 #include "state_space.h"
-#include "state_validator.h"
 
 using Vertex = Eigen::Vector2d;
 
@@ -31,21 +30,6 @@ namespace std {
 	};
 }
 
-class TestStateValidator : public Planner::StateValidator<Vertex> {
-public:
-	virtual bool ValidateState(const Vertex& state) override
-	{
-		const double width = 5;
-		const double height = 5;
-		return state.x() >= 0 && state.y() >= 0 && state.x() < width && state.y() < height;
-	}
-
-	virtual bool ValidateTransition(const Vertex& /*from*/, const Vertex& /*to*/) override
-	{
-		return true;
-	}
-};
-
 class TestStateSpace : public Planner::StateSpace<Vertex> {
 public:
 	virtual double ComputeDistance(const Vertex& from, const Vertex& to) const override
@@ -54,19 +38,29 @@ public:
 		return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
 	}
 
-	virtual Vertex CreateRandomState() override
+	virtual Vertex Sample() override
 	{
 		const double width = 5;
 		const double height = 5;
 		return Vertex(drand48() * width, drand48() * height);
 	}
 
-	virtual Vertex CreateIncrementalState(const Vertex& source, const Vertex& target, double stepSize) override
+	virtual Vertex SteerTowards(const Vertex& source, const Vertex& target) override
 	{
 		Vertex delta = target - source;
 		delta = delta / delta.norm();
 
-		Vertex val = source + delta * stepSize;
+		Vertex val = source + delta * 0.1;
 		return val;
+	}
+
+	virtual std::tuple<double, bool> SteerExactly(const Vertex& source, const Vertex& target) override
+	{
+		return { 0.0, true };
+	}
+
+	virtual bool IsTransitionCollisionFree(const Vertex& /*from*/, const Vertex& /*to*/) override
+	{
+		return true;
 	}
 };

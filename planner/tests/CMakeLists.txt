@@ -10,6 +10,10 @@ add_executable(testTree test_tree.cpp)
 target_link_libraries(testTree flann)
 add_test(testTree testTree)
 
-add_executable(testRRT test_rrt)
+add_executable(testRRT test_rrt.cpp)
 target_link_libraries(testRRT flann)
 add_test(testRRT testRRT)
+
+add_executable(testRRTStar test_rrt_star.cpp)
+target_link_libraries(testRRTStar flann)
+add_test(testRRTStar testRRTStar)

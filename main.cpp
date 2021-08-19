@@ -5,9 +5,8 @@
 int main(int /*argc*/, char** /*argv*/)
 {
 	Planner::Scope<TestStateSpace> stateSpace = Planner::makeScope<TestStateSpace>();
-	Planner::Scope<TestStateValidator> validator = Planner::makeScope<TestStateValidator>();
 
-	Planner::RRT<Vertex, 2> rrt(std::move(stateSpace), std::move(validator));
+	Planner::RRT<Vertex, 2> rrt(std::move(stateSpace));
 
 	Planner::RRT<Vertex, 2>::Parameters parameters;
 	rrt.SetParameters(parameters);

@@ -52,6 +52,17 @@ namespace Planner {
 			Vertex& GetState() { return m_state; }
 
 			/**
+			 * @brief Return the total cost from the goal to the state.
+			 * @return The cost.
+			 */
+			[[nodiscard]] double GetCostFromGoal() const { return m_costFromGoal; }
+
+			/**
+			 * @brief Modify the total cost from the goal to the state.
+			 */
+			void SetCostFromGoal(double cost) { m_costFromGoal = cost; }
+
+			/**
 			 * @brief Check if the current node if a child of @node.
 			 * @return True if the @this is a child of @node, false otherwise.
 			 */
@@ -115,6 +126,7 @@ namespace Planner {
 			std::vector<Scope<Node>> m_children;
 			Vertex m_state;
 			Node* m_parent = nullptr;
+			double m_costFromGoal = 0;
 		};
 
 	public:
@@ -127,6 +139,12 @@ namespace Planner {
 		Tree(size_t mapBucketCound = 20) :
 			m_exploredNodeMap(mapBucketCound), m_kdTree(flann::KDTreeSingleIndexParams()) {};
 		~Tree() = default;
+
+		/**
+		 * @brief Return the number of node in the tree.
+		 * @return The number of nodes.
+		 */
+		std::size_t GetSize() const { return m_exploredNodeMap.size(); }
 
 		/**
 		 * @brief Create the root node of the tree.
@@ -149,22 +167,24 @@ namespace Planner {
 		*/
 		std::vector<Node*> GetNearestNodes(const Vertex& state, const unsigned int nn = 1)
 		{
+			std::vector<Node*> nodes;
+			if (nn == 0)
+				return nodes;
+
 			flann::Matrix<VertexType> query;
 			query = flann::Matrix<VertexType>((VertexType*)&state, 1, sizeof(state) / sizeof(VertexType));
 
-			flann::Matrix<int> indices(new int[query.rows], query.rows, nn);
-			flann::Matrix<VertexType> dists(new VertexType[query.rows], query.rows, nn);
+			std::vector<int> indicesBuffer(query.rows);
+			std::vector<VertexType> distsBuffer(query.rows);
+			flann::Matrix<int> indices(indicesBuffer.data(), query.rows, nn);
+			flann::Matrix<VertexType> dists(distsBuffer.data(), query.rows, nn);
 			int n = m_kdTree.knnSearch(query, indices, dists, nn, flann::SearchParams());
 
-			std::vector<Node*> nodes;
 			nodes.reserve(n);
 			for (unsigned int i = 0; i < n; i++) {
 				Vertex point = (Vertex)m_kdTree.getPoint(indices[0][i]);
 				nodes.push_back(m_exploredNodeMap[point]);
 			}
-
-			delete[] indices.ptr();
-			delete[] dists.ptr();
 
 			return nodes;
 		}
@@ -181,14 +201,13 @@ namespace Planner {
 			flann::Matrix<VertexType> query;
 			query = flann::Matrix<VertexType>((VertexType*)&state, 1, sizeof(state) / sizeof(VertexType));
 
-			flann::Matrix<int> indices(new int[query.rows], query.rows, 1);
-			flann::Matrix<VertexType> dists(new VertexType[query.rows], query.rows, 1);
+			std::vector<int> indicesBuffer(query.rows);
+			std::vector<VertexType> distsBuffer(query.rows);
+			flann::Matrix<int> indices(indicesBuffer.data(), query.rows, 1);
+			flann::Matrix<VertexType> dists(distsBuffer.data(), query.rows, 1);
 			m_kdTree.knnSearch(query, indices, dists, 1, flann::SearchParams());
 
 			Vertex point = (Vertex)m_kdTree.getPoint(indices[0][0]);
-
-			delete[] indices.ptr();
-			delete[] dists.ptr();
 
 			return m_exploredNodeMap[point];
 		}
@@ -236,7 +255,7 @@ namespace Planner {
 		 * @param child The child node.
 		 * @param newParent The new parent of child.
 		 */
-		void Rewire(Node* child, Node* newParent)
+		void Reparent(Node* child, Node* newParent)
 		{
 			// TODO assert that child and newParent are not empty in debug
 

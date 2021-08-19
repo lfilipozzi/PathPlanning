@@ -1,7 +1,6 @@
 #pragma once
 
 #include "path_planner.h"
-
 #include "tree.h"
 
 namespace Planner {
@@ -14,7 +13,6 @@ namespace Planner {
 		*/
 		struct Parameters {
 			unsigned int maxIteration = 100;
-			double stepSize = 0.1;
 			double optimalSolutionTolerance = 1;
 		};
 
@@ -22,11 +20,10 @@ namespace Planner {
 		/**
 		 * @brief Constructor.
 		 * @param stateSpace
-		 * @param validator
 		 * @param hash
 		 */
-		RRTStar(Scope<StateSpace<Vertex>>&& stateSpace, Scope<StateValidator<Vertex>>&& validator) :
-			PathPlanner<Vertex>(std::move(stateSpace), std::move(validator)) {};
+		RRTStar(Scope<StateSpace<Vertex>>&& stateSpace) :
+			PathPlanner<Vertex>(std::move(stateSpace)) {};
 		virtual ~RRTStar() = default;
 
 		Parameters& GetParameters() { return m_parameters; }
@@ -39,15 +36,53 @@ namespace Planner {
 
 			for (unsigned int k = 0; k < m_parameters.maxIteration; k++) {
 				// Create a random configuration
-				Vertex randomState = this->m_stateSpace->CreateRandomState();
-				// Check if a collision-free path between the state and the tree exists
-				auto [newState, nearNode] = GetCollisionFreePath(randomState);
-				if (!newState)
+				Vertex randomState = this->m_stateSpace->Sample();
+				// Find the nearest node in the tree
+				auto nearestNode = m_tree.GetNearestNode(randomState);
+				if (!nearestNode)
 					continue;
+				// Find a new vertex from nearestNode towards randomState and check if the transition is collision-free
+				auto newState = this->m_stateSpace->SteerTowards(nearestNode->GetState(), randomState);
+				if (!this->m_stateSpace->IsTransitionCollisionFree(nearestNode->GetState(), newState))
+					continue;
+
+				// Find k nearest neighbor of newState where k is logarithmic in the size of the tree
+				unsigned int nn = log(m_tree.GetSize());
+				auto nearNodes = m_tree.GetNearestNodes(newState, nn);
+				// Find the best parent for newNode
+				auto bestParentNode = nearestNode;
+				[[maybe_unused]] auto [transitionCost, transitionCollisionFree] = this->m_stateSpace->SteerExactly(nearestNode->GetState(), newState);
+				double bestCost = nearestNode->GetCostFromGoal() + transitionCost;
+				for (auto node : nearNodes) {
+					auto [transitionCost, transitionCollisionFree] = this->m_stateSpace->SteerExactly(node->GetState(), newState);
+					double cost = node->GetCostFromGoal() + transitionCost;
+					if (cost < bestCost && transitionCollisionFree) {
+						bestParentNode = node;
+						bestCost = cost;
+					}
+				}
+				auto newNode = m_tree.Extend(newState, bestParentNode);
+				newNode->SetCostFromGoal(bestCost);
+
+				// Reparent the nearest neighbor if necessary
+				for (auto node : nearNodes) {
+					auto [transitionCost, transitionCollisionFree] = this->m_stateSpace->SteerExactly(newNode->GetState(), node->GetState());
+					double cost = newNode->GetCostFromGoal() + transitionCost;
+					if (cost < node->GetCostFromGoal() && transitionCollisionFree) {
+						m_tree.Reparent(node, newNode);
+						node->SetCostFromGoal(cost);
+					}
+				}
+
+				// Check solution
+				if (this->m_stateSpace->ComputeDistance(newState, this->m_goal) < m_parameters.optimalSolutionTolerance) {
+					m_solutionNode = newNode;
+					break;
+				}
 			}
 		}
 
-		virtual std::vector<Vertex> GetPath()
+		virtual std::vector<Vertex> GetPath() override
 		{
 			std::vector<Vertex> path;
 

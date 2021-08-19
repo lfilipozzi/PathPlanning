@@ -1,24 +1,24 @@
 #include "base.h"
-#include "rrt.h"
+#include "rrt_star.h"
 #include "2dplane.h"
 
 namespace Planner {
-	void TestRRTPath()
+	void TestRRTStarPath()
 	{
 		Planner::Scope<TestStateSpace> stateSpaceScope = Planner::makeScope<TestStateSpace>();
 		TestStateSpace* stateSpace = stateSpaceScope.get();
 
-		Planner::RRT<Vertex, 2> rrt(std::move(stateSpaceScope));
-		Planner::RRT<Vertex, 2>::Parameters parameters;
-		rrt.SetParameters(parameters);
+		Planner::RRTStar<Vertex, 2> rrtStar(std::move(stateSpaceScope));
+		Planner::RRTStar<Vertex, 2>::Parameters parameters;
+		rrtStar.SetParameters(parameters);
 
 		Vertex start = { 0.0, 0.0 };
 		Vertex goal = { 2.0, 2.0 };
-		rrt.SetInitState(start);
-		rrt.SetGoalState(goal);
+		rrtStar.SetInitState(start);
+		rrtStar.SetGoalState(goal);
 
-		rrt.SearchPath();
-		std::vector<Vertex> path = rrt.GetPath();
+		rrtStar.SearchPath();
+		std::vector<Vertex> path = rrtStar.GetPath();
 
 		assert(!path.empty());
 		assert(stateSpace->ComputeDistance(start, path.front()) <= parameters.optimalSolutionTolerance);
@@ -28,7 +28,7 @@ namespace Planner {
 
 int main()
 {
-	Planner::TestRRTPath();
+	Planner::TestRRTStarPath();
 
 	return 0;
 }

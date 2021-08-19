@@ -101,7 +101,7 @@ namespace Planner {
 		assert(std::count(nearestNodes.begin(), nearestNodes.end(), nodeD));
 	}
 
-	void TestRewire()
+	void TestReparent()
 	{
 		Planner::Tree<Vertex, 2> tree;
 
@@ -116,11 +116,11 @@ namespace Planner {
 		auto nodeD = tree.Extend(pointD, nodeC);
 
 		// The new parent is not a child
-		tree.Rewire(nodeD, nodeB);
+		tree.Reparent(nodeD, nodeB);
 		assert(nodeD->GetParent() == nodeB);
 
 		// The new parent is a child
-		tree.Rewire(nodeA, nodeC);
+		tree.Reparent(nodeA, nodeC);
 		assert(nodeA->GetParent() == nodeC);
 	}
 }
@@ -132,7 +132,7 @@ int main()
 	Planner::TestNodeIsParentOf();
 	Planner::TestGetNearestNodes();
 	Planner::TestGetNearestNode();
-	Planner::TestRewire();
+	Planner::TestReparent();
 
 	return 0;
 }

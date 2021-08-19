@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "state_space.h"
-#include "state_validator.h"
 
 namespace Planner {
 
@@ -17,8 +16,8 @@ namespace Planner {
 	template <typename Vertex>
 	class PathPlanner {
 	public:
-		PathPlanner(Scope<StateSpace<Vertex>>&& stateSpace, Scope<StateValidator<Vertex>>&& validator) :
-			m_stateSpace(std::move(stateSpace)), m_stateValidator(std::move(validator)) { }
+		PathPlanner(Scope<StateSpace<Vertex>>&& stateSpace) :
+			m_stateSpace(std::move(stateSpace)) { }
 		virtual ~PathPlanner() = default;
 
 		/**
@@ -40,7 +39,6 @@ namespace Planner {
 
 	protected:
 		Scope<StateSpace<Vertex>> m_stateSpace;
-		Scope<StateValidator<Vertex>> m_stateValidator;
 
 		Vertex m_init;
 		Vertex m_goal;
