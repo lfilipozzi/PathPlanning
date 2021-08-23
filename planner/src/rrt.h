@@ -24,8 +24,8 @@ namespace Planner {
 		 * @brief Constructor.
 		 * @param stateSpace
 		 */
-		RRT(Scope<StateSpace<Vertex>>&& stateSpace) :
-			PathPlanner<Vertex>(std::move(stateSpace)) {};
+		RRT(Scope<RRTStateSpace<Vertex>>&& stateSpace) :
+			m_stateSpace(std::move(stateSpace)) {};
 		virtual ~RRT() = default;
 
 		Parameters& GetParameters() { return m_parameters; }
@@ -38,19 +38,19 @@ namespace Planner {
 
 			for (unsigned int k = 0; k < m_parameters.maxIteration; k++) {
 				// Create a random configuration
-				Vertex randomState = this->m_stateSpace->Sample();
+				Vertex randomState = m_stateSpace->Sample();
 				// Find the nearest node in the tree
 				auto nearestNode = m_tree.GetNearestNode(randomState);
 				if (!nearestNode)
 					continue;
 				// Extend the tree toward randomState by creating a valid new node with obstacle-free path
-				auto newState = this->m_stateSpace->SteerTowards(nearestNode->GetState(), randomState);
-				if (!this->m_stateSpace->IsTransitionCollisionFree(nearestNode->GetState(), newState))
+				auto newState = m_stateSpace->SteerTowards(nearestNode->GetState(), randomState);
+				if (!m_stateSpace->IsTransitionCollisionFree(nearestNode->GetState(), newState))
 					continue;
 				auto newNode = m_tree.Extend(newState, nearestNode);
 
 				// Check solution
-				if (this->m_stateSpace->ComputeDistance(newState, this->m_goal) < m_parameters.optimalSolutionTolerance) {
+				if (m_stateSpace->ComputeDistance(newState, this->m_goal) < m_parameters.optimalSolutionTolerance) {
 					m_solutionNode = newNode;
 					break;
 				}
@@ -85,6 +85,7 @@ namespace Planner {
 
 	private:
 		Parameters m_parameters;
+		Scope<RRTStateSpace<Vertex>> m_stateSpace;
 
 		Tree<Vertex, Dimensions, VoidClass, Hash, VertexType> m_tree;
 		typename Tree<Vertex, Dimensions, VoidClass, Hash, VertexType>::Node* m_solutionNode = nullptr;

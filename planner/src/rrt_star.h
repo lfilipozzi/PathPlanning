@@ -28,8 +28,8 @@ namespace Planner {
 		 * @brief Constructor.
 		 * @param stateSpace
 		 */
-		RRTStar(Scope<StateSpace<Vertex>>&& stateSpace) :
-			PathPlanner<Vertex>(std::move(stateSpace)) {};
+		RRTStar(Scope<RRTStateSpace<Vertex>>&& stateSpace) :
+			m_stateSpace(std::move(stateSpace)) {};
 		virtual ~RRTStar() = default;
 
 		Parameters& GetParameters() { return m_parameters; }
@@ -42,14 +42,14 @@ namespace Planner {
 
 			for (unsigned int k = 0; k < m_parameters.maxIteration; k++) {
 				// Create a random configuration
-				Vertex randomState = this->m_stateSpace->Sample();
+				Vertex randomState = m_stateSpace->Sample();
 				// Find the nearest node in the tree
 				auto nearestNode = m_tree.GetNearestNode(randomState);
 				if (!nearestNode)
 					continue;
 				// Find a new vertex from nearestNode towards randomState and check if the transition is collision-free
-				auto newState = this->m_stateSpace->SteerTowards(nearestNode->GetState(), randomState);
-				if (!this->m_stateSpace->IsTransitionCollisionFree(nearestNode->GetState(), newState))
+				auto newState = m_stateSpace->SteerTowards(nearestNode->GetState(), randomState);
+				if (!m_stateSpace->IsTransitionCollisionFree(nearestNode->GetState(), newState))
 					continue;
 
 				// Find k nearest neighbor of newState where k is logarithmic in the size of the tree
@@ -57,10 +57,10 @@ namespace Planner {
 				auto nearNodes = m_tree.GetNearestNodes(newState, nn);
 				// Find the best parent for newNode
 				auto bestParentNode = nearestNode;
-				[[maybe_unused]] auto [transitionCost, transitionCollisionFree] = this->m_stateSpace->SteerExactly(nearestNode->GetState(), newState);
+				[[maybe_unused]] auto [transitionCost, transitionCollisionFree] = m_stateSpace->SteerExactly(nearestNode->GetState(), newState);
 				double bestCost = nearestNode->meta.costFromGoal + transitionCost;
 				for (auto node : nearNodes) {
-					auto [transitionCost, transitionCollisionFree] = this->m_stateSpace->SteerExactly(node->GetState(), newState);
+					auto [transitionCost, transitionCollisionFree] = m_stateSpace->SteerExactly(node->GetState(), newState);
 					double cost = node->meta.costFromGoal + transitionCost;
 					if (cost < bestCost && transitionCollisionFree) {
 						bestParentNode = node;
@@ -72,7 +72,7 @@ namespace Planner {
 
 				// Reparent the nearest neighbor if necessary
 				for (auto node : nearNodes) {
-					auto [transitionCost, transitionCollisionFree] = this->m_stateSpace->SteerExactly(newNode->GetState(), node->GetState());
+					auto [transitionCost, transitionCollisionFree] = m_stateSpace->SteerExactly(newNode->GetState(), node->GetState());
 					double cost = newNode->meta.costFromGoal + transitionCost;
 					if (cost < node->meta.costFromGoal && transitionCollisionFree) {
 						m_tree.Reparent(node, newNode);
@@ -81,7 +81,7 @@ namespace Planner {
 				}
 
 				// Check solution
-				if (this->m_stateSpace->ComputeDistance(newState, this->m_goal) < m_parameters.optimalSolutionTolerance) {
+				if (m_stateSpace->ComputeDistance(newState, this->m_goal) < m_parameters.optimalSolutionTolerance) {
 					m_solutionNode = newNode;
 					break;
 				}
@@ -116,6 +116,7 @@ namespace Planner {
 
 	private:
 		Parameters m_parameters;
+		Scope<RRTStateSpace<Vertex>> m_stateSpace;
 
 		Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType> m_tree;
 		typename Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType>::Node* m_solutionNode = nullptr;

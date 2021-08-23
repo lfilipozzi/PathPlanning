@@ -28,14 +28,6 @@ namespace Planner {
 		};
 		using Node = GenericNode<Vertex, NodeMetadata>;
 
-		// TODO implement this function
-		std::vector<Vertex> GetNeighbors(Vertex state)
-		{
-			return std::vector<Vertex>();
-		}
-		double EvalHeuristic(Vertex from, Vertex to) { return 0.0; }
-		// TODO implement this function
-
 		/**
 		 * @brief Implementation of a priority queue storing Node* ranked 
 		 * according to their totalPath cost. Two nodes are considered equal if 
@@ -113,10 +105,14 @@ namespace Planner {
 	public:
 		/**
 		 * @brief Constructor.
-		 * @param stateSpace
+		 * @param stateSpace The configuration space.
+		 * @param heuristic The heuristic used by the algorithm. Its prototype 
+		 * is:
+		 * <code>double Heuristic (const Vertex& from, const Vertex& to)</code>
+		 * where `from' is the origin state and `to' is the destination state. 
 		 */
-		AStar(Scope<StateSpace<Vertex>>&& stateSpace) :
-			PathPlanner<Vertex>(std::move(stateSpace)) {};
+		AStar(Scope<AStarStateSpace<Vertex>>&& stateSpace, double(&heuristicFcn)(const Vertex&, const Vertex&)) :
+			m_stateSpace(std::move(stateSpace)), m_heuristicFcn(heuristicFcn) {};
 		virtual ~AStar() = default;
 
 		Parameters& GetParameters() { return m_parameters; }
@@ -143,20 +139,20 @@ namespace Planner {
 				auto node = frontier.Poll();
 
 				// Check if node is a solution
-				if (this->m_stateSpace->ComputeDistance(node->GetState(), this->m_goal) < m_parameters.optimalSolutionTolerance) {
+				if (m_stateSpace->ComputeDistance(node->GetState(), this->m_goal) < m_parameters.optimalSolutionTolerance) {
 					m_solutionNode = node;
 					break;
 				}
 
 				explored.insert(node->GetState());
 
-				for (Vertex childVertex : GetNeighbors(node->GetState())) {
+				for (Vertex childVertex : m_stateSpace->GetNeighborStates(node->GetState())) {
 					// Create the child node
 					Scope<Node> childScope = makeScope<Node>(childVertex);
 					Node* child = childScope.get();
-					auto [transitionCost, transitionCollisionFree] = this->m_stateSpace->SteerExactly(node->GetState(), child->GetState());
+					auto [transitionCost, transitionCollisionFree] = m_stateSpace->SteerExactly(node->GetState(), child->GetState());
 					child->meta.pathCost = node->meta.pathCost + transitionCost;
-					child->meta.totalCost = child->meta.pathCost + EvalHeuristic(child->GetState(), this->m_goal);
+					child->meta.totalCost = child->meta.pathCost + m_heuristicFcn(child->GetState(), this->m_goal);
 
 					// Check if the child node is in the frontier or explored set
 					Node* const* inFrontier = frontier.Find(child->GetState());
@@ -204,6 +200,8 @@ namespace Planner {
 
 	private:
 		Parameters m_parameters;
+		Scope<AStarStateSpace<Vertex>> m_stateSpace;
+		double(&m_heuristicFcn)(const Vertex&, const Vertex&);
 
 		Scope<Node> m_rootNode;
 		Node* m_solutionNode = nullptr;

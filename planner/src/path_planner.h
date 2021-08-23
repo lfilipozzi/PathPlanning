@@ -16,8 +16,7 @@ namespace Planner {
 	template <typename Vertex>
 	class PathPlanner {
 	public:
-		PathPlanner(Scope<StateSpace<Vertex>>&& stateSpace) :
-			m_stateSpace(std::move(stateSpace)) { }
+		PathPlanner() {}
 		virtual ~PathPlanner() = default;
 
 		/**
@@ -38,8 +37,6 @@ namespace Planner {
 		Vertex& GetGoalState() { return m_goal; }
 
 	protected:
-		Scope<StateSpace<Vertex>> m_stateSpace;
-
 		Vertex m_init;
 		Vertex m_goal;
 	};

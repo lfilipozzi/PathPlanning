@@ -30,37 +30,55 @@ namespace std {
 	};
 }
 
-class TestStateSpace : public Planner::StateSpace<Vertex> {
-public:
-	virtual double ComputeDistance(const Vertex& from, const Vertex& to) const override
-	{
-		Vertex delta = from - to;
-		return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
-	}
+namespace Planner {
+	class TestStateSpace : public virtual StateSpace<Vertex> {
+	public:
+		virtual double ComputeDistance(const Vertex& from, const Vertex& to) const override
+		{
+			Vertex delta = from - to;
+			return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
+		}
 
-	virtual Vertex Sample() override
-	{
-		const double width = 5;
-		const double height = 5;
-		return Vertex(drand48() * width, drand48() * height);
-	}
+		virtual bool IsTransitionCollisionFree(const Vertex& /*from*/, const Vertex& /*to*/) override
+		{
+			return true;
+		}
+	};
 
-	virtual Vertex SteerTowards(const Vertex& source, const Vertex& target) override
-	{
-		Vertex delta = target - source;
-		delta = delta / delta.norm();
+	class TestRRTStateSpace : public RRTStateSpace<Vertex>, public TestStateSpace {
+	public:
+		virtual Vertex Sample() override
+		{
+			const double width = 5;
+			const double height = 5;
+			return Vertex(drand48() * width, drand48() * height);
+		}
 
-		Vertex val = source + delta * 0.1;
-		return val;
-	}
+		virtual Vertex SteerTowards(const Vertex& source, const Vertex& target) override
+		{
+			Vertex delta = target - source;
+			delta = delta / delta.norm();
 
-	virtual std::tuple<double, bool> SteerExactly(const Vertex& source, const Vertex& target) override
-	{
-		return { 0.0, true };
-	}
+			Vertex val = source + delta * 0.1;
+			return val;
+		}
 
-	virtual bool IsTransitionCollisionFree(const Vertex& /*from*/, const Vertex& /*to*/) override
-	{
-		return true;
-	}
-};
+		virtual std::tuple<double, bool> SteerExactly(const Vertex& source, const Vertex& target) override
+		{
+			return { 0.0, true };
+		}
+	};
+
+	class TestAStarStateSpace : public AStarStateSpace<Vertex>, public TestStateSpace {
+	public:
+		virtual std::tuple<double, bool> SteerExactly(const Vertex& source, const Vertex& target) override
+		{
+			return { 0.0, true };
+		}
+
+		virtual std::vector<Vertex> GetNeighborStates(Vertex state) override
+		{
+			return std::vector<Vertex>();
+		}
+	};
+}

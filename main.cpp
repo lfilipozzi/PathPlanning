@@ -9,9 +9,7 @@ int main(int /*argc*/, char** /*argv*/)
 	PP_INIT_LOGGER;
 	PP_INFO("Test");
 
-	Planner::Scope<TestStateSpace> stateSpace = Planner::makeScope<TestStateSpace>();
-
-	Planner::RRT<Vertex, 2> rrt(std::move(stateSpace));
+	Planner::RRT<Vertex, 2> rrt(Planner::makeScope<Planner::TestRRTStateSpace>());
 
 	Planner::RRT<Vertex, 2>::Parameters parameters;
 	rrt.SetParameters(parameters);

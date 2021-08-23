@@ -4,12 +4,17 @@
 #include "core/log.h"
 
 namespace Planner {
+	double Heuristic(const Vertex& from, const Vertex& to)
+	{
+		return 0.0;
+	}
+
 	void TestRRTPath()
 	{
-		Planner::Scope<TestStateSpace> stateSpaceScope = Planner::makeScope<TestStateSpace>();
+		Planner::Scope<TestAStarStateSpace> stateSpaceScope = Planner::makeScope<TestAStarStateSpace>();
 		TestStateSpace* stateSpace = stateSpaceScope.get();
 
-		Planner::AStar<Vertex> aStar(std::move(stateSpaceScope));
+		Planner::AStar<Vertex> aStar(std::move(stateSpaceScope), Heuristic);
 		Planner::AStar<Vertex>::Parameters parameters;
 		aStar.SetParameters(parameters);
 
