@@ -1,9 +1,14 @@
-#include "base.h"
+#include "core/base.h"
 #include "rrt.h"
 #include "2dplane.h"
+#include "core/assert.h"
+#include "core/log.h"
 
 int main(int /*argc*/, char** /*argv*/)
 {
+	PP_INIT_LOGGER;
+	PP_INFO("Test");
+
 	Planner::Scope<TestStateSpace> stateSpace = Planner::makeScope<TestStateSpace>();
 
 	Planner::RRT<Vertex, 2> rrt(std::move(stateSpace));

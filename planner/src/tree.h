@@ -4,11 +4,13 @@
 #include <unordered_map>
 #include <flann/flann.hpp>
 
-#include "base.h"
+#include "core/base.h"
+#include "core/assert.h"
 
 namespace Planner {
 
-	struct VoidClass {};
+	struct VoidClass {
+	};
 
 	/**
 	 * @brief Node 
@@ -103,7 +105,8 @@ namespace Planner {
 					return childScope;
 				}
 			}
-			// TODO add false assertion here if node is not a child of *this
+
+			PP_ASSERT(false, "The node to remove is not a direct child.");
 			return childScope;
 		}
 
@@ -136,7 +139,8 @@ namespace Planner {
 					return bratScope;
 				}
 			}
-			// TODO add false assertion here if node is not a child of *this
+
+			PP_ASSERT(false, "The node to remove is not a direct child.");
 			return bratScope;
 		}
 
@@ -153,8 +157,6 @@ namespace Planner {
 		 */
 		static void Reparent(GenericNode* child, GenericNode* newParent, Scope<GenericNode>& rootNode)
 		{
-			// TODO assert that child and newParent are not empty in debug
-
 			// Delete parenthood between child and its parent or de-anchor this node as the root node
 			GenericNode* oldParent = child->GetParent();
 			Scope<GenericNode> childScope;
@@ -287,8 +289,6 @@ namespace Planner {
 		*/
 		Node* Extend(const Vertex& target, Node* source = nullptr)
 		{
-			// TODO: check that source belongs to tree in debug using IsDescendantOf(m_rootNode)
-
 			// Check if the target is already in the tree
 			auto search = m_exploredNodeMap.find(target);
 			if (search != m_exploredNodeMap.end())
@@ -299,6 +299,7 @@ namespace Planner {
 			if (!source) {
 				return nullptr;
 			}
+			PP_ASSERT(source->IsDescendantOf(m_rootNode), "The node to extend does not belong to the tree.");
 
 			// Create the new node and connect it to its parent
 			Node* newNode = source->AddChild(makeScope<Node>(target));

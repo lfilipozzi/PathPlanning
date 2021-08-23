@@ -1,5 +1,6 @@
 #include "tree.h"
 #include "2dplane.h"
+#include "core/log.h"
 
 namespace Planner {
 	void TestNodeGetDepth()
@@ -69,7 +70,7 @@ namespace Planner {
 		Vertex pointC = { 2, 0 };
 		Vertex pointD = { 3, 0 };
 		Vertex pointE = { 4, 0 };
-		
+
 		auto nodeA = tree.CreateRootNode(pointA);
 		auto nodeB = tree.Extend(pointB, nodeA);
 		auto nodeC = tree.Extend(pointC, nodeB);
@@ -151,6 +152,7 @@ namespace Planner {
 
 int main()
 {
+	PP_INIT_LOGGER;
 	Planner::TestNodeGetDepth();
 	Planner::TestNodeIsDescendantOf();
 	Planner::TestNodeIsAncestorOf();

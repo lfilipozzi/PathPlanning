@@ -11,7 +11,6 @@ namespace Planner {
 	template <typename Vertex, class Hash = std::hash<Vertex>, typename VertexType = double>
 	class AStar : public PathPlanner<Vertex> {
 	public:
-
 		/**
 		* @brief Tunable parameters of the RRT algorithm.
 		*/
@@ -54,7 +53,7 @@ namespace Planner {
 
 			void Push(const T& value)
 			{
-				auto[it, success] = m_map.insert({ value->GetState(), value });
+				auto [it, success] = m_map.insert({ value->GetState(), value });
 				if (success) {
 					auto it = FindFirstBiggerElement(value);
 					m_vec.insert(it, value);
@@ -65,8 +64,8 @@ namespace Planner {
 			{
 				size_t removed = m_map.erase(value->GetState());
 				if (removed > 0) {
-					 auto it = FindFirstBiggerElement(value);
-					 m_vec.erase(std::prev(it));
+					auto it = FindFirstBiggerElement(value);
+					m_vec.erase(std::prev(it));
 				}
 			}
 
@@ -139,18 +138,18 @@ namespace Planner {
 					// TODO Add error (either throw error or return enum)
 					break;
 				}
-				
+
 				// Pop lowest-cost node of the frontier
 				auto node = frontier.Poll();
-				
+
 				// Check if node is a solution
 				if (this->m_stateSpace->ComputeDistance(node->GetState(), this->m_goal) < m_parameters.optimalSolutionTolerance) {
 					m_solutionNode = node;
 					break;
 				}
-				
+
 				explored.insert(node->GetState());
-				
+
 				for (Vertex childVertex : GetNeighbors(node->GetState())) {
 					// Create the child node
 					Scope<Node> childScope = makeScope<Node>(childVertex);
@@ -160,21 +159,21 @@ namespace Planner {
 					child->meta.totalCost = child->meta.pathCost + EvalHeuristic(child->GetState(), this->m_goal);
 
 					// Check if the child node is in the frontier or explored set
-					Node*const* inFrontier = frontier.Find(child->GetState());
+					Node* const* inFrontier = frontier.Find(child->GetState());
 					bool inExplored = explored.find(child->GetState()) != explored.end();
 					if (!inFrontier && !inExplored) {
 						// Add child to frontier and to the tree
 						frontier.Push(child);
-						node->AddChild(std::move(childScope)); 
+						node->AddChild(std::move(childScope));
 					} else if (inFrontier) {
 						// Check if the node in frontier has a higher cost than the
 						// current path, and if so replace it by child
 						if ((*inFrontier)->meta.totalCost > child->meta.totalCost) {
-							// Replace the node *inFrontier in the tree by the newly find better node child. 
-							// If a node is in the frontier, it does not have a child yet, so no need to 
+							// Replace the node *inFrontier in the tree by the newly find better node child.
+							// If a node is in the frontier, it does not have a child yet, so no need to
 							// adopt grandchildren
-							// Remark: no need to check whether the pointer (*inFrontier)->GetParent() is 
-							// nullptr, since we should never enter this condition for the root node of the 
+							// Remark: no need to check whether the pointer (*inFrontier)->GetParent() is
+							// nullptr, since we should never enter this condition for the root node of the
 							// tree
 							(*inFrontier)->GetParent()->ReplaceChild(*inFrontier, std::move(childScope), false);
 							// Replace the node in the frontier by child

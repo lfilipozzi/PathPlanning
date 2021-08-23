@@ -1,8 +1,6 @@
 # Directories
 build/
 doc/build_doxygen
-editor/asset/cache
-surreal/external/vulkan_sdk
 
 # Kdevelop
 .kdev4/

@@ -1,6 +1,7 @@
-#include "base.h"
+#include "core/base.h"
 #include "rrt_star.h"
 #include "2dplane.h"
+#include "core/log.h"
 
 namespace Planner {
 	void TestRRTStarPath()
@@ -28,6 +29,7 @@ namespace Planner {
 
 int main()
 {
+	PP_INIT_LOGGER;
 	Planner::TestRRTStarPath();
 
 	return 0;

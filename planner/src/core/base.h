@@ -23,3 +23,26 @@ namespace Planner {
 	}
 
 }
+
+// Platform detection
+#include "core/platform_detection.h"
+
+// Platform specific macro
+#if defined(PP_PLATFORM_WINDOWS)
+	// Microsoft
+	#define PP_DEBUG_BREAK __debugbreak()
+#elif defined(PP_PLATFORM_APPLE)
+	// Apple
+	#define PP_DEBUG_BREAK
+#elif defined(PP_PLATFORM_LINUX)
+	// Linux
+	#include <signal.h>
+	#define PP_DEBUG_BREAK raise(SIGTRAP)
+#else
+	#define PP_DEBUG_BREAK
+	#warning "Platform doesn't support debugbreak yet!"
+#endif // End of platform specific macro
+
+#ifdef PP_DEBUG
+	#define PP_ENABLE_ASSERT
+#endif
