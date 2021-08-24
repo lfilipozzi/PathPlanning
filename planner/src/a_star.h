@@ -16,7 +16,7 @@ namespace Planner {
 		*/
 		struct Parameters {
 			unsigned int maxIteration = 100;
-			double optimalSolutionTolerance = 1;
+			double optimalSolutionTolerance = 0.05;
 		};
 
 		/**

@@ -6,7 +6,8 @@
 namespace Planner {
 	double Heuristic(const Vertex& from, const Vertex& to)
 	{
-		return 0.0;
+		Vertex delta = from - to;
+		return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
 	}
 
 	void TestRRTPath()

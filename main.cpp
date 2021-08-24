@@ -1,26 +1,32 @@
 #include "core/base.h"
-#include "rrt.h"
+#include "a_star.h"
 #include "2dplane.h"
 #include "core/assert.h"
 #include "core/log.h"
+
+double Heuristic(const Vertex& from, const Vertex& to)
+{
+	Vertex delta = from - to;
+	return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
+}
 
 int main(int /*argc*/, char** /*argv*/)
 {
 	PP_INIT_LOGGER;
 	PP_INFO("Test");
 
-	Planner::RRT<Vertex, 2> rrt(Planner::makeScope<Planner::TestRRTStateSpace>());
+	Planner::AStar<Vertex> search(Planner::makeScope<Planner::TestAStarStateSpace>(), Heuristic);
 
-	Planner::RRT<Vertex, 2>::Parameters parameters;
-	rrt.SetParameters(parameters);
+	Planner::AStar<Vertex>::Parameters parameters;
+	search.SetParameters(parameters);
 
 	Vertex start = { 0.0, 0.0 };
-	Vertex goal = { 2.0, 2.0 };
-	rrt.SetInitState(start);
-	rrt.SetGoalState(goal);
+	Vertex goal = { 5.0, 1.0 };
+	search.SetInitState(start);
+	search.SetGoalState(goal);
 
-	rrt.SearchPath();
-	std::vector<Vertex> path = rrt.GetPath();
+	search.SearchPath();
+	std::vector<Vertex> path = search.GetPath();
 
 	std::cout << "Path: " << std::endl;
 	for (auto point : path) {

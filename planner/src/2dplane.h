@@ -73,12 +73,24 @@ namespace Planner {
 	public:
 		virtual std::tuple<double, bool> SteerExactly(const Vertex& source, const Vertex& target) override
 		{
-			return { 0.0, true };
+			Vertex delta = source - target;
+			double dist = sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
+			return { dist, true };
 		}
 
 		virtual std::vector<Vertex> GetNeighborStates(Vertex state) override
 		{
-			return std::vector<Vertex>();
+			double delta = 0.2;
+			std::vector<Vertex> neighbors(8);
+			neighbors.push_back({ state.x() + 1.0 * delta, state.y() + 1.0 * delta });
+			neighbors.push_back({ state.x() + 1.0 * delta, state.y() + 0.0 * delta });
+			neighbors.push_back({ state.x() + 1.0 * delta, state.y() - 1.0 * delta });
+			neighbors.push_back({ state.x() + 0.0 * delta, state.y() - 1.0 * delta });
+			neighbors.push_back({ state.x() - 1.0 * delta, state.y() - 1.0 * delta });
+			neighbors.push_back({ state.x() - 1.0 * delta, state.y() + 0.0 * delta });
+			neighbors.push_back({ state.x() - 1.0 * delta, state.y() + 1.0 * delta });
+			neighbors.push_back({ state.x() + 0.0 * delta, state.y() + 1.0 * delta });
+			return neighbors;
 		}
 	};
 }
