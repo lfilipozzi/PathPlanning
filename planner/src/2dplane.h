@@ -81,7 +81,8 @@ namespace Planner {
 		virtual std::vector<Vertex> GetNeighborStates(Vertex state) override
 		{
 			double delta = 0.2;
-			std::vector<Vertex> neighbors(8);
+			std::vector<Vertex> neighbors;
+			neighbors.reserve(8);
 			neighbors.push_back({ state.x() + 1.0 * delta, state.y() + 1.0 * delta });
 			neighbors.push_back({ state.x() + 1.0 * delta, state.y() + 0.0 * delta });
 			neighbors.push_back({ state.x() + 1.0 * delta, state.y() - 1.0 * delta });

@@ -12,7 +12,7 @@
 	#define PP_INTERNAL_ASSERT_IMPL(type, check, msg, ...) \
 		{                                                  \
 			if (!(check)) {                                \
-				SR##type##ERROR(msg, __VA_ARGS__);         \
+				PP##type##ERROR(msg, __VA_ARGS__);         \
 				PP_DEBUG_BREAK;                            \
 			}                                              \
 		}

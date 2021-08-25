@@ -66,7 +66,7 @@ namespace Planner {
 				return path;
 
 			unsigned int depth = m_solutionNode->GetDepth();
-			path.resize(depth);
+			path.resize(depth + 1);
 			for (auto it = path.rbegin(); it != path.rend(); it++) {
 				*it = node->GetState();
 				node = node->GetParent();

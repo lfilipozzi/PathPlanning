@@ -19,6 +19,7 @@ namespace Planner {
 			double optimalSolutionTolerance = 0.05;
 		};
 
+	private:
 		/**
 		 * @brief Node metadata used by RRT star.
 		 */
@@ -34,7 +35,8 @@ namespace Planner {
 		 * they refer to the same state.
 		 * @details The implementation combines a std::vector (for cache-
 		 * friendliness) that is continuously sorted and a 
-		 * std::unordered_set for efficient access.
+		 * std::unordered_set for efficient access. The std::vector is sorted in
+		 * descending order of path-cost.
 		 */
 		class PriorityQueue {
 		public:
@@ -47,7 +49,7 @@ namespace Planner {
 			{
 				auto [it, success] = m_map.insert({ value->GetState(), value });
 				if (success) {
-					auto it = FindFirstBiggerElement(value);
+					auto it = FindFirstElementStrictlySmallerThan(value);
 					m_vec.insert(it, value);
 				}
 			}
@@ -56,8 +58,18 @@ namespace Planner {
 			{
 				size_t removed = m_map.erase(value->GetState());
 				if (removed > 0) {
-					auto it = FindFirstBiggerElement(value);
-					m_vec.erase(std::prev(it));
+					auto begin = FindLastElementBiggerThan(value);
+					auto end = m_vec.end();
+					
+					bool erased = false;
+					for (auto it = begin; it!= end; it++) {
+						if (*it == value) {
+							m_vec.erase(it);
+							erased = true;
+							break;
+						}
+					}
+					PP_ASSERT(erased, "Element has not been erased");
 				}
 			}
 
@@ -80,21 +92,72 @@ namespace Planner {
 			}
 
 		private:
-			static bool Compare(const T& a, const T& b)
+			/**
+			 * @brief Return an iterator to the first element in the vector that
+			 * is strictly smaller than @value.
+			 * @details Implemented using a binary search.
+			 * @return An iterator to the element.
+			 */
+			typename std::vector<T>::iterator FindFirstElementStrictlySmallerThan(const T& value)
 			{
-				if (!a || !b)
-					return false;
-				return a->meta.totalCost < b->meta.totalCost;
+				unsigned int index = 0;
+				{
+					int begin = 0;
+					int end = m_vec.size() - 1;
+					while (begin <= end) {
+						int mid = begin + (end - begin) / 2;
+						
+						bool isLeftBigger = m_vec[mid]->meta.totalCost >= value->meta.totalCost;
+						bool isRightSmaller = mid + 1 < m_vec.size() ? value->meta.totalCost > m_vec[mid+1]->meta.totalCost : true;
+						
+						if (isLeftBigger && isRightSmaller) {
+							index = mid + 1;
+							break;
+						}
+						if (!isLeftBigger)
+							end = mid - 1;
+						if (!isRightSmaller)
+							begin = mid + 1;
+					}
+				}
+				
+				auto it = m_vec.begin();
+				std::advance(it, index);
+				return it;
 			}
 
-			typename std::vector<T>::iterator FindFirstBiggerElement(const T& value)
+			/**
+			 * @brief Return an iterator to the first element in the vector that
+			 * is bigger than or equal to @value.
+			 * @details Implemented using a binary search.
+			 * @return An iterator to the element.
+			 */
+			typename std::vector<T>::iterator FindLastElementBiggerThan(const T& value)
 			{
-				for (auto it = m_vec.begin(); it != m_vec.end(); it++) {
-					// TODO replace by dichotomic search
-					if (Compare(*it, value))
-						return it;
+				unsigned int index = 0;
+				{
+					int begin = 0;
+					int end = m_vec.size() - 1;
+					while (begin <= end) {
+						int mid = begin + (end - begin) / 2;
+						
+						bool isLeftBigger = m_vec[mid]->meta.totalCost > value->meta.totalCost;
+						bool isRightSmaller = mid + 1 < m_vec.size() ? value->meta.totalCost >= m_vec[mid+1]->meta.totalCost : true;
+						
+						if (isLeftBigger && isRightSmaller) {
+							index = mid;
+							break;
+						}
+						if (!isLeftBigger)
+							end = mid - 1;
+						if (!isRightSmaller)
+							begin = mid + 1;
+					}
 				}
-				return m_vec.end();
+				
+				auto it = m_vec.begin();
+				std::advance(it, index);
+				return it;
 			}
 
 		private:
@@ -171,9 +234,9 @@ namespace Planner {
 							// Remark: no need to check whether the pointer (*inFrontier)->GetParent() is
 							// nullptr, since we should never enter this condition for the root node of the
 							// tree
-							(*inFrontier)->GetParent()->ReplaceChild(*inFrontier, std::move(childScope), false);
+							auto previousChildScope = (*inFrontier)->GetParent()->ReplaceChild(*inFrontier, std::move(childScope), false);
 							// Replace the node in the frontier by child
-							frontier.Remove(*inFrontier);
+							frontier.Remove(previousChildScope.get());
 							frontier.Push(child);
 						}
 					}
@@ -190,7 +253,7 @@ namespace Planner {
 				return path;
 
 			unsigned int depth = m_solutionNode->GetDepth();
-			path.resize(depth);
+			path.resize(depth + 1);
 			for (auto it = path.rbegin(); it != path.rend(); it++) {
 				*it = node->GetState();
 				node = node->GetParent();

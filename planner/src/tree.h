@@ -214,6 +214,15 @@ namespace Planner {
 		std::size_t GetSize() const { return m_exploredNodeMap.size(); }
 
 		/**
+		 * @brief Check if the node belongs to the tree.
+		 * @return A boolean.
+		 */
+		bool BelongToTree(const Node* node) const
+		{
+			return (node->IsDescendantOf(m_rootNode.get()) || (node == m_rootNode.get()));
+		}
+
+		/**
 		 * @brief Create the root node of the tree.
 		 */
 		Node* CreateRootNode(const Vertex& start)
@@ -299,7 +308,7 @@ namespace Planner {
 			if (!source) {
 				return nullptr;
 			}
-			PP_ASSERT(source->IsDescendantOf(m_rootNode), "The node to extend does not belong to the tree.");
+			PP_ASSERT(BelongToTree(source), "The node to extend does not belong to the tree.");
 
 			// Create the new node and connect it to its parent
 			Node* newNode = source->AddChild(makeScope<Node>(target));

@@ -16,6 +16,12 @@ else()
 	set(logger_LIB)
 endif()
 
+option(ENABLE_ASSERT "Enable assertion" ON)
+if(ENABLE_ASSERT)
+	message("Enable assertion")
+	add_compile_definitions(PP_ENABLE_ASSERT)
+endif()
+
 include_directories(
 	${CMAKE_SOURCE_DIR}/planner/src
 )
