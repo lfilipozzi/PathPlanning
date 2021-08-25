@@ -60,9 +60,9 @@ namespace Planner {
 				if (removed > 0) {
 					auto begin = FindLastElementBiggerThan(value);
 					auto end = m_vec.end();
-					
+
 					bool erased = false;
-					for (auto it = begin; it!= end; it++) {
+					for (auto it = begin; it != end; it++) {
 						if (*it == value) {
 							m_vec.erase(it);
 							erased = true;
@@ -106,10 +106,10 @@ namespace Planner {
 					int end = m_vec.size() - 1;
 					while (begin <= end) {
 						int mid = begin + (end - begin) / 2;
-						
+
 						bool isLeftBigger = m_vec[mid]->meta.totalCost >= value->meta.totalCost;
-						bool isRightSmaller = mid + 1 < m_vec.size() ? value->meta.totalCost > m_vec[mid+1]->meta.totalCost : true;
-						
+						bool isRightSmaller = mid + 1 < m_vec.size() ? value->meta.totalCost > m_vec[mid + 1]->meta.totalCost : true;
+
 						if (isLeftBigger && isRightSmaller) {
 							index = mid + 1;
 							break;
@@ -120,7 +120,7 @@ namespace Planner {
 							begin = mid + 1;
 					}
 				}
-				
+
 				auto it = m_vec.begin();
 				std::advance(it, index);
 				return it;
@@ -140,10 +140,10 @@ namespace Planner {
 					int end = m_vec.size() - 1;
 					while (begin <= end) {
 						int mid = begin + (end - begin) / 2;
-						
+
 						bool isLeftBigger = m_vec[mid]->meta.totalCost > value->meta.totalCost;
-						bool isRightSmaller = mid + 1 < m_vec.size() ? value->meta.totalCost >= m_vec[mid+1]->meta.totalCost : true;
-						
+						bool isRightSmaller = mid + 1 < m_vec.size() ? value->meta.totalCost >= m_vec[mid + 1]->meta.totalCost : true;
+
 						if (isLeftBigger && isRightSmaller) {
 							index = mid;
 							break;
@@ -154,7 +154,7 @@ namespace Planner {
 							begin = mid + 1;
 					}
 				}
-				
+
 				auto it = m_vec.begin();
 				std::advance(it, index);
 				return it;
@@ -174,7 +174,7 @@ namespace Planner {
 		 * <code>double Heuristic (const Vertex& from, const Vertex& to)</code>
 		 * where `from' is the origin state and `to' is the destination state. 
 		 */
-		AStar(Scope<AStarStateSpace<Vertex>>&& stateSpace, double(&heuristicFcn)(const Vertex&, const Vertex&)) :
+		AStar(Scope<AStarStateSpace<Vertex>>&& stateSpace, double (&heuristicFcn)(const Vertex&, const Vertex&)) :
 			m_stateSpace(std::move(stateSpace)), m_heuristicFcn(heuristicFcn) {};
 		virtual ~AStar() = default;
 
@@ -182,7 +182,7 @@ namespace Planner {
 		const Parameters& GetParameters() const { return m_parameters; }
 		void SetParameters(const Parameters& params) { m_parameters = params; }
 
-		virtual void SearchPath() override
+		virtual Status SearchPath() override
 		{
 			m_rootNode = makeScope<Node>(this->m_init);
 
@@ -194,8 +194,7 @@ namespace Planner {
 
 			while (true) {
 				if (frontier.Empty()) {
-					// TODO Add error (either throw error or return enum)
-					break;
+					return Status::Failure;
 				}
 
 				// Pop lowest-cost node of the frontier
@@ -204,7 +203,7 @@ namespace Planner {
 				// Check if node is a solution
 				if (m_stateSpace->ComputeDistance(node->GetState(), this->m_goal) < m_parameters.optimalSolutionTolerance) {
 					m_solutionNode = node;
-					break;
+					return Status::Success;
 				}
 
 				explored.insert(node->GetState());
@@ -242,7 +241,7 @@ namespace Planner {
 					}
 				}
 			}
-		};
+		}
 
 		virtual std::vector<Vertex> GetPath() override
 		{
@@ -264,7 +263,7 @@ namespace Planner {
 	private:
 		Parameters m_parameters;
 		Scope<AStarStateSpace<Vertex>> m_stateSpace;
-		double(&m_heuristicFcn)(const Vertex&, const Vertex&);
+		double (&m_heuristicFcn)(const Vertex&, const Vertex&);
 
 		Scope<Node> m_rootNode;
 		Node* m_solutionNode = nullptr;

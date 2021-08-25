@@ -35,7 +35,7 @@ namespace Planner {
 	 * @brief Interface to sample the configuration space as required by RRT 
 	 * algorithms.
 	 */
-	template<typename Vertex>
+	template <typename Vertex>
 	class RRTStateSpace : public virtual StateSpace<Vertex> {
 	public:
 		/**
@@ -67,7 +67,7 @@ namespace Planner {
 	 * @brief Interface to sample the configuration space as required by A* 
 	 * algorithms.
 	 */
-	template<typename Vertex>
+	template <typename Vertex>
 	class AStarStateSpace : public virtual StateSpace<Vertex> {
 	public:
 		/**

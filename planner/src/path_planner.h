@@ -6,6 +6,11 @@
 
 namespace Planner {
 
+	enum class Status {
+		Success,
+		Failure,
+	};
+
 	/**
 	 * @brief Solve path planning problems.
 	 * @details Templated class where Vertex is the type of the vertices. Its 
@@ -16,13 +21,13 @@ namespace Planner {
 	template <typename Vertex>
 	class PathPlanner {
 	public:
-		PathPlanner() {}
+		PathPlanner() { }
 		virtual ~PathPlanner() = default;
 
 		/**
 		 * @brief Search for the optimal collision-free path.
 		 */
-		virtual void SearchPath() = 0;
+		virtual Status SearchPath() = 0;
 
 		/**
 		 * @brief Return the optimal collision-free path.

@@ -42,5 +42,3 @@ namespace Planner {
 	#define PP_DEBUG_BREAK
 	#warning "Platform doesn't support debugbreak yet!"
 #endif // End of platform specific macro
-
-

@@ -36,7 +36,7 @@ namespace Planner {
 		const Parameters& GetParameters() const { return m_parameters; }
 		void SetParameters(const Parameters& params) { m_parameters = params; }
 
-		virtual void SearchPath() override
+		virtual Status SearchPath() override
 		{
 			m_tree.CreateRootNode(this->m_init);
 
@@ -83,9 +83,11 @@ namespace Planner {
 				// Check solution
 				if (m_stateSpace->ComputeDistance(newState, this->m_goal) < m_parameters.optimalSolutionTolerance) {
 					m_solutionNode = newNode;
-					break;
+					return Status::Success;
 				}
 			}
+
+			return Status::Failure;
 		}
 
 		virtual std::vector<Vertex> GetPath() override
