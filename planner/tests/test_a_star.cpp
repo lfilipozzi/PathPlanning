@@ -12,10 +12,9 @@ namespace Planner {
 
 	void TestRRTPath()
 	{
-		Planner::Scope<TestAStarStateSpace> stateSpaceScope = Planner::makeScope<TestAStarStateSpace>();
-		TestStateSpace* stateSpace = stateSpaceScope.get();
+		Planner::Ref<TestAStarStateSpace> stateSpace = Planner::makeRef<TestAStarStateSpace>();
 
-		Planner::AStar<Vertex> aStar(std::move(stateSpaceScope), Heuristic);
+		Planner::AStar<Vertex> aStar(stateSpace, Heuristic);
 		Planner::AStar<Vertex>::Parameters parameters;
 		aStar.SetParameters(parameters);
 

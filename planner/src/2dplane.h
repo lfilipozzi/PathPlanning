@@ -2,29 +2,19 @@
 
 #include <eigen3/Eigen/Dense>
 
+#include "core/hash.h"
 #include "state_space.h"
 
 using Vertex = Eigen::Vector2d;
-
-template <class T>
-inline void hash_combine(std::size_t& seed, const T& v)
-{
-	std::hash<T> hasher;
-	seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
 
 namespace std {
 	template <>
 	struct hash<Vertex> {
 		std::size_t operator()(const Vertex& state) const
 		{
-			using std::hash;
-			using std::size_t;
-			using std::string;
-
 			std::size_t seed = 0;
-			hash_combine(seed, state.x());
-			hash_combine(seed, state.y());
+			HashCombine(seed, state.x());
+			HashCombine(seed, state.y());
 			return seed;
 		}
 	};

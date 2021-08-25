@@ -16,7 +16,7 @@ int main(int /*argc*/, char** /*argv*/)
 	PP_INIT_LOGGER;
 	PP_INFO("Test");
 
-	Planner::AStar<Vertex> search(Planner::makeScope<Planner::TestAStarStateSpace>(), Heuristic);
+	Planner::AStar<Vertex> search(Planner::makeRef<Planner::TestAStarStateSpace>(), Heuristic);
 
 	Planner::AStar<Vertex>::Parameters parameters;
 	search.SetParameters(parameters);

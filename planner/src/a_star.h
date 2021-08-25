@@ -3,7 +3,9 @@
 #include <queue>
 #include <unordered_set>
 #include <unordered_map>
+#include <functional>
 #include "path_planner.h"
+#include "state_space.h"
 #include "tree.h"
 
 namespace Planner {
@@ -12,16 +14,15 @@ namespace Planner {
 	class AStar : public PathPlanner<Vertex> {
 	public:
 		/**
-		* @brief Tunable parameters of the RRT algorithm.
+		* @brief Tunable parameters of the A* algorithm.
 		*/
 		struct Parameters {
-			unsigned int maxIteration = 100;
 			double optimalSolutionTolerance = 0.05;
 		};
 
 	private:
 		/**
-		 * @brief Node metadata used by RRT star.
+		 * @brief Node metadata used by A* star.
 		 */
 		struct NodeMetadata {
 			double pathCost = 0;
@@ -174,8 +175,8 @@ namespace Planner {
 		 * <code>double Heuristic (const Vertex& from, const Vertex& to)</code>
 		 * where `from' is the origin state and `to' is the destination state. 
 		 */
-		AStar(Scope<AStarStateSpace<Vertex>>&& stateSpace, double (&heuristicFcn)(const Vertex&, const Vertex&)) :
-			m_stateSpace(std::move(stateSpace)), m_heuristicFcn(heuristicFcn) {};
+		AStar(const Ref<AStarStateSpace<Vertex>>& stateSpace, std::function<double(const Vertex&, const Vertex&)> heuristicFcn) :
+			m_stateSpace(stateSpace), m_heuristicFcn(heuristicFcn) {};
 		virtual ~AStar() = default;
 
 		Parameters& GetParameters() { return m_parameters; }
@@ -262,8 +263,8 @@ namespace Planner {
 
 	private:
 		Parameters m_parameters;
-		Scope<AStarStateSpace<Vertex>> m_stateSpace;
-		double (&m_heuristicFcn)(const Vertex&, const Vertex&);
+		Ref<AStarStateSpace<Vertex>> m_stateSpace;
+		std::function<double(const Vertex&, const Vertex&)> m_heuristicFcn;
 
 		Scope<Node> m_rootNode;
 		Node* m_solutionNode = nullptr;

@@ -6,10 +6,9 @@
 namespace Planner {
 	void TestRRTPath()
 	{
-		Planner::Scope<TestRRTStateSpace> stateSpaceScope = Planner::makeScope<TestRRTStateSpace>();
-		TestRRTStateSpace* stateSpace = stateSpaceScope.get();
+		Planner::Ref<TestRRTStateSpace> stateSpace = Planner::makeRef<TestRRTStateSpace>();
 
-		Planner::RRT<Vertex, 2> rrt(std::move(stateSpaceScope));
+		Planner::RRT<Vertex, 2> rrt(stateSpace);
 		Planner::RRT<Vertex, 2>::Parameters parameters;
 		rrt.SetParameters(parameters);
 

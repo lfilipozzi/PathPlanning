@@ -6,10 +6,9 @@
 namespace Planner {
 	void TestRRTStarPath()
 	{
-		Planner::Scope<TestRRTStateSpace> stateSpaceScope = Planner::makeScope<TestRRTStateSpace>();
-		TestRRTStateSpace* stateSpace = stateSpaceScope.get();
+		Planner::Ref<TestRRTStateSpace> stateSpace = Planner::makeRef<TestRRTStateSpace>();
 
-		Planner::RRTStar<Vertex, 2> rrtStar(std::move(stateSpaceScope));
+		Planner::RRTStar<Vertex, 2> rrtStar(stateSpace);
 		Planner::RRTStar<Vertex, 2>::Parameters parameters;
 		rrtStar.SetParameters(parameters);
 

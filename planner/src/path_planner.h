@@ -2,8 +2,6 @@
 
 #include <vector>
 
-#include "state_space.h"
-
 namespace Planner {
 
 	enum class Status {

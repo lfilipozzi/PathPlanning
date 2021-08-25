@@ -1,6 +1,7 @@
 #pragma once
 
 #include "path_planner.h"
+#include "state_space.h"
 #include "tree.h"
 
 namespace Planner {
@@ -28,8 +29,8 @@ namespace Planner {
 		 * @brief Constructor.
 		 * @param stateSpace
 		 */
-		RRTStar(Scope<RRTStateSpace<Vertex>>&& stateSpace) :
-			m_stateSpace(std::move(stateSpace)) {};
+		RRTStar(const Ref<RRTStateSpace<Vertex>>& stateSpace) :
+			m_stateSpace(stateSpace) {};
 		virtual ~RRTStar() = default;
 
 		Parameters& GetParameters() { return m_parameters; }
@@ -118,7 +119,7 @@ namespace Planner {
 
 	private:
 		Parameters m_parameters;
-		Scope<RRTStateSpace<Vertex>> m_stateSpace;
+		Ref<RRTStateSpace<Vertex>> m_stateSpace;
 
 		Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType> m_tree;
 		typename Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType>::Node* m_solutionNode = nullptr;
