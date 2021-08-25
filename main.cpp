@@ -3,6 +3,7 @@
 #include "2dplane.h"
 #include "core/assert.h"
 #include "core/log.h"
+#include "core/timer.h"
 
 double Heuristic(const Vertex& from, const Vertex& to)
 {
@@ -25,8 +26,11 @@ int main(int /*argc*/, char** /*argv*/)
 	search.SetInitState(start);
 	search.SetGoalState(goal);
 
+	Planner::Timer timer;
 	search.SearchPath();
+	PP_INFO(timer.ElapsedMillis());
 	std::vector<Vertex> path = search.GetPath();
+	PP_INFO(timer.ElapsedMillis());
 
 	std::cout << "Path: " << std::endl;
 	for (auto point : path) {
