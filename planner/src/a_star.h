@@ -10,7 +10,7 @@
 
 namespace Planner {
 
-	template <typename Vertex, class Hash = std::hash<Vertex>, typename VertexType = double>
+	template <typename Vertex, class Hash = std::hash<Vertex>>
 	class AStar : public PathPlanner<Vertex> {
 	public:
 		/**
@@ -202,7 +202,7 @@ namespace Planner {
 				auto node = frontier.Poll();
 
 				// Check if node is a solution
-				if (m_stateSpace->ComputeDistance(node->GetState(), this->m_goal) < m_parameters.optimalSolutionTolerance) {
+				if (m_stateSpace->ComputeDistance(node->GetState(), this->m_goal) < m_parameters.optimalSolutionTolerance) {// TODO does not always work (e.g. angle) modify compute distance by other function
 					m_solutionNode = node;
 					return Status::Success;
 				}
