@@ -7,6 +7,7 @@
 #include "path_planner.h"
 #include "state_space.h"
 #include "tree.h"
+#include "core/hash.h"
 
 namespace Planner {
 
@@ -17,7 +18,6 @@ namespace Planner {
 		* @brief Tunable parameters of the A* algorithm.
 		*/
 		struct Parameters {
-			double optimalSolutionTolerance = 0.05;
 		};
 
 	private:
@@ -44,27 +44,34 @@ namespace Planner {
 			using T = Node*;
 			using V = Vertex;
 
+		public:
+			PriorityQueue(const Ref<AStarStateSpace<Vertex>>& stateSpace) : m_stateSpace(stateSpace) {}
+
+			size_t Size() const { return m_vec.size(); }
+
 			bool Empty() const { return m_vec.empty(); }
 
-			void Push(const T& value)
+			void Push(const T& node)
 			{
-				auto [it, success] = m_map.insert({ value->GetState(), value });
+				V state = m_stateSpace->DiscretizeState(node->GetState());
+				auto [it, success] = m_map.insert({ state, node });
 				if (success) {
-					auto it = FindFirstElementStrictlySmallerThan(value);
-					m_vec.insert(it, value);
+					auto it = FindFirstElementStrictlySmallerThan(node);
+					m_vec.insert(it, node);
 				}
 			}
 
-			void Remove(const T& value)
+			void Remove(const T& node)
 			{
-				size_t removed = m_map.erase(value->GetState());
+				V state = m_stateSpace->DiscretizeState(node->GetState());
+				size_t removed = m_map.erase(state);
 				if (removed > 0) {
-					auto begin = FindLastElementBiggerThan(value);
+					auto begin = FindLastElementBiggerThan(node);
 					auto end = m_vec.end();
 
 					bool erased = false;
 					for (auto it = begin; it != end; it++) {
-						if (*it == value) {
+						if (*it == node) {
 							m_vec.erase(it);
 							erased = true;
 							break;
@@ -77,16 +84,18 @@ namespace Planner {
 			T Poll()
 			{
 				// Access last element
-				T elmt = m_vec.back();
+				T node = m_vec.back();
+				V state = m_stateSpace->DiscretizeState(node->GetState());
 				// Remove it
 				m_vec.pop_back();
-				m_map.erase(elmt->GetState());
-				return elmt;
+				m_map.erase(state);
+				return node;
 			}
 
 			const T* Find(const V& value) const
 			{
-				auto search = m_map.find(value);
+				V state = m_stateSpace->DiscretizeState(value);
+				auto search = m_map.find(state);
 				if (search != m_map.end())
 					return &(search->second);
 				return nullptr;
@@ -164,6 +173,7 @@ namespace Planner {
 		private:
 			std::vector<T> m_vec;
 			std::unordered_map<V, T, Hash> m_map;
+			Ref<AStarStateSpace<Vertex>> m_stateSpace;
 		};
 
 	public:
@@ -186,8 +196,9 @@ namespace Planner {
 		virtual Status SearchPath() override
 		{
 			m_rootNode = makeScope<Node>(this->m_init);
+			auto goalState = m_stateSpace->DiscretizeState(this->m_goal);
 
-			PriorityQueue frontier;
+			PriorityQueue frontier(m_stateSpace);
 			frontier.Push(m_rootNode.get());
 
 			std::unordered_set<Vertex> explored;
@@ -197,12 +208,13 @@ namespace Planner {
 				if (frontier.Empty()) {
 					return Status::Failure;
 				}
+				PP_INFO("Open: {0}, close: {1}", frontier.Size(), explored.size());
 
 				// Pop lowest-cost node of the frontier
 				auto node = frontier.Poll();
 
 				// Check if node is a solution
-				if (m_stateSpace->ComputeDistance(node->GetState(), this->m_goal) < m_parameters.optimalSolutionTolerance) {// TODO does not always work (e.g. angle) modify compute distance by other function
+				if (m_stateSpace->DiscretizeState(node->GetState()) == goalState) {
 					m_solutionNode = node;
 					return Status::Success;
 				}

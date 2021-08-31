@@ -61,6 +61,15 @@ namespace Planner {
 
 	class TestAStarStateSpace : public AStarStateSpace<Vertex>, public TestStateSpace {
 	public:
+		virtual Vertex DiscretizeState(const Vertex& state) override
+		{
+			const double spatialResolution = 1.0f;
+			return {
+				static_cast<int>(state.x() / spatialResolution),
+				static_cast<int>(state.y() / spatialResolution)
+			};
+		}
+
 		virtual std::tuple<double, bool> SteerExactly(const Vertex& source, const Vertex& target) override
 		{
 			Vertex delta = source - target;

@@ -27,8 +27,8 @@ namespace Planner {
 		std::vector<Vertex> path = aStar.GetPath();
 
 		assert(!path.empty());
-		assert(stateSpace->ComputeDistance(start, path.front()) <= parameters.optimalSolutionTolerance);
-		assert(stateSpace->ComputeDistance(goal, path.back()) <= parameters.optimalSolutionTolerance);
+		assert(stateSpace->DiscretizeState(start) == stateSpace->DiscretizeState(path.front()));
+		assert(stateSpace->DiscretizeState(goal) == stateSpace->DiscretizeState(path.back()));
 	}
 }
 

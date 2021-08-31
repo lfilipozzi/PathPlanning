@@ -4,7 +4,6 @@
 #include <cmath>
 
 #include <eigen3/Eigen/Dense>
-#include "core/hash.h"
 #include "path_planner.h"
 #include "a_star.h"
 

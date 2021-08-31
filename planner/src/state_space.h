@@ -71,6 +71,11 @@ namespace Planner {
 	class AStarStateSpace : public virtual StateSpace<Vertex> {
 	public:
 		/**
+		 * @brief Discretize the configuration space.
+		 */
+		virtual Vertex DiscretizeState(const Vertex& state) = 0;
+
+		/**
 		 * @brief Given a point, returns a list of all neighboring positions.
 		 * @details The active state
 		 * @return A list of all neighboring positions.
