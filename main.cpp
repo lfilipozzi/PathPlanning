@@ -1,6 +1,6 @@
 #include "core/base.h"
 #include "a_star.h"
-#include "2dplane.h"
+#include "geometry/2dplane.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/timer.h"

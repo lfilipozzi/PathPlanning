@@ -1,6 +1,6 @@
 #include "core/base.h"
 #include "a_star.h"
-#include "2dplane.h"
+#include "geometry/2dplane.h"
 #include "core/log.h"
 
 namespace Planner {
@@ -10,7 +10,7 @@ namespace Planner {
 		return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
 	}
 
-	void TestRRTPath()
+	void TestAStar()
 	{
 		Planner::Ref<TestAStarStateSpace> stateSpace = Planner::makeRef<TestAStarStateSpace>();
 
@@ -35,7 +35,7 @@ namespace Planner {
 int main()
 {
 	PP_INIT_LOGGER;
-	Planner::TestRRTPath();
+	Planner::TestAStar();
 
 	return 0;
 }

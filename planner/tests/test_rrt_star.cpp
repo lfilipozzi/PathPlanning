@@ -1,6 +1,6 @@
 #include "core/base.h"
 #include "rrt_star.h"
-#include "2dplane.h"
+#include "geometry/2dplane.h"
 #include "core/log.h"
 
 namespace Planner {
