@@ -4,6 +4,8 @@
 #include "core/log.h"
 
 namespace Planner {
+	using Vertex = Point2D;
+
 	void TestRRTStarPath()
 	{
 		Planner::Ref<TestRRTStateSpace> stateSpace = Planner::makeRef<TestRRTStateSpace>();

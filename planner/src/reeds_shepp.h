@@ -1,7 +1,7 @@
 #pragma once
 
 namespace Planner {
-	
+
 	namespace ReedsSheep {
 		enum class PathWords {
 			LfSfLf, // Reeds-Shepp 8.1: CSC, same turn
@@ -29,7 +29,7 @@ namespace Planner {
 			RfLfRb,
 			RbLbRf,
 
-			LfRufLubRb, // Reeds-Shepp 8.7: CCu|CuC 
+			LfRufLubRb, // Reeds-Shepp 8.7: CCu|CuC
 			LbRubLufRf,
 			RfLufRubLb,
 			RbLubRufLf,
@@ -64,10 +64,9 @@ namespace Planner {
 			RfLbpi2SbRbpi2Lf,
 			RbLfpi2SfRfpi2Lb
 		};
-		
+
 		class Solver {
-			
 		};
-		
+
 	};
 }

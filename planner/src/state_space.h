@@ -71,23 +71,18 @@ namespace Planner {
 	class AStarStateSpace : public virtual StateSpace<Vertex> {
 	public:
 		/**
-		 * @brief Discretize the configuration space.
-		 */
-		virtual Vertex DiscretizeState(const Vertex& state) = 0;
-
-		/**
 		 * @brief Given a point, returns a list of all neighboring positions.
 		 * @details The active state
 		 * @return A list of all neighboring positions.
 		 */
-		virtual std::vector<Vertex> GetNeighborStates(Vertex state) = 0;
+		virtual std::vector<Vertex> GetNeighborStates(const Vertex& state) = 0;
 
 		/**
-		 * @brief Construct a path that connects the node @source to the node 
-		 * @target.
+		 * @brief Return the cost associated to the transition from @source to 
+		 * @target and indicate if the transition is valid.
 		 * @return A tuple containing the cost to go from the source to the 
 		 * target and a boolean indicating if the path is collision-free.
 		 */
-		virtual std::tuple<double, bool> SteerExactly(const Vertex& source, const Vertex& target) = 0;
+		virtual std::tuple<double, bool> GetTransition(const Vertex& source, const Vertex& target) = 0; // TODO FIXME do we need to check if colision is valid here or in GetNeighborStates
 	};
 }

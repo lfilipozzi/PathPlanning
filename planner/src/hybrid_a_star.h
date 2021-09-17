@@ -7,36 +7,56 @@
 #include "geometry/pose.h"
 
 namespace Planner {
-	class HybridAStar : public PathPlanner<Pose> {
+	class HybridAStar : public PathPlanner<Pose2D<>> {
 	private:
-		class HybridAStarStateSpace : public AStarStateSpace<Pose> {
-		public:
-			HybridAStarStateSpace(double spatialResolution = 1.0, double angularResolution = 0.0872) : 
-				spatialResolution(spatialResolution), angularResolution(angularResolution) {}
+		struct State {
+			Pose2D<> continuous;
+			Pose2D<int> discrete;
 
-			virtual Pose DiscretizeState(const Pose& state) override
+			bool operator==(const State& rhs) const
+			{
+				return discrete == rhs.discrete;
+			}
+		};
+
+	public:
+		class StateSpace : public AStarStateSpace<State> {
+		public:
+			StateSpace(double spatialResolution = 1.0, double angularResolution = 0.0872) :
+				spatialResolution(spatialResolution), angularResolution(angularResolution) { }
+
+			Pose2D<int> DiscretizePose(const Pose2D<> pose)
 			{
 				return {
-					static_cast<int>(state.x / spatialResolution),
-					static_cast<int>(state.y / spatialResolution),
-					static_cast<int>(state.WrapTheta() / angularResolution),
+					static_cast<int>(pose.x / spatialResolution),
+					static_cast<int>(pose.y / spatialResolution),
+					static_cast<int>(pose.WrapTheta() / angularResolution),
 				};
 			}
 
-			virtual double ComputeDistance(const Pose& from, const Pose& to) const override
+			State CreateState(const Pose2D<>& pose)
 			{
-				Pose delta = from - to;
+				State state;
+				state.continuous = pose;
+				state.discrete = DiscretizePose(pose);
+
+				return state;
+			}
+
+			virtual double ComputeDistance(const State& from, const State& to) const override
+			{
+				auto delta = from.continuous - to.continuous;
 				return sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
 			}
-			
-			virtual bool IsTransitionCollisionFree(const Pose& /*from*/, const Pose& /*to*/) override
+
+			virtual bool IsTransitionCollisionFree(const State& /*from*/, const State& /*to*/) override
 			{
 				return true;
 			}
-			
-			virtual std::tuple<double, bool> SteerExactly(const Pose& from, const Pose& to) override
+
+			virtual std::tuple<double, bool> GetTransition(const State& from, const State& to) override
 			{
-				Pose delta = from - to;
+				auto delta = from.continuous - to.continuous;
 				double dist = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
 				return { dist, true };
 			}
@@ -45,65 +65,68 @@ namespace Planner {
 			 * @brief Update state assuming constant steer angle  and bicycle
 			 * kinematic model.
 			 */
-			Pose ConstantSteer(const Pose& state, double delta, bool reverse = false)
+			State ConstantSteer(const State& state, double delta, bool reverse = false)
 			{
 				double L = 2.6; // Wheelbase
 				double b = L / 2; // Distance to rear axle
-				
+
 				// Compute distance to travel to another cell
 				double spatialResolution = 1.0;
 				double d = spatialResolution * 1.5;
 				if (reverse)
 					d = -d;
-				
+
 				// States
-				double x = state.x;
-				double y = state.y;
-				double theta = state.theta;
-				
+				auto cont_pose = state.continuous;
+				double& x = cont_pose.x;
+				double& y = cont_pose.y;
+				double& theta = cont_pose.theta;
+
 				// Update states
 				double beta = atan(b * tan(delta) / L);
 				x = x + d * cos(theta + beta);
 				y = y + d * sin(theta + beta);
 				theta = theta + d * cos(beta) * tan(delta) / L;
-				
-				return {x, y, theta};
+
+				// Create new state
+				State next = CreateState(cont_pose);
+
+				return next;
 			}
 
-			virtual std::vector<Pose> GetNeighborStates(Pose state) override
+			virtual std::vector<State> GetNeighborStates(const State& state) override
 			{
 				std::vector<double> deltas = { -10, -7.5, -5, -2.5, -0, 2.5, 5, 7.5, 10 };
 
-				std::vector<Pose> neighbors;
+				std::vector<State> neighbors;
 				neighbors.reserve(deltas.size());
 				for (double delta : deltas) {
 					neighbors.push_back(ConstantSteer(state, delta));
 				}
 				return neighbors;
 			}
-			
+
 			const double spatialResolution;
 			const double angularResolution;
 		};
-	
+
+	private:
 		/**
 		 * @brief Hash to discretize the 3D configuration space.
-		 * @details Two vertex are considered equal if they correspond to the 
+		 * @details Two states are considered equal if they correspond to the 
 		 * same"cell", i.e. they have their position difference is less than the
 		 * spatial resolution and if their heading difference is less than the 
 		 * angular resolution.
 		 */
-		struct HashPose {
-			std::size_t operator()(const Pose& state) const
+		struct HashState {
+			std::size_t operator()(const State& state) const
 			{
-				std::size_t seed = 0;
-				HashCombine(seed, state.x);
-				HashCombine(seed, state.y);
-				HashCombine(seed, state.WrapTheta());
-				return seed;
+				auto pose = state.discrete;
+				std::hash<Pose2D<int>> hasher;
+				return hasher(pose);
 			}
 		};
-		
+
 		/**
 		 * @brief Heuristic used by the A* algorithm.
 		 * @details Use the maximum of two heuristic:
@@ -113,59 +136,72 @@ namespace Planner {
 		 * by running a 2D flow fields algorithm.
 		 */
 		struct Heuristic {
-			Heuristic(const Ref<AStarStateSpace<Pose>>& stateSpace) : stateSpace(stateSpace) {}
+			Heuristic(const Ref<AStarStateSpace<State>>& stateSpace) :
+				stateSpace(stateSpace) { }
 
-			double HeuristicConstraintsWithoutObstacles(const Pose& from, const Pose& to)
+			double HeuristicConstraintsWithoutObstacles(const State& from, const State& to)
 			{
 				// TODO compute arc
-				Pose delta = from - to;
+				auto delta = from.continuous - to.continuous;
 				double euclidean = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
 				return euclidean;
 			}
-			
-			double HeuristicObstaclesWithoutConstraints(const Pose& /*from*/, const Pose& /*to*/)
+
+			double HeuristicObstaclesWithoutConstraints(const State& /*from*/, const State& /*to*/)
 			{
 				// TODO use flow-fields algorithm
 				return 0.0;
 			}
-			
-			double operator()(const Pose& from, const Pose& to)
+
+			double operator()(const State& from, const State& to)
 			{
 				return std::max(
-					HeuristicConstraintsWithoutObstacles(from, to), 
-					HeuristicObstaclesWithoutConstraints(from, to) 
-				);
+					HeuristicConstraintsWithoutObstacles(from, to),
+					HeuristicObstaclesWithoutConstraints(from, to));
 			}
-			
-			Ref<AStarStateSpace<Pose>> stateSpace;
+
+			Ref<AStarStateSpace<State>> stateSpace;
 		};
-		
+
 	public:
-		HybridAStar(const Ref<AStarStateSpace<Pose>>& stateSpace) :
-			m_AStarPoseSearch(stateSpace, Heuristic(stateSpace)) {};
+		HybridAStar(const Ref<StateSpace>& stateSpace = makeRef<StateSpace>()) :
+			m_stateSpace(stateSpace)
+		{
+			m_aStarSearch = makeScope<AStar<State, HashState>>(m_stateSpace, Heuristic(m_stateSpace));
+		}
 		virtual ~HybridAStar() = default;
-		
+
 		virtual Status SearchPath() override
 		{
-			// Run A* on 3D Vertex
-			m_AStarPoseSearch.SetInitState(this->m_init);
-			m_AStarPoseSearch.SetGoalState(this->m_goal);
-			auto status = m_AStarPoseSearch.SearchPath();
-			m_path = m_AStarPoseSearch.GetPath();
+			// Run A* on 2D pose
+			State init_state = m_stateSpace->CreateState(this->m_init);
+			State goal_state = m_stateSpace->CreateState(this->m_goal);
+			m_aStarSearch->SetInitState(init_state);
+			m_aStarSearch->SetGoalState(goal_state);
+			auto status = m_aStarSearch->SearchPath();
+
+			auto solutionStates = m_aStarSearch->GetPath();
+			m_path.reserve(solutionStates.size());
+			for (auto state : solutionStates) {
+				m_path.push_back(state.continuous);
+			}
 
 			// Smooth the path
-			// TODO 
-			
+			// TODO
+
 			return status;
 		}
-		
-		virtual std::vector<Pose> GetPath() override
+
+		virtual std::vector<Pose2D<>> GetPath() override
 		{
 			return m_path;
 		}
-		
+
+		Ref<AStarStateSpace<State>> GetStateSpace() const { return m_aStarSearch->GetStateSpace(); }
+
 	private:
-		AStar<Pose, HashPose> m_AStarPoseSearch;
-		std::vector<Pose> m_path;
+		Ref<StateSpace> m_stateSpace;
+		Scope<AStar<State, HashState>> m_aStarSearch;
+		std::vector<Pose2D<>> m_path;
 	};
 }

@@ -21,3 +21,7 @@ add_test(testRRTStar testRRTStar)
 add_executable(testAStar test_a_star.cpp)
 target_link_libraries(testAStar flann ${logger_LIB})
 add_test(testAStar testAStar)
+
+add_executable(testHybridAStar test_hybrid_a_star.cpp)
+target_link_libraries(testHybridAStar flann ${logger_LIB})
+add_test(testHybridAStar testHybridAStar)

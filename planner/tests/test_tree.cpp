@@ -3,6 +3,8 @@
 #include "core/log.h"
 
 namespace Planner {
+	using Vertex = Point2D;
+
 	void TestNodeGetDepth()
 	{
 		Planner::Tree<Vertex, 2> tree;

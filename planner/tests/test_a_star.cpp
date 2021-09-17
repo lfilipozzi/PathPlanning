@@ -4,9 +4,9 @@
 #include "core/log.h"
 
 namespace Planner {
-	double Heuristic(const Vertex& from, const Vertex& to)
+	double Heuristic(const Point2DInt& from, const Point2DInt& to)
 	{
-		Vertex delta = from - to;
+		Point2DInt delta = from - to;
 		return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
 	}
 
@@ -14,21 +14,21 @@ namespace Planner {
 	{
 		Planner::Ref<TestAStarStateSpace> stateSpace = Planner::makeRef<TestAStarStateSpace>();
 
-		Planner::AStar<Vertex> aStar(stateSpace, Heuristic);
-		Planner::AStar<Vertex>::Parameters parameters;
+		Planner::AStar<Point2DInt> aStar(stateSpace, Heuristic);
+		Planner::AStar<Point2DInt>::Parameters parameters;
 		aStar.SetParameters(parameters);
 
-		Vertex start = { 0.0, 0.0 };
-		Vertex goal = { 2.0, 2.0 };
+		Point2DInt start = { 0.0, 0.0 };
+		Point2DInt goal = { 10.0, 5.0 };
 		aStar.SetInitState(start);
 		aStar.SetGoalState(goal);
 
 		aStar.SearchPath();
-		std::vector<Vertex> path = aStar.GetPath();
+		std::vector<Point2DInt> path = aStar.GetPath();
 
 		assert(!path.empty());
-		assert(stateSpace->DiscretizeState(start) == stateSpace->DiscretizeState(path.front()));
-		assert(stateSpace->DiscretizeState(goal) == stateSpace->DiscretizeState(path.back()));
+		assert(start == path.front());
+		assert(goal == path.back());
 	}
 }
 

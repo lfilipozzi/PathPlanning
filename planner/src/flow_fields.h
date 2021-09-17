@@ -9,7 +9,7 @@ namespace Planner {
 	/**
 	 * @brief Flow fields algorithm.
 	 */
-	template <typename Vertex, typename Dimensions>
+	template <typename State, typename Dimensions>
 	class FlowFields {
 	public:
 		FlowFields() {};
@@ -27,10 +27,10 @@ namespace Planner {
 		 * @brief Update the field until the cost at position @targetX, and 
 		 * @targetY is known.
 		 */
-		void CalculateField(Vertex goal)
+		void CalculateField(State goal)
 		{
 			m_frontier.reserve(std::pow(m_arrayWidth, Dimensions));
-			
+
 			// TODO unsigned int goalID = targetY * m_arrayWidth + targetX;
 			unsigned int goalID;
 
@@ -43,8 +43,8 @@ namespace Planner {
 				// Get the next node in the open list
 				unsigned currentID = m_frontier.Poll();
 
-// 				unsigned short currentX = currentID % m_arrayWidth;
-// 				unsigned short currentY = currentID / m_arrayWidth;
+				// 				unsigned short currentX = currentID % m_arrayWidth;
+				// 				unsigned short currentY = currentID / m_arrayWidth;
 
 				for (auto neighbor : m_stateSpace->GetNeighbors(currentX, currentY)) {
 					// Calculate the new cost of the neighbor node
@@ -65,21 +65,17 @@ namespace Planner {
 				}
 			}
 		}
-		
+
 	private:
 		void ResetField()
 		{
-			
 		}
-		
+
 	private:
-		Ref<AStarStateSpace<Vertex>> m_stateSpace;
+		Ref<AStarStateSpace<State>> m_stateSpace;
 
 		const unsigned int m_arrayWidth = 100;
 		std::vector<unsigned int> m_frontier;
 		CostField m_costField;
 	};
 }
-
-
-

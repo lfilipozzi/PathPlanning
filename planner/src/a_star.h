@@ -11,8 +11,11 @@
 
 namespace Planner {
 
-	template <typename Vertex, class Hash = std::hash<Vertex>>
-	class AStar : public PathPlanner<Vertex> {
+	/**
+	 * @brief Implementation of the A* algorithm.
+	 */
+	template <typename State, class Hash = std::hash<State>>
+	class AStar : public PathPlanner<State> {
 	public:
 		/**
 		* @brief Tunable parameters of the A* algorithm.
@@ -28,7 +31,7 @@ namespace Planner {
 			double pathCost = 0;
 			double totalCost = 0;
 		};
-		using Node = GenericNode<Vertex, NodeMetadata>;
+		using Node = GenericNode<State, NodeMetadata>;
 
 		/**
 		 * @brief Implementation of a priority queue storing Node* ranked 
@@ -40,12 +43,11 @@ namespace Planner {
 		 * descending order of path-cost.
 		 */
 		class PriorityQueue {
-		public:
 			using T = Node*;
-			using V = Vertex;
 
 		public:
-			PriorityQueue(const Ref<AStarStateSpace<Vertex>>& stateSpace) : m_stateSpace(stateSpace) {}
+			PriorityQueue(const Ref<AStarStateSpace<State>>& stateSpace) :
+				m_stateSpace(stateSpace) { }
 
 			size_t Size() const { return m_vec.size(); }
 
@@ -53,7 +55,7 @@ namespace Planner {
 
 			void Push(const T& node)
 			{
-				V state = m_stateSpace->DiscretizeState(node->GetState());
+				State& state = node->GetState();
 				auto [it, success] = m_map.insert({ state, node });
 				if (success) {
 					auto it = FindFirstElementStrictlySmallerThan(node);
@@ -63,7 +65,7 @@ namespace Planner {
 
 			void Remove(const T& node)
 			{
-				V state = m_stateSpace->DiscretizeState(node->GetState());
+				State& state = node->GetState();
 				size_t removed = m_map.erase(state);
 				if (removed > 0) {
 					auto begin = FindLastElementBiggerThan(node);
@@ -84,17 +86,16 @@ namespace Planner {
 			T Poll()
 			{
 				// Access last element
-				T node = m_vec.back();
-				V state = m_stateSpace->DiscretizeState(node->GetState());
+				T& node = m_vec.back();
+				State& state = node->GetState();
 				// Remove it
 				m_vec.pop_back();
 				m_map.erase(state);
 				return node;
 			}
 
-			const T* Find(const V& value) const
+			const T* Find(const State& state) const
 			{
-				V state = m_stateSpace->DiscretizeState(value);
 				auto search = m_map.find(state);
 				if (search != m_map.end())
 					return &(search->second);
@@ -172,8 +173,8 @@ namespace Planner {
 
 		private:
 			std::vector<T> m_vec;
-			std::unordered_map<V, T, Hash> m_map;
-			Ref<AStarStateSpace<Vertex>> m_stateSpace;
+			std::unordered_map<State, T, Hash> m_map;
+			Ref<AStarStateSpace<State>> m_stateSpace;
 		};
 
 	public:
@@ -182,10 +183,10 @@ namespace Planner {
 		 * @param stateSpace The configuration space.
 		 * @param heuristic The heuristic used by the algorithm. Its prototype 
 		 * is:
-		 * <code>double Heuristic (const Vertex& from, const Vertex& to)</code>
+		 * <code>double Heuristic (const State& from, const State& to)</code>
 		 * where `from' is the origin state and `to' is the destination state. 
 		 */
-		AStar(const Ref<AStarStateSpace<Vertex>>& stateSpace, std::function<double(const Vertex&, const Vertex&)> heuristicFcn) :
+		AStar(const Ref<AStarStateSpace<State>>& stateSpace, std::function<double(const State&, const State&)> heuristicFcn) :
 			m_stateSpace(stateSpace), m_heuristicFcn(heuristicFcn) {};
 		virtual ~AStar() = default;
 
@@ -196,12 +197,11 @@ namespace Planner {
 		virtual Status SearchPath() override
 		{
 			m_rootNode = makeScope<Node>(this->m_init);
-			auto goalState = m_stateSpace->DiscretizeState(this->m_goal);
 
 			PriorityQueue frontier(m_stateSpace);
 			frontier.Push(m_rootNode.get());
 
-			std::unordered_set<Vertex> explored;
+			std::unordered_set<State, Hash> explored;
 			explored.insert(m_rootNode->GetState());
 
 			while (true) {
@@ -214,18 +214,20 @@ namespace Planner {
 				auto node = frontier.Poll();
 
 				// Check if node is a solution
-				if (m_stateSpace->DiscretizeState(node->GetState()) == goalState) {
+				if (node->GetState() == this->m_goal) {
 					m_solutionNode = node;
 					return Status::Success;
 				}
 
 				explored.insert(node->GetState());
 
-				for (Vertex childVertex : m_stateSpace->GetNeighborStates(node->GetState())) {
+				for (State childState : m_stateSpace->GetNeighborStates(node->GetState())) {
 					// Create the child node
-					Scope<Node> childScope = makeScope<Node>(childVertex);
+					Scope<Node> childScope = makeScope<Node>(childState);
 					Node* child = childScope.get();
-					auto [transitionCost, transitionCollisionFree] = m_stateSpace->SteerExactly(node->GetState(), child->GetState());
+					auto [transitionCost, isTransitionCollisionFree] = m_stateSpace->GetTransition(node->GetState(), child->GetState());
+					if (!isTransitionCollisionFree)
+						continue;
 					child->meta.pathCost = node->meta.pathCost + transitionCost;
 					child->meta.totalCost = child->meta.pathCost + m_heuristicFcn(child->GetState(), this->m_goal);
 
@@ -256,9 +258,9 @@ namespace Planner {
 			}
 		}
 
-		virtual std::vector<Vertex> GetPath() override
+		virtual std::vector<State> GetPath() override
 		{
-			std::vector<Vertex> path;
+			std::vector<State> path;
 
 			auto node = m_solutionNode;
 			if (!node)
@@ -273,10 +275,12 @@ namespace Planner {
 			return path;
 		}
 
+		Ref<AStarStateSpace<State>> GetStateSpace() const { return m_stateSpace; }
+
 	private:
 		Parameters m_parameters;
-		Ref<AStarStateSpace<Vertex>> m_stateSpace;
-		std::function<double(const Vertex&, const Vertex&)> m_heuristicFcn;
+		Ref<AStarStateSpace<State>> m_stateSpace;
+		std::function<double(const State&, const State&)> m_heuristicFcn;
 
 		Scope<Node> m_rootNode;
 		Node* m_solutionNode = nullptr;
