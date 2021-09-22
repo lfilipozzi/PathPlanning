@@ -2,14 +2,15 @@
 #include "rrt.h"
 #include "geometry/2dplane.h"
 #include "core/log.h"
+#include "state_space/rrt_state_space_2d.h"
 
 namespace Planner {
 	void TestRRTPath()
 	{
-		Planner::Ref<TestRRTStateSpace> stateSpace = Planner::makeRef<TestRRTStateSpace>();
+		auto stateSpace = Planner::makeRef<RRTStateSpace2D>();
 
 		Planner::RRT<Point2D, 2> rrt(stateSpace);
-		Planner::RRT<Point2D, 2>::Parameters parameters;
+		Planner::RRTParameters parameters;
 		rrt.SetParameters(parameters);
 
 		Point2D start = { 0.0, 0.0 };

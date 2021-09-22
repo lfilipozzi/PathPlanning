@@ -2,16 +2,17 @@
 #include "rrt_star.h"
 #include "geometry/2dplane.h"
 #include "core/log.h"
+#include "state_space/rrt_star_state_space_2d.h"
 
 namespace Planner {
 	using Vertex = Point2D;
 
 	void TestRRTStarPath()
 	{
-		Planner::Ref<TestRRTStateSpace> stateSpace = Planner::makeRef<TestRRTStateSpace>();
+		auto stateSpace = Planner::makeRef<RRTStarStateSpace2D>();
 
 		Planner::RRTStar<Vertex, 2> rrtStar(stateSpace);
-		Planner::RRTStar<Vertex, 2>::Parameters parameters;
+		Planner::RRTStarParameters parameters;
 		rrtStar.SetParameters(parameters);
 
 		Vertex start = { 0.0, 0.0 };

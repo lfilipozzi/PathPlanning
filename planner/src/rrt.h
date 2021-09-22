@@ -7,19 +7,42 @@
 namespace Planner {
 
 	/**
-	* @brief Implementation of the Rapidly-exploring Random Trees (RRT).
-	*/
-	template <typename Vertex, unsigned int Dimensions, class Hash = std::hash<Vertex>, typename VertexType = double>
-	class RRT : public PathPlanner<Vertex> {
+	 * @brief Interface to sample the configuration space as required by RRT 
+	 * algorithms.
+	 */
+	template <typename Vertex>
+	class RRTStateSpace : public virtual StateSpace<Vertex> {
 	public:
 		/**
-		* @brief Tunable parameters of the RRT algorithm.
-		*/
-		struct Parameters {
-			unsigned int maxIteration = 100;
-			double optimalSolutionTolerance = 1;
-		};
+		 * @brief Generate a random state within the configuration space.
+		 * @details The sample must not be inside an obstacle.
+		 * @return A random state.
+		 */
+		virtual Vertex Sample() = 0;
 
+		/**
+		 * @brief Construct a new state by moving an incremental distance 
+		 * from @source towards @target.
+		 * @details The path is not assumed to bring exactly to target but it 
+		 * must evolve towards it.
+		 * @return The new state.
+		 */
+		virtual Vertex SteerTowards(const Vertex& source, const Vertex& target) = 0;
+	};
+
+	/**
+	 * @brief Tunable parameters of the RRT algorithm.
+	 */
+	struct RRTParameters {
+		unsigned int maxIteration = 100;
+		double optimalSolutionTolerance = 1;
+	};
+
+	/**
+	 * @brief Implementation of the Rapidly-exploring Random Trees (RRT).
+	 */
+	template <typename Vertex, unsigned int Dimensions, class Hash = std::hash<Vertex>, typename VertexType = double>
+	class RRT : public PathPlanner<Vertex> {
 	public:
 		/**
 		 * @brief Constructor.
@@ -29,9 +52,9 @@ namespace Planner {
 			m_stateSpace(stateSpace) {};
 		virtual ~RRT() = default;
 
-		Parameters& GetParameters() { return m_parameters; }
-		const Parameters& GetParameters() const { return m_parameters; }
-		void SetParameters(const Parameters& params) { m_parameters = params; }
+		RRTParameters& GetParameters() { return m_parameters; }
+		const RRTParameters& GetParameters() const { return m_parameters; }
+		void SetParameters(const RRTParameters& params) { m_parameters = params; }
 
 		virtual Status SearchPath() override
 		{
@@ -87,7 +110,7 @@ namespace Planner {
 		}
 
 	private:
-		Parameters m_parameters;
+		RRTParameters m_parameters;
 		Ref<RRTStateSpace<Vertex>> m_stateSpace;
 
 		Tree<Vertex, Dimensions, VoidClass, Hash, VertexType> m_tree;

@@ -7,6 +7,7 @@
 
 	#include "a_star.h"
 	#include "geometry/2dplane.h"
+	#include "planner/tests/state_space/a_star_state_space_2d.h" 
 
 double Heuristic(const Point2DInt& from, const Point2DInt& to)
 {
@@ -18,9 +19,9 @@ int main(int /*argc*/, char** /*argv*/)
 {
 	PP_INIT_LOGGER;
 
-	Planner::AStar<Point2DInt> search(Planner::makeRef<Planner::TestAStarStateSpace>(), Heuristic);
+	Planner::AStar<Point2DInt> search(Planner::makeRef<Planner::AStarStateSpace2D>(), Heuristic);
 
-	Planner::AStar<Point2DInt>::Parameters parameters;
+	Planner::AStarParameters parameters;
 	search.SetParameters(parameters);
 
 	Point2DInt start = { 0.0, 0.0 };

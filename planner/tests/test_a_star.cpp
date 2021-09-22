@@ -2,6 +2,7 @@
 #include "a_star.h"
 #include "geometry/2dplane.h"
 #include "core/log.h"
+#include "state_space/a_star_state_space_2d.h"
 
 namespace Planner {
 	double Heuristic(const Point2DInt& from, const Point2DInt& to)
@@ -12,10 +13,10 @@ namespace Planner {
 
 	void TestAStar()
 	{
-		Planner::Ref<TestAStarStateSpace> stateSpace = Planner::makeRef<TestAStarStateSpace>();
+		auto stateSpace = Planner::makeRef<AStarStateSpace2D>();
 
 		Planner::AStar<Point2DInt> aStar(stateSpace, Heuristic);
-		Planner::AStar<Point2DInt>::Parameters parameters;
+		Planner::AStarParameters parameters;
 		aStar.SetParameters(parameters);
 
 		Point2DInt start = { 0.0, 0.0 };

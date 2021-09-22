@@ -6,7 +6,7 @@
 namespace Planner {
 	void TestHybridAStar()
 	{
-		Ref<HybridAStar::StateSpace> stateSpace = makeRef<HybridAStar::StateSpace>();
+		auto stateSpace = makeRef<HybridAStar::StateSpace>();
 
 		HybridAStar hybridAStar(stateSpace);
 

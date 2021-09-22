@@ -23,9 +23,9 @@ namespace Planner {
 		~GenericNode() = default;
 
 		/**
-				* @brief Compute the depth of the node in the tree.
-				* @return The depth.
-				*/
+		 * @brief Compute the depth of the node in the tree.
+		 * @return The depth.
+		 */
 		[[nodiscard]] unsigned int GetDepth() const
 		{
 			unsigned int depth = 0;
@@ -36,23 +36,23 @@ namespace Planner {
 		}
 
 		/**
-			* @brief Return the parent of the node.
-			* @return The parent of the node.
-			*/
+		 * @brief Return the parent of the node.
+		 * @return The parent of the node.
+		 */
 		const GenericNode* GetParent() const { return m_parent; }
 		GenericNode* GetParent() { return m_parent; }
 
 		/**
-			* @brief Return the state of the node.
-			* @return The state of the node.
-			*/
+		 * @brief Return the state of the node.
+		 * @return The state of the node.
+		 */
 		const State& GetState() const { return m_state; }
 		State& GetState() { return m_state; }
 
 		/**
-			 * @brief Check if the current node if a child of @node.
-			 * @return True if the @this is a child of @node, false otherwise.
-			 */
+		 * @brief Check if the current node if a child of @node.
+		 * @return True if the @this is a child of @node, false otherwise.
+		 */
 		[[nodiscard]] bool IsDescendantOf(const GenericNode* const node) const
 		{
 			GenericNode* parent = m_parent;
@@ -65,19 +65,19 @@ namespace Planner {
 		}
 
 		/**
-			 * @brief Check if the current node is a parent of @node.
-			 * @return True if @this is a parent of @node, false otherwise.
-			 */
+		 * @brief Check if the current node is a parent of @node.
+		 * @return True if @this is a parent of @node, false otherwise.
+		 */
 		[[nodiscard]] bool IsAncestorOf(const GenericNode* const node) const
 		{
 			return node->IsDescendantOf(this);
 		}
 
 		/**
-			* @brief Set @node as a child of the current node.
-			* @details Change the ownership of the node.
-			* @return The child node.
-			*/
+		 * @brief Set @node as a child of the current node.
+		 * @details Change the ownership of the node.
+		 * @return The child node.
+		 */
 		GenericNode* AddChild(Scope<GenericNode>&& node)
 		{
 			node->m_parent = this;
@@ -86,14 +86,14 @@ namespace Planner {
 		}
 
 		/**
-			 * @brief Remove the node @node. @node must be a child of the 
-			 * current node.
-			 * @details This method does not delete the node @node and its 
-			 * children, it only remove the ownership of @node by its parent.
-			 * @param node The child to remove.
-			 * @return A smart pointer owning the removed child and its possible
-			 * children.
-			 */
+		 * @brief Remove the node @node. @node must be a child of the 
+		 * current node.
+		 * @details This method does not delete the node @node and its 
+		 * children, it only remove the ownership of @node by its parent.
+		 * @param node The child to remove.
+		 * @return A smart pointer owning the removed child and its possible
+		 * children.
+		 */
 		Scope<GenericNode> RemoveChild(GenericNode* node)
 		{
 			Scope<GenericNode> childScope;
@@ -188,10 +188,10 @@ namespace Planner {
 	};
 
 	/**
-	* @brief Tree of T node.
-	* @details This tree allows operation such as finding a nearest neighbor 
-	* to a node in the tree, rewiring the tree.
-	*/
+	 * @brief Tree of T node.
+	 * @details This tree allows operation such as finding a nearest neighbor 
+	 * to a node in the tree, rewiring the tree.
+	 */
 	template <typename Vertex, unsigned int Dimensions, typename Metadata = VoidClass, class Hash = std::hash<Vertex>, typename VertexType = double>
 	class Tree {
 	public:
@@ -234,13 +234,13 @@ namespace Planner {
 		}
 
 		/**
-		* @brief Find the k nearest node in the tree to @state. 
-		* @details This method searches a k-d tree of the points to determine 
-		* the nearest neighbor.
-		* @param state The state whose closest neighbors must be find.
-		* @param nn The number of neighbors to find.
-		* @return The nearest nodes to @state.
-		*/
+		 * @brief Find the k nearest node in the tree to @state. 
+		 * @details This method searches a k-d tree of the points to determine 
+		 * the nearest neighbor.
+		 * @param state The state whose closest neighbors must be find.
+		 * @param nn The number of neighbors to find.
+		 * @return The nearest nodes to @state.
+		 */
 		std::vector<Node*> GetNearestNodes(const Vertex& state, const unsigned int nn = 1)
 		{
 			std::vector<Node*> nodes;
@@ -266,12 +266,12 @@ namespace Planner {
 		}
 
 		/**
-		* @brief Find the node in the tree closest to @state. 
-		* @details This method searches a k-d tree of the points to determine 
-		* the nearest neighbor.
-		* @param state The state whose closest neighbor must be find.
-		* @return The nearest node to @state.
-		*/
+		 * @brief Find the node in the tree closest to @state. 
+		 * @details This method searches a k-d tree of the points to determine 
+		 * the nearest neighbor.
+		 * @param state The state whose closest neighbor must be find.
+		 * @return The nearest node to @state.
+		 */
 		Node* GetNearestNode(const Vertex& state)
 		{
 			flann::Matrix<VertexType> query;
@@ -289,13 +289,13 @@ namespace Planner {
 		}
 
 		/**
-		* @brief Extend the tree by adding a new node target whose parent is 
-		* start.
-		* @param target The target point to extend the tree to.
-		* @param start The node to connect from. If none is provided, the 
-		* closest node in the tree is used instead.
-		* @return The new node in the tree.
-		*/
+		 * @brief Extend the tree by adding a new node target whose parent is 
+		 * start.
+		 * @param target The target point to extend the tree to.
+		 * @param start The node to connect from. If none is provided, the 
+		 * closest node in the tree is used instead.
+		 * @return The new node in the tree.
+		 */
 		Node* Extend(const Vertex& target, Node* source = nullptr)
 		{
 			// Check if the target is already in the tree

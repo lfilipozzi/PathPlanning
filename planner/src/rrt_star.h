@@ -6,17 +6,49 @@
 
 namespace Planner {
 
-	template <typename Vertex, unsigned int Dimensions, class Hash = std::hash<Vertex>, typename VertexType = double>
-	class RRTStar : public PathPlanner<Vertex> {
+	/**
+	 * @brief Interface to sample the configuration space as required by RRT 
+	 * algorithms.
+	 */
+	template <typename Vertex>
+	class RRTStarStateSpace : public virtual StateSpace<Vertex> {
 	public:
 		/**
-		* @brief Tunable parameters of the RRT algorithm.
-		*/
-		struct Parameters {
-			unsigned int maxIteration = 100;
-			double optimalSolutionTolerance = 1;
-		};
+		 * @brief Generate a random state within the configuration space.
+		 * @details The sample must not be inside an obstacle.
+		 * @return A random state.
+		 */
+		virtual Vertex Sample() = 0;
 
+		/**
+		 * @brief Construct a new state by moving an incremental distance 
+		 * from @source towards @target.
+		 * @details The path is not assumed to bring exactly to target but it 
+		 * must evolve towards it.
+		 * @return The new state.
+		 */
+		virtual Vertex SteerTowards(const Vertex& source, const Vertex& target) = 0;
+
+		/**
+		 * @brief Construct a path that connects the node @source to the node 
+		 * @target.
+		 * @return A tuple containing the cost to go from the source to the 
+		 * target and a boolean indicating if the path is collision-free.
+		 */
+		virtual std::tuple<double, bool> SteerExactly(const Vertex& source, const Vertex& target) = 0;
+	};
+
+	/**
+	* @brief Tunable parameters of the RRT algorithm.
+	*/
+	struct RRTStarParameters {
+		unsigned int maxIteration = 100;
+		double optimalSolutionTolerance = 1;
+	};
+
+	template <typename Vertex, unsigned int Dimensions, class Hash = std::hash<Vertex>, typename VertexType = double>
+	class RRTStar : public PathPlanner<Vertex> {
+	private:
 		/**
 		 * @brief Node metadata used by RRT star.
 		 */
@@ -29,13 +61,13 @@ namespace Planner {
 		 * @brief Constructor.
 		 * @param stateSpace
 		 */
-		RRTStar(const Ref<RRTStateSpace<Vertex>>& stateSpace) :
+		RRTStar(const Ref<RRTStarStateSpace<Vertex>>& stateSpace) :
 			m_stateSpace(stateSpace) {};
 		virtual ~RRTStar() = default;
 
-		Parameters& GetParameters() { return m_parameters; }
-		const Parameters& GetParameters() const { return m_parameters; }
-		void SetParameters(const Parameters& params) { m_parameters = params; }
+		RRTStarParameters& GetParameters() { return m_parameters; }
+		const RRTStarParameters& GetParameters() const { return m_parameters; }
+		void SetParameters(const RRTStarParameters& params) { m_parameters = params; }
 
 		virtual Status SearchPath() override
 		{
@@ -118,8 +150,8 @@ namespace Planner {
 		}
 
 	private:
-		Parameters m_parameters;
-		Ref<RRTStateSpace<Vertex>> m_stateSpace;
+		RRTStarParameters m_parameters;
+		Ref<RRTStarStateSpace<Vertex>> m_stateSpace;
 
 		Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType> m_tree;
 		typename Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType>::Node* m_solutionNode = nullptr;

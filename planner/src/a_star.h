@@ -12,17 +12,40 @@
 namespace Planner {
 
 	/**
+	 * @brief Interface to sample the configuration space as required by A* 
+	 * algorithms.
+	 */
+	template <typename State>
+	class AStarStateSpace : public virtual StateSpace<State> {
+	public:
+		/**
+		* @brief Given a point, returns a list of all neighboring positions.
+		* @details The active state
+		* @return A list of all neighboring positions.
+		*/
+		virtual std::vector<State> GetNeighborStates(const State& state) = 0;
+
+		/**
+		* @brief Return the cost associated to the transition from @source to 
+		* @target and indicate if the transition is valid.
+		* @return A tuple containing the cost to go from the source to the 
+		* target and a boolean indicating if the path is collision-free.
+		*/
+		// TODO FIXME do we need to check if colision is valid here or in GetNeighborStates
+		virtual std::tuple<double, bool> GetTransition(const State& source, const State& target) = 0;
+	};
+
+	/**
+	 * @brief Tunable parameters of the A* algorithm.
+	 */
+	struct AStarParameters {
+	};
+
+	/**
 	 * @brief Implementation of the A* algorithm.
 	 */
 	template <typename State, class Hash = std::hash<State>>
 	class AStar : public PathPlanner<State> {
-	public:
-		/**
-		* @brief Tunable parameters of the A* algorithm.
-		*/
-		struct Parameters {
-		};
-
 	private:
 		/**
 		 * @brief Node metadata used by A* star.
@@ -190,9 +213,9 @@ namespace Planner {
 			m_stateSpace(stateSpace), m_heuristicFcn(heuristicFcn) {};
 		virtual ~AStar() = default;
 
-		Parameters& GetParameters() { return m_parameters; }
-		const Parameters& GetParameters() const { return m_parameters; }
-		void SetParameters(const Parameters& params) { m_parameters = params; }
+		AStarParameters& GetParameters() { return m_parameters; }
+		const AStarParameters& GetParameters() const { return m_parameters; }
+		void SetParameters(const AStarParameters& params) { m_parameters = params; }
 
 		virtual Status SearchPath() override
 		{
@@ -278,7 +301,7 @@ namespace Planner {
 		Ref<AStarStateSpace<State>> GetStateSpace() const { return m_stateSpace; }
 
 	private:
-		Parameters m_parameters;
+		AStarParameters m_parameters;
 		Ref<AStarStateSpace<State>> m_stateSpace;
 		std::function<double(const State&, const State&)> m_heuristicFcn;
 
