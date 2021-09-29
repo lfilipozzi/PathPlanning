@@ -25,3 +25,7 @@ add_test(testAStar testAStar)
 add_executable(testHybridAStar test_hybrid_a_star.cpp)
 target_link_libraries(testHybridAStar flann ${logger_LIB})
 add_test(testHybridAStar testHybridAStar)
+
+add_executable(testReedsShepp test_reeds_shepp.cpp)
+target_link_libraries(testReedsShepp ${logger_LIB})
+add_test(testReedsShepp testReedsShepp)
