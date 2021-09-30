@@ -207,6 +207,11 @@ namespace Planner {
 				return cost;
 			}
 
+			/**
+			 * @brief Inverse the foward direction of motion of all actions.
+			 * @details After this operation the action set is moved.
+			 * @return The time flipped action set.
+			 */
 			ActionSet&& TimeflipTransform()
 			{
 				for (auto& action : m_actions)
@@ -214,6 +219,11 @@ namespace Planner {
 				return std::move(*this);
 			}
 
+			/**
+			 * @brief Inverse the lateral direction of motion of all actions.
+			 * @details After this operation the action set is moved.
+			 * @return The reflected action set.
+			 */
 			ActionSet&& ReflectTransform()
 			{
 				for (auto& action : m_actions) {
@@ -278,21 +288,24 @@ namespace Planner {
 					newGoal.theta = 0;
 				}
 
-				std::array<Pose2D<>, 4> goals;
 				// clang-format off
-				goals[0] = Pose2D<>( newGoal.x,  newGoal.y,  newGoal.theta);
-				goals[1] = Pose2D<>(-newGoal.x,  newGoal.y, -newGoal.theta);
-				goals[2] = Pose2D<>( newGoal.x, -newGoal.y, -newGoal.theta);
-				goals[3] = Pose2D<>(-newGoal.x, -newGoal.y,  newGoal.theta);
+				const std::array<Pose2D<>, 4> goals = {
+					Pose2D<>( newGoal.x,  newGoal.y,  newGoal.theta),
+					Pose2D<>(-newGoal.x,  newGoal.y, -newGoal.theta),
+					Pose2D<>( newGoal.x, -newGoal.y, -newGoal.theta),
+					Pose2D<>(-newGoal.x, -newGoal.y,  newGoal.theta),
+				};
 				// clang-format on
 
 				// Iterate over pathwords to find the optimal path
 				float bestPathLength = std::numeric_limits<float>::infinity();
 				PathWords bestWord = PathWords::NoPath;
 				std::array<float, 4> lengths;
+				for (auto& l : lengths) {
+					l = std::numeric_limits<float>::infinity();
+				}
 				std::array<float, 4> tt, tu, tv;
 				for (int w = 0; w < static_cast<int>(PathWords::NumPathWords); w += 4) {
-					lengths = { std::numeric_limits<float>::infinity() };
 
 					switch (static_cast<PathWords>(w)) {
 					// Reeds-Shepp 8.1: CSC, same turn
@@ -398,8 +411,9 @@ namespace Planner {
 
 					for (unsigned int i = 0; i < 4; i++) {
 						if (lengths[i] < bestPathLength) {
+							PP_ASSERT(lengths[i] > 0, "Invalid length");
 							bestPathLength = lengths[i];
-							bestWord = static_cast<PathWords>(4 * w + i);
+							bestWord = static_cast<PathWords>(w + i);
 							t = tt[i];
 							u = tu[i];
 							v = tv[i];
@@ -492,7 +506,15 @@ namespace Planner {
 				// clang-format on
 			}
 
-		private:
+		private:static float Modulo(float in, float mod)
+			{
+				// Return the modulo of x by y
+				float out = fmod(in, mod);
+				if (out < 0)
+					out += mod;
+				return out;
+			}
+
 			static bool IsAngleInvalid(float theta)
 			{
 				return theta < 0 || theta > M_PI;
@@ -500,7 +522,7 @@ namespace Planner {
 
 			static float WrapAngle(float theta)
 			{
-				return fmod(theta + M_PI, 2 * M_PI) - M_PI;
+				return Modulo(theta + M_PI, 2 * M_PI) - M_PI;
 			}
 
 			static float LfSfLf(const Pose2D<>& goal, float& t, float& u, float& v)
@@ -545,7 +567,7 @@ namespace Planner {
 				v = WrapAngle(t - goal.theta);
 
 				if (IsAngleInvalid(t) || IsAngleInvalid(v))
-					std::numeric_limits<float>::infinity();
+					return std::numeric_limits<float>::infinity();
 
 				return t + u + v;
 			}
@@ -568,9 +590,9 @@ namespace Planner {
 
 				float phi = atan2(eta, xi);
 				float alpha = acos(u1 / 4.0f);
-				t = fmod(M_PI_2 + alpha + phi, 2 * M_PI);
-				u = fmod(M_PI - 2 * alpha, 2 * M_PI);
-				v = fmod(goal.theta - t - u, 2 * M_PI);
+				t = Modulo(M_PI_2 + alpha + phi, 2 * M_PI);
+				u = Modulo(M_PI - 2 * alpha, 2 * M_PI);
+				v = Modulo(goal.theta - t - u, 2 * M_PI);
 
 				if (IsAngleInvalid(t) || IsAngleInvalid(u) || IsAngleInvalid(v))
 					return std::numeric_limits<float>::infinity();
@@ -596,9 +618,9 @@ namespace Planner {
 
 				float phi = atan2(eta, xi);
 				float alpha = acos(u1 / 4.0f);
-				t = fmod(M_PI_2 + alpha + phi, 2 * M_PI);
-				u = fmod(M_PI - 2 * alpha, 2 * M_PI);
-				v = fmod(t + u - goal.theta, 2 * M_PI);
+				t = Modulo(M_PI_2 + alpha + phi, 2 * M_PI);
+				u = Modulo(M_PI - 2 * alpha, 2 * M_PI);
+				v = Modulo(t + u - goal.theta, 2 * M_PI);
 
 				return t + u + v;
 			}
@@ -623,8 +645,8 @@ namespace Planner {
 				u = acos((8 - u1 * u1) / 8.0f);
 				float va = sin(u);
 				float alpha = asin(2 * va / u1);
-				t = fmod(M_PI_2 - alpha + phi, 2 * M_PI);
-				v = fmod(t - u - goal.theta, 2 * M_PI);
+				t = Modulo(M_PI_2 - alpha + phi, 2 * M_PI);
+				v = Modulo(t - u - goal.theta, 2 * M_PI);
 
 				return t + u + v;
 			}
@@ -649,14 +671,14 @@ namespace Planner {
 
 				if (u1 > 2) {
 					float alpha = acos(u1 / 4 - 0.5);
-					t = fmod(M_PI_2 + phi - alpha, 2 * M_PI);
-					u = fmod(M_PI - alpha, 2 * M_PI);
-					v = fmod(goal.theta - t + 2 * u, 2 * M_PI);
+					t = Modulo(M_PI_2 + phi - alpha, 2 * M_PI);
+					u = Modulo(M_PI - alpha, 2 * M_PI);
+					v = Modulo(goal.theta - t + 2 * u, 2 * M_PI);
 				} else {
 					float alpha = acos(u1 / 4 + 0.5);
-					t = fmod(M_PI_2 + phi + alpha, 2 * M_PI);
-					u = fmod(alpha, 2 * M_PI);
-					v = fmod(goal.theta - t + 2 * u, 2 * M_PI);
+					t = Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
+					u = Modulo(alpha, 2 * M_PI);
+					v = Modulo(goal.theta - t + 2 * u, 2 * M_PI);
 				}
 
 				return t + u + u + v;
@@ -686,8 +708,8 @@ namespace Planner {
 				u = acos(va1);
 				float va2 = sin(u);
 				float alpha = asin(2 * va2 / u1);
-				t = fmod(M_PI_2 + phi + alpha, 2 * M_PI);
-				v = fmod(t - goal.theta, 2 * M_PI);
+				t = Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
+				v = Modulo(t - goal.theta, 2 * M_PI);
 
 				return t + u + u + v;
 			}
@@ -715,8 +737,8 @@ namespace Planner {
 					return std::numeric_limits<float>::infinity();
 
 				float alpha = atan2(2, u + 2);
-				t = fmod(M_PI_2 + phi + alpha, 2 * M_PI);
-				v = fmod(t + M_PI_2 - goal.theta, 2 * M_PI);
+				t = Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
+				v = Modulo(t + M_PI_2 - goal.theta, 2 * M_PI);
 
 				return t + M_PI_2 + u + v;
 			}
@@ -739,9 +761,9 @@ namespace Planner {
 
 				float phi = atan2(eta, xi);
 
-				t = fmod(M_PI_2 + phi, 2 * M_PI);
+				t = Modulo(M_PI_2 + phi, 2 * M_PI);
 				u = u1 - 2;
-				v = fmod(goal.theta - t - M_PI_2, 2 * M_PI);
+				v = Modulo(goal.theta - t - M_PI_2, 2 * M_PI);
 
 				return t + M_PI_2 + u + v;
 			}
@@ -769,8 +791,8 @@ namespace Planner {
 					return std::numeric_limits<float>::infinity();
 
 				float alpha = atan2(u + 2, 2);
-				t = fmod(M_PI_2 + phi - alpha, 2 * M_PI);
-				v = fmod(t - M_PI_2 - goal.theta, 2 * M_PI);
+				t = Modulo(M_PI_2 + phi - alpha, 2 * M_PI);
+				v = Modulo(t - M_PI_2 - goal.theta, 2 * M_PI);
 
 				return t + u + M_PI_2 + v;
 			}
@@ -793,9 +815,9 @@ namespace Planner {
 
 				float phi = atan2(eta, xi);
 
-				t = fmod(phi, 2 * M_PI);
+				t = Modulo(phi, 2 * M_PI);
 				u = u1 - 2;
-				v = fmod(-t - M_PI_2 + goal.theta, 2 * M_PI);
+				v = Modulo(-t - M_PI_2 + goal.theta, 2 * M_PI);
 
 				return t + u + M_PI_2 + v;
 			}
@@ -823,8 +845,8 @@ namespace Planner {
 					return std::numeric_limits<float>::infinity();
 
 				float alpha = atan2(2, u + 4);
-				t = fmod(M_PI_2 + phi + alpha, 2 * M_PI);
-				v = fmod(t - goal.theta, 2 * M_PI);
+				t = Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
+				v = Modulo(t - goal.theta, 2 * M_PI);
 
 				return t + u + v + M_PI;
 			}

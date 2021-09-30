@@ -3,7 +3,9 @@
 #include "core/log.h"
 #include "core/timer.h"
 
-#if 0
+#define MODE 2
+
+#if MODE == 0
 
 	#include "a_star.h"
 	#include "geometry/2dplane.h"
@@ -43,7 +45,7 @@ int main(int /*argc*/, char** /*argv*/)
 	return 0;
 }
 
-#else
+#elif MODE == 1
 
 	#include "hybrid_a_star.h"
 	#include "geometry/pose.h"
@@ -75,6 +77,33 @@ int main()
 	}
 
 	return 0;
+}
+
+#elif MODE == 2
+
+	#include "core/log.h"
+	#include "reeds_shepp.h"
+
+int main(int argc, char** argv)
+{
+	PP_INIT_LOGGER;
+
+	if (argc != 7) {
+		PP_INFO("Invalid number of arguments: received {}, need 6", argc);
+		return -1;
+	}
+
+	Planner::Pose2D<> start { atof(argv[1]), atof(argv[2]), atof(argv[3]) };
+	Planner::Pose2D<> goal { atof(argv[4]), atof(argv[5]), atof(argv[6]) };
+
+	float unit = 1.0f;
+	float t, u, v;
+	auto word = Planner::ReedsSheep::Solver::GetShortestPathWord(start, goal, unit, t, u, v);
+	auto path = Planner::ReedsSheep::Solver::GetShortestPath(start, goal, unit);
+	
+	PP_INFO("Start: {}, {}, {}", start.x, start.y, start.theta);
+	PP_INFO("Start: {}, {}, {}", goal.x, goal.y, goal.theta);
+	PP_INFO("Word {}: Length {}", word, path.ComputeCost(1.0f, 1.0f, 0.0f));
 }
 
 #endif
