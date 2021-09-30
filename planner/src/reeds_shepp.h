@@ -10,7 +10,7 @@
 namespace Planner {
 
 	namespace ReedsSheep {
-		
+
 		/**
 		 * @brief Path word for Reeds-Shepp optimal path
 		 */
@@ -102,11 +102,14 @@ namespace Planner {
 		}
 
 		enum class Steer {
-			Left, Straight, Right
+			Left,
+			Straight,
+			Right
 		};
 
 		enum class Gear {
-			Forward, Backward
+			Forward,
+			Backward
 		};
 
 		/**
@@ -125,7 +128,8 @@ namespace Planner {
 				length = std::numeric_limits<float>::infinity();
 			}
 
-			Action(Steer steer, Gear gear, float length) : steer(steer), gear(gear), length(length) {}
+			Action(Steer steer, Gear gear, float length) :
+				steer(steer), gear(gear), length(length) { }
 
 			/**
 			 * @brief Check if an action is valid
@@ -238,7 +242,6 @@ namespace Planner {
 		private:
 			std::array<Action, 5> m_actions;
 			float m_length = 0.0f;
-			
 		};
 
 		class Solver {
@@ -248,11 +251,12 @@ namespace Planner {
 			 * @param[in] start The initial pose.
 			 * @param[in] goal The goal pose.
 			 * @param[in] unit Normalization factor.
+			 * @param[out] optimalWord The word representing the optimal path.
 			 */
-			static ActionSet GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit)
+			static ActionSet GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit, PathWords& optimalWord)
 			{
 				float t, u, v;
-				PathWords optimalWord = GetShortestPathWord(start, goal, unit, t, u, v);
+				optimalWord = GetShortestPathWord(start, goal, unit, t, u, v);
 
 				if (!IsPathWordValid(optimalWord))
 					return ActionSet();
@@ -260,6 +264,16 @@ namespace Planner {
 				return GetPath(optimalWord, t, u, v);
 			}
 
+			/**
+			 * @overload static ActionSet GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit, PathWords& optimalWord)
+			 */
+			static ActionSet GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit)
+			{
+				PathWords optimalWord = PathWords::NoPath;
+				return GetShortestPath(start, goal, unit, optimalWord);
+			}
+
+		private:
 			/**
 			 * @brief Return the path word to generate the shortest path from 
 			 * the start to the goal.
@@ -280,12 +294,11 @@ namespace Planner {
 
 				// Rotate the goal so that the start orientation is 0
 				{
-					const auto theta = newGoal.theta;
+					const auto theta = start.theta;
 					const auto x = newGoal.x;
 					const auto y = newGoal.y;
 					newGoal.x = cos(theta) * x - sin(theta) * y;
 					newGoal.y = sin(theta) * x + cos(theta) * y;
-					newGoal.theta = 0;
 				}
 
 				// clang-format off
@@ -506,7 +519,7 @@ namespace Planner {
 				// clang-format on
 			}
 
-		private:static float Modulo(float in, float mod)
+			static float Modulo(float in, float mod)
 			{
 				// Return the modulo of x by y
 				float out = fmod(in, mod);
