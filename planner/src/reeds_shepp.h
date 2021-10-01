@@ -10,7 +10,6 @@
 namespace Planner {
 
 	namespace ReedsSheep {
-
 		/**
 		 * @brief Path word for Reeds-Shepp optimal path
 		 */
@@ -113,26 +112,23 @@ namespace Planner {
 		};
 
 		/**
-		 * @brief Represents a single steering and motion action over some length.
+		 * @brief Represents a motion with a constant steering and direction over some length.
 		 */
-		struct Action {
+		struct Motion {
 			Steer steer;
 			Gear gear;
-			float length;
+			float length = std::numeric_limits<float>::infinity();
 
 			/**
-			 * @brief Initialize an action with an invalid action.
+			 * @brief Initialize an motion with an invalid motion.
 			 */
-			Action()
-			{
-				length = std::numeric_limits<float>::infinity();
-			}
+			Motion() = default;
 
-			Action(Steer steer, Gear gear, float length) :
+			Motion(Steer steer, Gear gear, float length) :
 				steer(steer), gear(gear), length(length) { }
 
 			/**
-			 * @brief Check if an action is valid
+			 * @brief Check if an motion is valid
 			 */
 			bool IsValid() const
 			{
@@ -141,51 +137,58 @@ namespace Planner {
 		};
 
 		/**
-		 * @brief Represents a set of action to produce an optimal Reed-Shepp path.
-		 * @details All actions are initialized with an infinite length. Action 
-		 * with an infinite length correspond to a non-valid action.
+		 * @brief Represents a Reed-Shepp path segment.
+		 * @details All paths are initialized with an infinite length. Paths
+		 * with an infinite length correspond to a non-valid path.
 		 */
-		class ActionSet {
+		class PathSegment {
 		public:
 			/**
-			 * @brief Construct a set of invalid actions.
+			 * @brief Construct a set of invalid motions.
 			 */
-			ActionSet()
+			PathSegment()
 			{
-				// Initialize all action with an infinite length
-				for (auto& action : m_actions) {
-					action = Action(Steer::Straight, Gear::Forward, std::numeric_limits<float>::infinity());
+				// Initialize all motions with an infinite length
+				for (auto& motion : m_motions) {
+					motion.steer = Steer::Straight;
+					motion.gear = Gear::Forward;
+					motion.length = std::numeric_limits<float>::infinity();
 				}
 				m_length = 0.0f;
 			}
 
 			/**
-			 * @brief Add an action to the set of actions.
+			 * @brief Add a motion to the path.
 			 */
-			void AddAction(Steer steer, Gear gear, float length)
+			void AddMotion(Steer steer, Gear gear, float length)
 			{
-				// Find index of first invalid action
+				// Find index of first invalid motion
 				int index = -1;
-				for (int i = 0; i < 5; i++) {
-					if (!m_actions[i].IsValid()) {
+				for (int i = 0; i < s_numMotion; i++) {
+					if (!m_motions[i].IsValid()) {
 						index = i;
 						break;
 					}
 				}
-				PP_ASSERT(index >= 0, "Action set is full.");
+				PP_ASSERT(index >= 0, "Cannot add a motion.");
 
-				m_actions[index].steer = steer;
-				m_actions[index].gear = gear;
-				m_actions[index].length = length;
+				m_motions[index].steer = steer;
+				m_motions[index].gear = gear;
+				m_motions[index].length = length;
 				m_length += std::abs(length);
 			}
 
 			/**
+			 * @brief Get length.
+			 */
+			float GetLength() const { return m_length; }
+
+			/**
 			 * @brief Compute the cost of the path.
 			 */
-			float ComputeCost(float unit, float reverseCostMultiplier, float gearSwitchCost)
+			float ComputeCost(float unit, float reverseCostMultiplier, float forwardCostMultiplier, float gearSwitchCost) const
 			{
-				if (!m_actions[0].IsValid())
+				if (!m_motions[0].IsValid())
 					return std::numeric_limits<float>::infinity();
 
 				if (reverseCostMultiplier == 1.0f && gearSwitchCost == 0.0f)
@@ -193,54 +196,57 @@ namespace Planner {
 
 				float cost = 0;
 
-				Gear prevGear = m_actions[0].gear;
-				for (const auto& action : m_actions) {
-					if (!action.IsValid())
+				Gear prevGear = m_motions[0].gear;
+				for (const auto& motion : m_motions) {
+					if (!motion.IsValid())
 						break;
 
-					float actionCost = action.length * unit;
-					if (action.gear == Gear::Backward)
-						actionCost *= reverseCostMultiplier;
-					if (action.gear != prevGear)
-						actionCost += gearSwitchCost;
+					float motionCost = motion.length * unit;
+					if (motion.gear == Gear::Forward)
+						motionCost *= forwardCostMultiplier;
+					else if (motion.gear == Gear::Backward)
+						motionCost *= reverseCostMultiplier;
+					if (motion.gear != prevGear)
+						motionCost += gearSwitchCost;
 
-					prevGear = action.gear;
-					cost += actionCost;
+					prevGear = motion.gear;
+					cost += motionCost;
 				}
 
 				return cost;
 			}
 
 			/**
-			 * @brief Inverse the foward direction of motion of all actions.
-			 * @details After this operation the action set is moved.
-			 * @return The time flipped action set.
+			 * @brief Inverse the direction of motion.
+			 * @details After this operation the PathSegment is moved.
+			 * @return The time flipped path segment.
 			 */
-			ActionSet&& TimeflipTransform()
+			PathSegment&& TimeflipTransform()
 			{
-				for (auto& action : m_actions)
-					action.gear = action.gear == Gear::Backward ? Gear::Forward : Gear::Backward;
+				for (auto& motion : m_motions)
+					motion.gear = motion.gear == Gear::Backward ? Gear::Forward : Gear::Backward;
 				return std::move(*this);
 			}
 
 			/**
-			 * @brief Inverse the lateral direction of motion of all actions.
-			 * @details After this operation the action set is moved.
-			 * @return The reflected action set.
+			 * @brief Inverse the lateral direction of motion.
+			 * @details After this operation the PathSegment set is moved.
+			 * @return The reflected path segment.
 			 */
-			ActionSet&& ReflectTransform()
+			PathSegment&& ReflectTransform()
 			{
-				for (auto& action : m_actions) {
-					if (action.steer == Steer::Left)
-						action.steer = Steer::Right;
-					else if (action.steer == Steer::Right)
-						action.steer = Steer::Left;
+				for (auto& motion : m_motions) {
+					if (motion.steer == Steer::Left)
+						motion.steer = Steer::Right;
+					else if (motion.steer == Steer::Right)
+						motion.steer = Steer::Left;
 				}
 				return std::move(*this);
 			}
 
 		private:
-			std::array<Action, 5> m_actions;
+			static constexpr unsigned int s_numMotion = 5;
+			std::array<Motion, s_numMotion> m_motions;
 			float m_length = 0.0f;
 		};
 
@@ -253,21 +259,21 @@ namespace Planner {
 			 * @param[in] unit Normalization factor.
 			 * @param[out] optimalWord The word representing the optimal path.
 			 */
-			static ActionSet GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit, PathWords& optimalWord)
+			static PathSegment GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit, PathWords& optimalWord)
 			{
 				float t, u, v;
 				optimalWord = GetShortestPathWord(start, goal, unit, t, u, v);
 
 				if (!IsPathWordValid(optimalWord))
-					return ActionSet();
+					return PathSegment();
 
 				return GetPath(optimalWord, t, u, v);
 			}
 
 			/**
-			 * @overload static ActionSet GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit, PathWords& optimalWord)
+			 * @overload
 			 */
-			static ActionSet GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit)
+			static PathSegment GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit)
 			{
 				PathWords optimalWord = PathWords::NoPath;
 				return GetShortestPath(start, goal, unit, optimalWord);
@@ -286,20 +292,11 @@ namespace Planner {
 			 */
 			static PathWords GetShortestPathWord(const Pose2D<>& start, const Pose2D<>& goal, float unit, float& t, float& u, float& v)
 			{
-				// Translate the goal so that the start position is at the origin
+				// Translate the goal so that the start position is at the origin with orientation 0
 				Pose2D<> newGoal = goal - start;
 				newGoal.x = newGoal.x / unit;
 				newGoal.y = newGoal.y / unit;
 				newGoal.theta = newGoal.WrapTheta();
-
-				// Rotate the goal so that the start orientation is 0
-				{
-					const auto theta = start.theta;
-					const auto x = newGoal.x;
-					const auto y = newGoal.y;
-					newGoal.x = cos(theta) * x - sin(theta) * y;
-					newGoal.y = sin(theta) * x + cos(theta) * y;
-				}
 
 				// clang-format off
 				const std::array<Pose2D<>, 4> goals = {
@@ -436,7 +433,7 @@ namespace Planner {
 				return bestWord;
 			}
 
-			static ActionSet GetPath(PathWords word, float t, float u, float v)
+			static PathSegment GetPath(PathWords word, float t, float u, float v)
 			{
 				// clang-format off
 				switch (word) {
@@ -514,7 +511,7 @@ namespace Planner {
 
 				default:
 					PP_ASSERT(false, "Word is not a valid Reeds-Shepp path word.");
-					return ActionSet();
+					return PathSegment();
 				}
 				// clang-format on
 			}
@@ -864,122 +861,155 @@ namespace Planner {
 				return t + u + v + M_PI;
 			}
 
-			static ActionSet LfSfLfPath(float t, float u, float v)
+			static PathSegment LfSfLfPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Straight, Gear::Forward, u);
-				actions.AddAction(Steer::Left, Gear::Forward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Straight, Gear::Forward, u);
+				motions.AddMotion(Steer::Left, Gear::Forward, v);
+				return motions;
 			}
 
-			static ActionSet LfSfRfPath(float t, float u, float v)
+			static PathSegment LfSfRfPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Straight, Gear::Forward, u);
-				actions.AddAction(Steer::Right, Gear::Forward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Straight, Gear::Forward, u);
+				motions.AddMotion(Steer::Right, Gear::Forward, v);
+				return motions;
 			}
 
-			static ActionSet LfRbLfPath(float t, float u, float v)
+			static PathSegment LfRbLfPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Right, Gear::Backward, u);
-				actions.AddAction(Steer::Left, Gear::Forward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Right, Gear::Backward, u);
+				motions.AddMotion(Steer::Left, Gear::Forward, v);
+				return motions;
 			}
 
-			static ActionSet LfRbLbPath(float t, float u, float v)
+			static PathSegment LfRbLbPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Right, Gear::Backward, u);
-				actions.AddAction(Steer::Left, Gear::Backward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Right, Gear::Backward, u);
+				motions.AddMotion(Steer::Left, Gear::Backward, v);
+				return motions;
 			}
 
-			static ActionSet LfRfLbPath(float t, float u, float v)
+			static PathSegment LfRfLbPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Right, Gear::Forward, u);
-				actions.AddAction(Steer::Left, Gear::Backward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Right, Gear::Forward, u);
+				motions.AddMotion(Steer::Left, Gear::Backward, v);
+				return motions;
 			}
 
-			static ActionSet LfRufLubRbPath(float t, float u, float v)
+			static PathSegment LfRufLubRbPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Right, Gear::Forward, u);
-				actions.AddAction(Steer::Left, Gear::Backward, u);
-				actions.AddAction(Steer::Right, Gear::Backward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Right, Gear::Forward, u);
+				motions.AddMotion(Steer::Left, Gear::Backward, u);
+				motions.AddMotion(Steer::Right, Gear::Backward, v);
+				return motions;
 			}
 
-			static ActionSet LfRubLubRfPath(float t, float u, float v)
+			static PathSegment LfRubLubRfPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Right, Gear::Backward, u);
-				actions.AddAction(Steer::Left, Gear::Backward, u);
-				actions.AddAction(Steer::Right, Gear::Forward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Right, Gear::Backward, u);
+				motions.AddMotion(Steer::Left, Gear::Backward, u);
+				motions.AddMotion(Steer::Right, Gear::Forward, v);
+				return motions;
 			}
 
-			static ActionSet LfRbpi2SbLbPath(float t, float u, float v)
+			static PathSegment LfRbpi2SbLbPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Right, Gear::Backward, M_PI_2);
-				actions.AddAction(Steer::Straight, Gear::Backward, u);
-				actions.AddAction(Steer::Left, Gear::Backward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Right, Gear::Backward, M_PI_2);
+				motions.AddMotion(Steer::Straight, Gear::Backward, u);
+				motions.AddMotion(Steer::Left, Gear::Backward, v);
+				return motions;
 			}
 
-			static ActionSet LfRbpi2SbRbPath(float t, float u, float v)
+			static PathSegment LfRbpi2SbRbPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Right, Gear::Backward, M_PI_2);
-				actions.AddAction(Steer::Straight, Gear::Backward, u);
-				actions.AddAction(Steer::Right, Gear::Backward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Right, Gear::Backward, M_PI_2);
+				motions.AddMotion(Steer::Straight, Gear::Backward, u);
+				motions.AddMotion(Steer::Right, Gear::Backward, v);
+				return motions;
 			}
 
-			static ActionSet LfSfRfpi2LbPath(float t, float u, float v)
+			static PathSegment LfSfRfpi2LbPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Straight, Gear::Forward, u);
-				actions.AddAction(Steer::Right, Gear::Forward, M_PI_2);
-				actions.AddAction(Steer::Left, Gear::Backward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Straight, Gear::Forward, u);
+				motions.AddMotion(Steer::Right, Gear::Forward, M_PI_2);
+				motions.AddMotion(Steer::Left, Gear::Backward, v);
+				return motions;
 			}
 
-			static ActionSet LfSfLfpi2RbPath(float t, float u, float v)
+			static PathSegment LfSfLfpi2RbPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Straight, Gear::Forward, u);
-				actions.AddAction(Steer::Left, Gear::Forward, M_PI_2);
-				actions.AddAction(Steer::Right, Gear::Backward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Straight, Gear::Forward, u);
+				motions.AddMotion(Steer::Left, Gear::Forward, M_PI_2);
+				motions.AddMotion(Steer::Right, Gear::Backward, v);
+				return motions;
 			}
 
-			static ActionSet LfRbpi2SbLbpi2RfPath(float t, float u, float v)
+			static PathSegment LfRbpi2SbLbpi2RfPath(float t, float u, float v)
 			{
-				ActionSet actions;
-				actions.AddAction(Steer::Left, Gear::Forward, t);
-				actions.AddAction(Steer::Right, Gear::Backward, M_PI_2);
-				actions.AddAction(Steer::Straight, Gear::Backward, u);
-				actions.AddAction(Steer::Left, Gear::Backward, M_PI_2);
-				actions.AddAction(Steer::Right, Gear::Forward, v);
-				return actions;
+				PathSegment motions;
+				motions.AddMotion(Steer::Left, Gear::Forward, t);
+				motions.AddMotion(Steer::Right, Gear::Backward, M_PI_2);
+				motions.AddMotion(Steer::Straight, Gear::Backward, u);
+				motions.AddMotion(Steer::Left, Gear::Backward, M_PI_2);
+				motions.AddMotion(Steer::Right, Gear::Forward, v);
+				return motions;
 			}
 		};
 
-	};
+		class ReedSheepStateSpace {
+		public:
+			ReedSheepStateSpace() = default;
+			~ReedSheepStateSpace() = default;
+
+			double ComputeDistance(const Pose2D<>& from, const Pose2D<>& to) const
+			{
+				auto path = Solver::GetShortestPath(from, to, m_minTurningRadius);
+				return path.GetLength();
+			}
+
+// 			double ComputeCost(const Pose2D<>& from, const Pose2D<>& to) const
+// 			{
+// 				// TODO
+// 			}
+
+			void SetMinTurningRadius(double turningRadius) { m_minTurningRadius = turningRadius; }
+			double GetMinTurningRadius() const { return m_minTurningRadius; }
+
+			void SetReverseCostMultiplier(double cost) { m_reverseCostMultiplier = cost; }
+			double GetReverseCostMultiplier() const { return m_reverseCostMultiplier; }
+
+			void SetForwardCostMultiplier(double cost) { m_forwardCostMultiplier = cost; }
+			double GetForwardCostMultiplier() const { return m_forwardCostMultiplier; }
+
+			void SetGearSwitchCost(double cost) { m_gearSwitchCost = cost; }
+			double GetGearSwitchCost() const { return m_gearSwitchCost; }
+
+		private:
+			double m_minTurningRadius = 1;
+			double m_reverseCostMultiplier = 1, m_forwardCostMultiplier = 1;
+			double m_gearSwitchCost;
+		};
+	}
 }

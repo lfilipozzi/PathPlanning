@@ -45,7 +45,7 @@ namespace Planner {
 
 			virtual double ComputeDistance(const State& from, const State& to) const override
 			{
-				auto delta = from.continuous - to.continuous;
+				auto delta = to.continuous - from.continuous;
 				return sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
 			}
 
@@ -56,7 +56,7 @@ namespace Planner {
 
 			virtual std::tuple<double, bool> GetTransition(const State& from, const State& to) override
 			{
-				auto delta = from.continuous - to.continuous;
+				auto delta = to.continuous - from.continuous;
 				double dist = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
 				return { dist, true };
 			}
@@ -142,7 +142,7 @@ namespace Planner {
 			double HeuristicConstraintsWithoutObstacles(const State& from, const State& to)
 			{
 				// TODO compute arc
-				auto delta = from.continuous - to.continuous;
+				auto delta = to.continuous - from.continuous;
 				double euclidean = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
 				return euclidean;
 			}

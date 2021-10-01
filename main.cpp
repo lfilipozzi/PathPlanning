@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 
 	PP_INFO("Start: {}, {}, {}", start.x, start.y, start.theta);
 	PP_INFO("Goal:  {}, {}, {}", goal.x, goal.y, goal.theta);
-	PP_INFO("Word {}: Length {}", word, path.ComputeCost(1.0f, 1.0f, 0.0f));
+	PP_INFO("Word {}: Length {}", word, path.GetLength());
 }
 
 #endif

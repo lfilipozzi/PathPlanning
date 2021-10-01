@@ -1,0 +1,50 @@
+name: build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+        
+    - name: Install Linux Dependencies
+      run: |
+        sudo apt update
+        sudo apt install libflann-dev libeigen3-dev
+
+    - name: Create Build Directory
+      run: |
+        export CC=gcc-8 && export CXX=g++-8
+        cmake -E make_directory ${{github.workspace}}/build
+
+    - name: Configure CMake
+      shell: bash
+      working-directory: ${{github.workspace}}
+      run: | 
+        cd build
+        cmake ${{github.workspace}} -DCMAKE_BUILD_TYPE="${{env.BUILD_TYPE}}"
+
+    - name: Build
+      working-directory: ${{github.workspace}}
+      shell: bash
+      run: | 
+        cd build
+        cmake --build . --config "${{env.BUILD_TYPE}}"
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      run: |
+        cd build
+        ctest -C "${{env.BUILD_TYPE}}"

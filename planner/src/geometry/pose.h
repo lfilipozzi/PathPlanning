@@ -18,17 +18,31 @@ namespace Planner {
 
 		T WrapTheta() const;
 
-		Pose2D operator+(const Pose2D& rhs) const { return { x + rhs.x, y + rhs.y, theta + rhs.theta }; }
 		Pose2D operator-() const { return { -x, -y, -theta }; }
-		Pose2D operator-(const Pose2D& rhs) const { return *this + (-rhs); }
+		Pose2D operator-(const Pose2D& rhs) const
+		{
+			Pose2D<> out;
+
+			// Translate
+			auto tx = x - rhs.x;
+			auto ty = y - rhs.y;
+			auto& ttheta = rhs.theta;
+
+			// Rotate
+			out.x = tx * cos(ttheta) - ty * sin(ttheta);
+			out.y = tx * sin(ttheta) + ty * cos(ttheta);
+			out.theta = theta - rhs.theta;
+
+			return out;
+		}
 		bool operator==(const Pose2D& rhs) const
 		{
 			return x == rhs.x && y == rhs.y && theta == rhs.theta;
 		}
 	};
 
-	template <>
-	double Pose2D<double>::WrapTheta() const
+	template <typename T>
+	T Pose2D<T>::WrapTheta() const
 	{
 		return fmod(theta + M_PI, 2 * M_PI) - M_PI;
 	}
