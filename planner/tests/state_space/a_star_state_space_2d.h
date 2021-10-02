@@ -1,11 +1,10 @@
 #pragma once
 
 #include "geometry/2dplane.h"
-#include "state_space_2d.h"
 #include "a_star.h"
 
 namespace Planner {
-	class AStarStateSpace2D : public AStarStateSpace<Point2DInt>, public StateSpace2D<Point2DInt> {
+	class AStarStateSpace2D : public AStarStateSpace<Point2DInt> {
 	public:
 		virtual std::vector<std::tuple<Point2DInt, double>> GetNeighborStates(const Point2DInt& state) override
 		{

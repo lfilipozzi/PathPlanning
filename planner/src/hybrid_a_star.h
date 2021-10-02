@@ -43,17 +43,6 @@ namespace Planner {
 				return state;
 			}
 
-			virtual double ComputeDistance(const State& from, const State& to) const override
-			{
-				auto delta = to.continuous - from.continuous;
-				return sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
-			}
-
-			virtual bool IsTransitionCollisionFree(const State& /*from*/, const State& /*to*/) override
-			{
-				return true;
-			}
-
 			/**
 			 * @brief Update state assuming constant steer angle  and bicycle
 			 * kinematic model.

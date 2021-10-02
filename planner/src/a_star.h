@@ -16,7 +16,7 @@ namespace Planner {
 	 * algorithms.
 	 */
 	template <typename State>
-	class AStarStateSpace : public virtual StateSpace<State> {
+	class AStarStateSpace {
 	public:
 		/**
 		* @brief Returns a list of all neighbor positions and the transition 

@@ -11,8 +11,25 @@ namespace Planner {
 	 * algorithms.
 	 */
 	template <typename Vertex>
-	class RRTStateSpace : public virtual StateSpace<Vertex> {
+	class RRTStateSpace {
 	public:
+		// TODO FIXME Use StateSpace and StateValidator to implement those functions in RRT and delete RRTStateSpace
+		/**
+		* @brief Calculate the distance between two states
+		* @param from The start state.
+		* @param to The end state.
+		* @return The distance between the states
+		*/
+		virtual double ComputeDistance(const Vertex& from, const Vertex& to) const = 0;
+
+		/**
+		 * @brief Check if there exist a valid transition between two states.
+		 * @param from The initial state.
+		 * @param to The destination state.
+		 * @return True if the transition is valid, false otherwise.
+		 */
+		virtual bool IsTransitionCollisionFree(const Vertex& from, const Vertex& to) = 0;
+
 		/**
 		 * @brief Generate a random state within the configuration space.
 		 * @details The sample must not be inside an obstacle.

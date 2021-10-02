@@ -96,9 +96,9 @@ int main(int argc, char** argv)
 	Planner::Pose2D<> start { atof(argv[1]), atof(argv[2]), atof(argv[3]) };
 	Planner::Pose2D<> goal { atof(argv[4]), atof(argv[5]), atof(argv[6]) };
 
-	Planner::ReedsSheep::PathWords word = Planner::ReedsSheep::PathWords::NoPath;
+	Planner::ReedsShepp::PathWords word = Planner::ReedsShepp::PathWords::NoPath;
 	float unit = 1.0f;
-	auto path = Planner::ReedsSheep::Solver::GetShortestPath(start, goal, unit, word);
+	auto path = Planner::ReedsShepp::Solver::GetShortestPath(start, goal, unit, word);
 
 	PP_INFO("Start: {}, {}, {}", start.x, start.y, start.theta);
 	PP_INFO("Goal:  {}, {}, {}", goal.x, goal.y, goal.theta);

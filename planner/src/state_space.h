@@ -1,33 +1,50 @@
 #pragma once
 
-#include <tuple>
+#include <vector>
 
 namespace Planner {
 
 	/**
-	 * @brief Interface to sample the configuration space as required by the
-	 * search algorithm.
+	 * @brief Interface to define the configuration space.
 	 */
-	template <typename Vertex>
+	template <typename State>
 	class StateSpace {
 	public:
 		StateSpace() = default;
 		virtual ~StateSpace() = default;
 
-		/**
-		* @brief Calculate the distance between two states
-		* @param from The start state.
-		* @param to The end state.
-		* @return The distance between the states
-		*/
-		virtual double ComputeDistance(const Vertex& from, const Vertex& to) const = 0;
+		// TODO Add bounds on state-space
 
-		/**
-		 * @brief Check if there exist a valid transition between two states.
-		 * @param from The initial state.
-		 * @param to The destination state.
-		 * @return True if the transition is valid, false otherwise.
-		 */
-		virtual bool IsTransitionCollisionFree(const Vertex& from, const Vertex& to) = 0;
+		/// @brief Define how to interpolate between states
+		virtual State Interpolate(const State& from, const State& to, float ratio) = 0;
+
+		/// @brief Compute the distance between two states.
+		virtual double ComputeDistance(const State& from, const State& to) = 0;
+
+		/// @brief Sample the configuration space using a uniform distribution.
+		virtual State SampleUniform() = 0;
+		/// @overload
+		std::vector<State> SampleUniform(unsigned int numSamples)
+		{
+			std::vector<State> states;
+			states.reserve(numSamples);
+			for (unsigned int i = 0; i < numSamples; i++) {
+				states[i] = SampleUniform();
+			}
+			return states;
+		}
+
+		/// @brief Sample the configuration space using a Gaussian distribution.
+		virtual State SampleGaussian(const State& state, float stdDev) = 0;
+		/// @overload
+		std::vector<State> SampleGaussian(const State& state, float stdDev, unsigned int numSamples)
+		{
+			std::vector<State> states;
+			states.reserve(numSamples);
+			for (unsigned int i = 0; i < numSamples; i++) {
+				states[i] = SampleGuassian(state, stdDev);
+			}
+			return states;
+		}
 	};
 }

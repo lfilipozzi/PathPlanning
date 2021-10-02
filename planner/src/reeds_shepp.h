@@ -2,6 +2,7 @@
 
 #include "geometry/pose.h"
 #include "core/assert.h"
+#include "state_space.h"
 
 #include <array>
 #include <limits>
@@ -9,7 +10,7 @@
 
 namespace Planner {
 
-	namespace ReedsSheep {
+	namespace ReedsShepp {
 		/**
 		 * @brief Path word for Reeds-Shepp optimal path
 		 */
@@ -977,39 +978,41 @@ namespace Planner {
 				return motions;
 			}
 		};
-
-		class ReedSheepStateSpace {
-		public:
-			ReedSheepStateSpace() = default;
-			~ReedSheepStateSpace() = default;
-
-			double ComputeDistance(const Pose2D<>& from, const Pose2D<>& to) const
-			{
-				auto path = Solver::GetShortestPath(from, to, m_minTurningRadius);
-				return path.GetLength();
-			}
-
-// 			double ComputeCost(const Pose2D<>& from, const Pose2D<>& to) const
-// 			{
-// 				// TODO
-// 			}
-
-			void SetMinTurningRadius(double turningRadius) { m_minTurningRadius = turningRadius; }
-			double GetMinTurningRadius() const { return m_minTurningRadius; }
-
-			void SetReverseCostMultiplier(double cost) { m_reverseCostMultiplier = cost; }
-			double GetReverseCostMultiplier() const { return m_reverseCostMultiplier; }
-
-			void SetForwardCostMultiplier(double cost) { m_forwardCostMultiplier = cost; }
-			double GetForwardCostMultiplier() const { return m_forwardCostMultiplier; }
-
-			void SetGearSwitchCost(double cost) { m_gearSwitchCost = cost; }
-			double GetGearSwitchCost() const { return m_gearSwitchCost; }
-
-		private:
-			double m_minTurningRadius = 1;
-			double m_reverseCostMultiplier = 1, m_forwardCostMultiplier = 1;
-			double m_gearSwitchCost;
-		};
 	}
+
+	class StateSpaceReedsShepp : public StateSpace<Pose2D<>> {
+// 		using namespace Planner::ReedsShepp;
+
+	public:
+		StateSpaceReedsShepp() = default;
+		~StateSpaceReedsShepp() = default;
+
+		virtual double ComputeDistance(const Pose2D<>& from, const Pose2D<>& to) override
+		{
+			auto path = ReedsShepp::Solver::GetShortestPath(from, to, m_minTurningRadius);
+			return path.GetLength();
+		}
+
+// 		double ComputeCost(const Pose2D<>& from, const Pose2D<>& to) const
+// 		{
+// 			// TODO
+// 		}
+
+		void SetMinTurningRadius(double turningRadius) { m_minTurningRadius = turningRadius; }
+		double GetMinTurningRadius() const { return m_minTurningRadius; }
+
+		void SetReverseCostMultiplier(double cost) { m_reverseCostMultiplier = cost; }
+		double GetReverseCostMultiplier() const { return m_reverseCostMultiplier; }
+
+		void SetForwardCostMultiplier(double cost) { m_forwardCostMultiplier = cost; }
+		double GetForwardCostMultiplier() const { return m_forwardCostMultiplier; }
+
+		void SetGearSwitchCost(double cost) { m_gearSwitchCost = cost; }
+		double GetGearSwitchCost() const { return m_gearSwitchCost; }
+
+	private:
+		double m_minTurningRadius = 1;
+		double m_reverseCostMultiplier = 1, m_forwardCostMultiplier = 1;
+		double m_gearSwitchCost;
+	};
 }
