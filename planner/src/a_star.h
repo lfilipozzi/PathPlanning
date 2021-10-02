@@ -19,20 +19,13 @@ namespace Planner {
 	class AStarStateSpace : public virtual StateSpace<State> {
 	public:
 		/**
-		* @brief Given a point, returns a list of all neighboring positions.
-		* @details The active state
-		* @return A list of all neighboring positions.
+		* @brief Returns a list of all neighbor positions and the transition 
+		* cost. The transition from the current state to the neighbor state must
+		* be valid.
+		* @return A list of tuple all neighboring positions and their associated
+		* transition cost.
 		*/
-		virtual std::vector<State> GetNeighborStates(const State& state) = 0;
-
-		/**
-		* @brief Return the cost associated to the transition from @source to 
-		* @target and indicate if the transition is valid.
-		* @return A tuple containing the cost to go from the source to the 
-		* target and a boolean indicating if the path is collision-free.
-		*/
-		// TODO FIXME do we need to check if colision is valid here or in GetNeighborStates
-		virtual std::tuple<double, bool> GetTransition(const State& source, const State& target) = 0;
+		virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) = 0;
 	};
 
 	/**
@@ -244,13 +237,10 @@ namespace Planner {
 
 				explored.insert(node->GetState());
 
-				for (State childState : m_stateSpace->GetNeighborStates(node->GetState())) {
+				for (auto [childState, transitionCost] : m_stateSpace->GetNeighborStates(node->GetState())) {
 					// Create the child node
 					Scope<Node> childScope = makeScope<Node>(childState);
 					Node* child = childScope.get();
-					auto [transitionCost, isTransitionCollisionFree] = m_stateSpace->GetTransition(node->GetState(), child->GetState());
-					if (!isTransitionCollisionFree)
-						continue;
 					child->meta.pathCost = node->meta.pathCost + transitionCost;
 					child->meta.totalCost = child->meta.pathCost + m_heuristicFcn(child->GetState(), this->m_goal);
 

@@ -54,13 +54,6 @@ namespace Planner {
 				return true;
 			}
 
-			virtual std::tuple<double, bool> GetTransition(const State& from, const State& to) override
-			{
-				auto delta = to.continuous - from.continuous;
-				double dist = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
-				return { dist, true };
-			}
-
 			/**
 			 * @brief Update state assuming constant steer angle  and bicycle
 			 * kinematic model.
@@ -94,16 +87,27 @@ namespace Planner {
 				return next;
 			}
 
-			virtual std::vector<State> GetNeighborStates(const State& state) override
+			virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) override
 			{
 				std::vector<double> deltas = { -10, -7.5, -5, -2.5, -0, 2.5, 5, 7.5, 10 };
 
-				std::vector<State> neighbors;
-				neighbors.reserve(deltas.size());
+				std::vector<std::tuple<State, double>> vec;
+				vec.reserve(deltas.size());
 				for (double delta : deltas) {
-					neighbors.push_back(ConstantSteer(state, delta));
+					// Find neighbor state
+					auto newState = ConstantSteer(state, delta);
+
+					// TODO Check that the transition from state to newState is valid
+
+					// Compute transition cost
+					// TODO use real cost, not euclidean distance
+					auto deltaState = newState.continuous - state.continuous;
+					double cost = sqrtf(powf(deltaState.x, 2) + powf(deltaState.y, 2));
+
+					vec.push_back({ std::move(newState), cost});
 				}
-				return neighbors;
+
+				return vec;
 			}
 
 			const double spatialResolution;

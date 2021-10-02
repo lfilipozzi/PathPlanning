@@ -3,7 +3,7 @@
 #include "core/log.h"
 #include "core/timer.h"
 
-#define MODE 2
+#define MODE 1
 
 #if MODE == 0
 
