@@ -3,7 +3,7 @@
 #include "core/log.h"
 #include "core/timer.h"
 
-#define MODE 1
+#define MODE 3
 
 #if MODE == 0
 
@@ -49,6 +49,7 @@ int main(int /*argc*/, char** /*argv*/)
 
 	#include "hybrid_a_star.h"
 	#include "geometry/pose.h"
+	#include "state_validator_free.h"
 
 	#define _USE_MATH_DEFINES
 	#include <cmath>
@@ -57,9 +58,8 @@ int main()
 {
 	PP_INIT_LOGGER;
 
-	Planner::Ref<Planner::HybridAStar::StateSpace> stateSpace = Planner::makeRef<Planner::HybridAStar::StateSpace>();
-
-	Planner::HybridAStar hybridAStar(stateSpace);
+	Planner::Ref<Planner::StateValidator<Planner::Pose2D<>>> stateValidator = Planner::makeRef<Planner::StateValidatorFree<Planner::Pose2D<>>>();
+	Planner::HybridAStar hybridAStar(stateValidator);
 
 	Planner::Pose2D<> start = { 0.0, 0.0, 0.0 };
 	Planner::Pose2D<> goal = { 10.0, 10.0, 0.78 };
@@ -98,11 +98,30 @@ int main(int argc, char** argv)
 
 	Planner::ReedsShepp::PathWords word = Planner::ReedsShepp::PathWords::NoPath;
 	float unit = 1.0f;
-	auto path = Planner::ReedsShepp::Solver::GetShortestPath(start, goal, unit, word);
+	auto path = Planner::ReedsShepp::Solver::GetShortestPath(start, goal, unit, &word);
 
 	PP_INFO("Start: {}, {}, {}", start.x, start.y, start.theta);
 	PP_INFO("Goal:  {}, {}, {}", goal.x, goal.y, goal.theta);
 	PP_INFO("Word {}: Length {}", word, path.GetLength());
+}
+
+#elif MODE == 3
+
+	#include "state_space_se2.h"
+
+int main()
+{
+	PP_INIT_LOGGER;
+
+	Planner::StateSpaceSE2 stateSpace;
+
+	auto sample = stateSpace.SampleUniform();
+	PP_INFO("x: {}; y: {}; theta: {}", sample.x, sample.y, sample.theta * 180.0 * M_1_PI);
+
+	Planner::Pose2D<> mean;
+	Planner::Pose2D<> stdDev(10.0, 10.0, 10.0 * M_PI / 180.0);
+	sample = stateSpace.SampleGaussian(mean, stdDev);
+	PP_INFO("x: {}; y: {}; theta: {}", sample.x, sample.y, sample.theta * 180.0 * M_1_PI);
 }
 
 #endif

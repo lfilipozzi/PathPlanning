@@ -17,28 +17,6 @@ namespace Planner {
 		T theta = 0.0;
 
 		T WrapTheta() const;
-
-		Pose2D operator-() const { return { -x, -y, -theta }; }
-		Pose2D operator-(const Pose2D& rhs) const
-		{
-			Pose2D<> out;
-
-			// Translate
-			auto tx = x - rhs.x;
-			auto ty = y - rhs.y;
-			auto& ttheta = rhs.theta;
-
-			// Rotate
-			out.x = tx * cos(ttheta) - ty * sin(ttheta);
-			out.y = tx * sin(ttheta) + ty * cos(ttheta);
-			out.theta = theta - rhs.theta;
-
-			return out;
-		}
-		bool operator==(const Pose2D& rhs) const
-		{
-			return x == rhs.x && y == rhs.y && theta == rhs.theta;
-		}
 	};
 
 	template <typename T>
@@ -52,26 +30,63 @@ namespace Planner {
 	{
 		return theta;
 	}
+
+	template <typename T>
+	Pose2D<T> operator-(const Pose2D<T>& lhs) { return { -lhs.x, -lhs.y, -lhs.theta }; }
+
+	template <typename T>
+	Pose2D<T> operator-(const Pose2D<T>& lhs, const Pose2D<T>& rhs)
+	{
+		Pose2D<T> out;
+
+		// Translate
+		auto tx = lhs.x - rhs.x;
+		auto ty = lhs.y - rhs.y;
+		auto& ttheta = rhs.theta;
+
+		// Rotate
+		out.x = tx * cos(ttheta) - ty * sin(ttheta);
+		out.y = tx * sin(ttheta) + ty * cos(ttheta);
+		out.theta = lhs.theta - rhs.theta;
+
+		return out;
+	}
+
+	template <typename T>
+	Pose2D<T> operator*(float lhs, const Pose2D<T>& rhs)
+	{
+		Pose2D<T> out;
+
+		out.x = lhs * rhs.x;
+		out.y = lhs * rhs.y;
+		out.theta = lhs * rhs.theta;
+
+		return out;
+	}
+
+	template <typename T>
+	Pose2D<T> operator*(const Pose2D<T>& lhs, float rhs)
+	{
+		return rhs * lhs;
+	}
+
+	template <typename T>
+	bool operator==(const Pose2D<T>& lhs, const Pose2D<T>& rhs)
+	{
+		return lhs.x == rhs.x && lhs.y == rhs.y && lhs.theta == rhs.theta;
+	}
+
+	template <typename T>
+	bool operator!=(const Pose2D<T>& lhs, const Pose2D<T>& rhs)
+	{
+		return !(lhs == rhs);
+	}
 }
 
 namespace std {
-	template <>
-	struct hash<Planner::Pose2D<>> {
-		std::size_t operator()(const Planner::Pose2D<>& pose) const
-		{
-			std::size_t seed = 0;
-			HashCombine(seed, pose.x);
-			HashCombine(seed, pose.y);
-			HashCombine(seed, pose.WrapTheta());
-			return seed;
-		}
-	};
-}
-
-namespace std {
-	template <>
-	struct hash<Planner::Pose2D<int>> {
-		std::size_t operator()(const Planner::Pose2D<int>& pose) const
+	template <typename T>
+	struct hash<Planner::Pose2D<T>> {
+		std::size_t operator()(const Planner::Pose2D<T>& pose) const
 		{
 			std::size_t seed = 0;
 			HashCombine(seed, pose.x);

@@ -140,7 +140,8 @@ namespace Planner {
 		/**
 		 * @brief Represents a Reed-Shepp path segment.
 		 * @details All paths are initialized with an infinite length. Paths
-		 * with an infinite length correspond to a non-valid path.
+		 * with an infinite length correspond to a non-valid path. Lengths of each
+		 * motion are normalized.
 		 */
 		class PathSegment {
 		public:
@@ -257,27 +258,21 @@ namespace Planner {
 			 * @brief Return the shortest path from the start to the goal.
 			 * @param[in] start The initial pose.
 			 * @param[in] goal The goal pose.
-			 * @param[in] unit Normalization factor.
-			 * @param[out] optimalWord The word representing the optimal path.
+			 * @param[in] unit Normalization factor for the turning radius.
+			 * @param[out] word The word representing the optimal path.
 			 */
-			static PathSegment GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit, PathWords& optimalWord)
+			static PathSegment GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit, PathWords* word = nullptr)
 			{
 				float t, u, v;
-				optimalWord = GetShortestPathWord(start, goal, unit, t, u, v);
+				PathWords optimalWord = optimalWord = GetShortestPathWord(start, goal, unit, t, u, v);
+
+				if (word)
+					*word = optimalWord;
 
 				if (!IsPathWordValid(optimalWord))
 					return PathSegment();
 
 				return GetPath(optimalWord, t, u, v);
-			}
-
-			/**
-			 * @overload
-			 */
-			static PathSegment GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit)
-			{
-				PathWords optimalWord = PathWords::NoPath;
-				return GetShortestPath(start, goal, unit, optimalWord);
 			}
 
 		private:
@@ -980,23 +975,46 @@ namespace Planner {
 		};
 	}
 
-	class StateSpaceReedsShepp : public StateSpace<Pose2D<>> {
-// 		using namespace Planner::ReedsShepp;
+	class StateSpaceReedsShepp : public StateSpace<Pose2D<>, 3> {
+		using State = Pose2D<>;
 
 	public:
-		StateSpaceReedsShepp() = default;
+		StateSpaceReedsShepp() :
+			StateSpace<State, 3>({ { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } }) { }
 		~StateSpaceReedsShepp() = default;
 
-		virtual double ComputeDistance(const Pose2D<>& from, const Pose2D<>& to) override
+		virtual State Interpolate(const State& from, const State& to, float ratio) override
 		{
-			auto path = ReedsShepp::Solver::GetShortestPath(from, to, m_minTurningRadius);
-			return path.GetLength();
+			State state;
+
+			// TODO
+
+			return state;
 		}
 
-// 		double ComputeCost(const Pose2D<>& from, const Pose2D<>& to) const
-// 		{
-// 			// TODO
-// 		}
+		/// @brief Compute the distance of a ReedsShepp path.
+		double ComputeDistance(const ReedsShepp::PathSegment& path)
+		{
+			return path.GetLength() * m_minTurningRadius;
+		}
+		/// @overload
+		virtual double ComputeDistance(const State& from, const State& to) override
+		{
+			auto path = ReedsShepp::Solver::GetShortestPath(from, to, m_minTurningRadius);
+			return ComputeDistance(path);
+		}
+
+		double ComputeCost(const ReedsShepp::PathSegment& path) const
+		{
+			return path.ComputeCost(m_minTurningRadius, m_reverseCostMultiplier, m_forwardCostMultiplier, m_gearSwitchCost);
+		}
+		/// @overload
+		double ComputeCost(const Pose2D<>& from, const Pose2D<>& to) const
+		{
+			// TODO
+			//auto path =
+			//return ComputeCost(path);
+		}
 
 		void SetMinTurningRadius(double turningRadius) { m_minTurningRadius = turningRadius; }
 		double GetMinTurningRadius() const { return m_minTurningRadius; }

@@ -2,13 +2,14 @@
 #include "hybrid_a_star.h"
 #include "core/log.h"
 #include "geometry/pose.h"
+#include "state_validator_free.h"
 
 namespace Planner {
 	void TestHybridAStar()
 	{
-		auto stateSpace = makeRef<HybridAStar::StateSpace>();
-
-		HybridAStar hybridAStar(stateSpace);
+		Ref<StateValidator<Pose2D<>>> stateValidator = makeRef<StateValidatorFree<Pose2D<>>>();
+		HybridAStar hybridAStar(stateValidator);
+		auto stateSpace = hybridAStar.GetStateSpace();
 
 		Pose2D<> start = { 0.0, 0.0, 0.0 };
 		Pose2D<> goal = { 10.0, 10.0, 0.78 };

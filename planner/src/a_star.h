@@ -1,13 +1,14 @@
 #pragma once
 
-#include <queue>
-#include <unordered_set>
-#include <unordered_map>
-#include <functional>
 #include "path_planner.h"
 #include "state_space.h"
 #include "tree.h"
 #include "core/hash.h"
+
+#include <queue>
+#include <unordered_set>
+#include <unordered_map>
+#include <functional>
 
 namespace Planner {
 

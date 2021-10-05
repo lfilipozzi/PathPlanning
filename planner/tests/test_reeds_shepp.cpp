@@ -6,7 +6,7 @@ namespace Planner {
 	{
 		ReedsShepp::PathWords word = ReedsShepp::PathWords::NoPath;
 		float unit = 1.0f;
-		ReedsShepp::Solver::GetShortestPath(start, goal, unit, word);
+		ReedsShepp::Solver::GetShortestPath(start, goal, unit, &word);
 
 		assert(word == optimalWord);
 	}

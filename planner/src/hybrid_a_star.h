@@ -2,13 +2,35 @@
 
 #define _USE_MATH_DEFINES
 #include <cmath>
+
 #include "path_planner.h"
 #include "a_star.h"
 #include "geometry/pose.h"
+#include "reeds_shepp.h"
+#include "state_validator.h"
 
 namespace Planner {
+	/**
+	 * @brief Tunable parameters of the HybridAStar algorithm.
+	 */
+	struct HybridAStarParameters {
+		// TODO turning radius, resolution, cost multipliers
+	};
+
+	/**
+	 * @brief Conduct a Hybrid A* search to find the optimal path.
+	 * @details The configuration space is defined by Reeds-Shepp path. The 
+	 * continuous state-space is discretized to perform a A* search. Two poses
+	 * are considered equal if they belong to the same cell in the configuration
+	 * space. 
+	 * The A* search provides an optimal solution that is then smoothed by a 
+	 * nonlinear optimization.
+	 */
 	class HybridAStar : public PathPlanner<Pose2D<>> {
-	private:
+	public:
+		/**
+		 * @brief Augmented state used for hybrid A* search
+		 */
 		struct State {
 			Pose2D<> continuous;
 			Pose2D<int> discrete;
@@ -19,13 +41,37 @@ namespace Planner {
 			}
 		};
 
-	public:
+		/**
+		 * @brief Hash to discretize the 3D configuration space.
+		 * @details Two states are considered equal if they correspond to the 
+		 * same"cell", i.e. they have their position difference is less than the
+		 * spatial resolution and if their heading difference is less than the 
+		 * angular resolution.
+		 */
+		struct HashState {
+			std::size_t operator()(const State& state) const
+			{
+				auto pose = state.discrete;
+				std::hash<Pose2D<int>> hasher;
+				return hasher(pose);
+			}
+		};
+
+		/**
+		 * @brief Define the state-space used for the A* search.
+		 */
 		class StateSpace : public AStarStateSpace<State> {
 		public:
-			StateSpace(double spatialResolution = 1.0, double angularResolution = 0.0872) :
-				spatialResolution(spatialResolution), angularResolution(angularResolution) { }
+			StateSpace(const Ref<StateSpaceReedsShepp>& reedsSheppStateSpace, const Ref<StateValidator<Pose2D<>>>& stateValidator,
+				double spatialResolution = 1.0, double angularResolution = 0.0872) :
+				spatialResolution(spatialResolution),
+				angularResolution(angularResolution),
+				m_reedsSheppStateSpace(reedsSheppStateSpace), m_validator(stateValidator) { }
 
-			Pose2D<int> DiscretizePose(const Pose2D<> pose)
+			/**
+			 * @brief Discretize a state.
+			 */
+			Pose2D<int> DiscretizePose(const Pose2D<>& pose)
 			{
 				return {
 					static_cast<int>(pose.x / spatialResolution),
@@ -34,6 +80,9 @@ namespace Planner {
 				};
 			}
 
+			/**
+			 * @brief Create an augmented state from a 2D pose.
+			 */
 			State CreateState(const Pose2D<>& pose)
 			{
 				State state;
@@ -76,6 +125,9 @@ namespace Planner {
 				return next;
 			}
 
+			/**
+			 * @copydoc Planner::AStarStateSpace::GetNeighborStates()
+			 */
 			virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) override
 			{
 				std::vector<double> deltas = { -10, -7.5, -5, -2.5, -0, 2.5, 5, 7.5, 10 };
@@ -86,38 +138,37 @@ namespace Planner {
 					// Find neighbor state
 					auto newState = ConstantSteer(state, delta);
 
-					// TODO Check that the transition from state to newState is valid
+					// Validate transition: if the transition is not valid, use
+					// last valid state only if it belongs to another cell.
+					Pose2D<> lastValid;
+					// TODO find efficient way to validate path for a Reeds Shepp path defined by a ReedsShepp::PathSegment
+					// FIXME also this is not a good definition of the path, best would be to define different path
+					// (e.g. Dublins, Reeds Shepp, SE(2)) and provide a IsPathValid for each implementation
+					bool valid = m_validator->IsPathValid(state.continuous, newState.continuous, &lastValid);
+					if (!valid) {
+						if (newState.discrete != DiscretizePose(lastValid)) {
+							newState = CreateState(lastValid);
+						}
+					}
 
 					// Compute transition cost
 					// TODO use real cost, not euclidean distance
 					auto deltaState = newState.continuous - state.continuous;
 					double cost = sqrtf(powf(deltaState.x, 2) + powf(deltaState.y, 2));
 
-					vec.push_back({ std::move(newState), cost});
+					vec.push_back({ std::move(newState), cost });
 				}
 
 				return vec;
 			}
 
+		public:
 			const double spatialResolution;
 			const double angularResolution;
-		};
 
-	private:
-		/**
-		 * @brief Hash to discretize the 3D configuration space.
-		 * @details Two states are considered equal if they correspond to the 
-		 * same"cell", i.e. they have their position difference is less than the
-		 * spatial resolution and if their heading difference is less than the 
-		 * angular resolution.
-		 */
-		struct HashState {
-			std::size_t operator()(const State& state) const
-			{
-				auto pose = state.discrete;
-				std::hash<Pose2D<int>> hasher;
-				return hasher(pose);
-			}
+		private:
+			Ref<StateSpaceReedsShepp> m_reedsSheppStateSpace;
+			Ref<StateValidator<Pose2D<>>> m_validator;
 		};
 
 		/**
@@ -129,8 +180,8 @@ namespace Planner {
 		 * by running a 2D flow fields algorithm.
 		 */
 		struct Heuristic {
-			Heuristic(const Ref<AStarStateSpace<State>>& stateSpace) :
-				stateSpace(stateSpace) { }
+			Heuristic(const Ref<StateSpaceReedsShepp>& reedsSheppStateSpace, const Ref<StateValidator<Pose2D<>>>& stateValidator) :
+				m_reedsSheppStateSpace(reedsSheppStateSpace), m_validator(stateValidator) { }
 
 			double HeuristicConstraintsWithoutObstacles(const State& from, const State& to)
 			{
@@ -153,16 +204,24 @@ namespace Planner {
 					HeuristicObstaclesWithoutConstraints(from, to));
 			}
 
-			Ref<AStarStateSpace<State>> stateSpace;
+		private:
+			Ref<StateSpaceReedsShepp> m_reedsSheppStateSpace;
+			Ref<StateValidator<Pose2D<>>> m_validator;
 		};
 
 	public:
-		HybridAStar(const Ref<StateSpace>& stateSpace = makeRef<StateSpace>()) :
-			m_stateSpace(stateSpace)
+		HybridAStar(const Ref<StateValidator<Pose2D<>>>& stateValidator)
 		{
-			m_aStarSearch = makeScope<AStar<State, HashState>>(m_stateSpace, Heuristic(m_stateSpace));
+			m_reedsSheppStateSpace = makeRef<StateSpaceReedsShepp>();
+			m_stateSpace = makeRef<StateSpace>(m_reedsSheppStateSpace, stateValidator);
+			auto heuristic = Heuristic(m_reedsSheppStateSpace, stateValidator);
+			m_aStarSearch = makeScope<AStar<State, HashState>>(m_stateSpace, heuristic);
 		}
 		virtual ~HybridAStar() = default;
+
+		HybridAStarParameters& GetParameters() { return m_parameters; }
+		const HybridAStarParameters& GetParameters() const { return m_parameters; }
+		void SetParameters(const HybridAStarParameters& params) { m_parameters = params; } // TODO need to update parameters in state-space ...
 
 		virtual Status SearchPath() override
 		{
@@ -190,11 +249,14 @@ namespace Planner {
 			return m_path;
 		}
 
-		Ref<AStarStateSpace<State>> GetStateSpace() const { return m_aStarSearch->GetStateSpace(); }
+		Ref<StateSpace> GetStateSpace() const { return m_stateSpace; }
 
 	private:
+		Ref<StateSpaceReedsShepp> m_reedsSheppStateSpace;
+		Ref<StateValidator<Pose2D<>>> m_stateValidator;
 		Ref<StateSpace> m_stateSpace;
 		Scope<AStar<State, HashState>> m_aStarSearch;
 		std::vector<Pose2D<>> m_path;
+		HybridAStarParameters m_parameters;
 	};
 }
