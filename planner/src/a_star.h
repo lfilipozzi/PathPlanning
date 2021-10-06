@@ -19,6 +19,9 @@ namespace Planner {
 	template <typename State>
 	class AStarStateSpace {
 	public:
+		AStarStateSpace() = default;
+		virtual ~AStarStateSpace() = default;
+
 		/**
 		* @brief Returns a list of all neighbor positions and the transition 
 		* cost. The transition from the current state to the neighbor state must
