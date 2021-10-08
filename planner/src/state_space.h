@@ -1,8 +1,9 @@
 #pragma once
 
+#include "utils/random.h"
+
 #include <vector>
 #include <array>
-#include <random>
 
 namespace Planner {
 
@@ -19,12 +20,7 @@ namespace Planner {
 		StateSpace(std::array<std::array<double, 2>, Dimension> bounds) :
 			m_bounds(bounds)
 		{
-			if (!s_randomDevice) {
-				s_randomDevice = makeScope<std::random_device>();
-				s_engine = makeScope<std::mt19937_64>((*s_randomDevice)());
-				s_uniformDistribution = std::uniform_real_distribution<>(0.0, std::nextafter(1.0, std::numeric_limits<T>::max()));
-				s_gaussianDistribution = std::normal_distribution<>(0.0, 1.0);
-			}
+			Random<T>::Init();
 		}
 		virtual ~StateSpace() = default;
 
@@ -66,11 +62,6 @@ namespace Planner {
 		/// @brief Compute the distance between two states.
 		virtual double ComputeDistance(const State& from, const State& to) = 0;
 
-		/// @brief Sample a double with a uniform distribution from 0.0 to 1.0.
-		double SampleDoubleUniform()
-		{
-			return s_uniformDistribution(*s_engine);
-		}
 		/// @brief Sample the configuration space using a uniform distribution.
 		State SampleUniform()
 		{
@@ -79,8 +70,7 @@ namespace Planner {
 			for (unsigned int i = 0; i < Dimension; i++) {
 				auto lb = m_bounds[i][0];
 				auto ub = m_bounds[i][1];
-				auto range = ub - lb;
-				sample[i] = lb + range * s_uniformDistribution(*s_engine);
+				sample[i] = Random<T>::SampleUniform(lb, ub);
 			}
 			memcpy(&state, sample.data(), sizeof(State));
 			return state;
@@ -106,7 +96,7 @@ namespace Planner {
 			for (unsigned int i = 0; i < Dimension; i++) {
 				T mean = *(meanStateBasePtr + i);
 				T dev = *(stdDevBasePtr + i);
-				sample[i] = mean + dev * s_gaussianDistribution(*s_engine);
+				sample[i] = Random<T>::SampleGaussian(mean, dev);
 			}
 			memcpy(&state, sample.data(), sizeof(State));
 			EnforceBounds(state);
@@ -125,11 +115,5 @@ namespace Planner {
 
 	protected:
 		std::array<std::array<double, 2>, Dimension> m_bounds;
-
-	private:
-		inline static Scope<std::random_device> s_randomDevice;
-		inline static Scope<std::mt19937_64> s_engine;
-		inline static std::uniform_real_distribution<> s_uniformDistribution;
-		inline static std::normal_distribution<> s_gaussianDistribution;
 	};
 }

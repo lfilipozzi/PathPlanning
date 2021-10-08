@@ -129,7 +129,7 @@ namespace Planner {
 				// Randomly add a child using a Reeds-Shepp path with a
 				// probability which is function of the heuristic to the goal
 				double cost = Heuristic(state, m_goalState);
-				if (cost < 10.0 || SampleDoubleUniform() < 10.0 / (cost * cost)) {
+				if (cost < 10.0 || Random<double>::SampleUniform(0.0, 1.0) < 10.0 / (cost * cost)) {
 					State reedsShepp;
 					if (GetReedsSheppChild(state, reedsShepp, cost))
 						neighbors.push_back({ reedsShepp, cost });

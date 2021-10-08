@@ -1,6 +1,6 @@
 #pragma once
 
-#include "maths.h"
+#include "utils/maths.h"
 #include "geometry/pose.h"
 #include "core/assert.h"
 #include "path.h"
