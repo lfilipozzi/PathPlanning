@@ -7,10 +7,9 @@
 namespace Planner {
 	void TestHybridAStar()
 	{
-		Ref<StateSpaceReedsShepp> reedsSheppStateSpace = makeRef<StateSpaceReedsShepp>();
+		Ref<HybridAStar::StateSpace> stateSpace = makeRef<HybridAStar::StateSpace>();
 		Ref<StateValidator<Pose2D<>>> stateValidator = makeRef<StateValidatorFree<Pose2D<>>>();
-		HybridAStar hybridAStar(reedsSheppStateSpace, stateValidator);
-		auto stateSpace = hybridAStar.GetStateSpace();
+		HybridAStar hybridAStar(stateSpace, stateValidator);
 
 		Pose2D<> start = { 0.0, 0.0, 0.0 };
 		Pose2D<> goal = { 10.0, 10.0, 0.78 };
@@ -28,11 +27,11 @@ namespace Planner {
 		hybridAStar.GetStateSpace()->spatialResolution = 1.0;
 		hybridAStar.GetStateSpace()->angularResolution = 0.0872;
 		hybridAStar.GetStateSpace()->numGeneratedMotion = 5;
-		hybridAStar.GetReedsSheppStateSpace()->minTurningRadius = 1.0;
-		hybridAStar.GetReedsSheppStateSpace()->forwardCostMultiplier = 1.0;
-		hybridAStar.GetReedsSheppStateSpace()->reverseCostMultiplier = 1.0;
-		hybridAStar.GetReedsSheppStateSpace()->directionSwitchingCost = 0.0;
-		hybridAStar.GetReedsSheppStateSpace()->SetBounds({ { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } });
+		hybridAStar.GetStateSpace()->minTurningRadius = 1.0;
+		hybridAStar.GetStateSpace()->forwardCostMultiplier = 1.0;
+		hybridAStar.GetStateSpace()->reverseCostMultiplier = 1.0;
+		hybridAStar.GetStateSpace()->directionSwitchingCost = 0.0;
+		hybridAStar.GetStateSpace()->SetBounds({ { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } });
 	}
 }
 

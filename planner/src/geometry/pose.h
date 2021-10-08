@@ -31,6 +31,8 @@ namespace Planner {
 		return theta;
 	}
 
+	/// @brief Add the Pose @rhs after @lhs.
+	/// @warning This operation is not commutative.
 	template <typename T>
 	Pose2D<T> operator+(const Pose2D<T>& lhs, const Pose2D<T>& rhs)
 	{
@@ -50,6 +52,7 @@ namespace Planner {
 		return out;
 	}
 
+	/// @brief Compute the pose p such that @rhs + p = @lhs.
 	template <typename T>
 	Pose2D<T> operator-(const Pose2D<T>& lhs, const Pose2D<T>& rhs)
 	{

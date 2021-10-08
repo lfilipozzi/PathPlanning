@@ -274,13 +274,15 @@ namespace Planner {
 		class Solver {
 		public:
 			/**
-			 * @brief Return the shortest path from the start to the goal.
+			 * @brief Return the shortest distance between the start and the 
+			 * goal without computing a Reeds-Shepp path.
 			 * @param[in] start The initial pose.
 			 * @param[in] goal The goal pose.
 			 * @param[in] minTurningRadius Minimum turning radius.
 			 * @param[out] word The word representing the optimal path.
+			 * @param[out] out Parameters to reconstruct the path.
 			 */
-			static PathSegment GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, PathWords* word = nullptr)
+			static double GetShortestDistance(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, PathWords* word = nullptr, std::tuple<double, double, double>* out = nullptr)
 			{
 				const std::array<Pose2D<>, 4> goals = GetGoalArray(start, goal, minTurningRadius);
 
@@ -294,7 +296,7 @@ namespace Planner {
 					double length = GetMotionLengths(word, goals, tt, uu, vv);
 
 					if (length < smallestLength) {
-						PP_ASSERT(length > 0, "Invalid length");
+						PP_ASSERT(length >= 0, "Invalid length");
 						smallestLength = length;
 						smallestWord = word;
 						t = tt;
@@ -305,22 +307,44 @@ namespace Planner {
 
 				if (word)
 					*word = smallestWord;
+				if (out)
+					*out = { t, u, v };
+
+				return smallestLength;
+			}
+
+			/**
+			 * @brief Return the shortest path from the start to the goal.
+			 * @param[in] start The initial pose.
+			 * @param[in] goal The goal pose.
+			 * @param[in] minTurningRadius Minimum turning radius.
+			 * @param[out] word The word representing the optimal path.
+			 */
+			static PathSegment GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, PathWords* word = nullptr)
+			{
+				std::tuple<double, double, double> params;
+				PathWords smallestWord = PathWords::NoPath;
+				GetShortestDistance(start, goal, minTurningRadius, &smallestWord, &params);
 				if (!IsPathWordValid(smallestWord))
 					return PathSegment();
 
+				if (word)
+					*word = smallestWord;
+
+				auto& [t, u, v] = params;
 				return GetPath(smallestWord, t, u, v);
 			}
 
 			/**
-				* @brief Return the optimal path from the start to the goal.
-				* @param[in] start The initial pose.
-				* @param[in] goal The goal pose.
-				* @param[in] minTurningRadius Minimum turning radius.
-				* @param[in] reverseCostMultiplier
-				* @param[in] forwardCostMultiplier
-				* @param[in] directionSwitchingCost
-				* @param[out] word The word representing the optimal path.
-				*/
+			 * @brief Return the optimal path from the start to the goal.
+			 * @param[in] start The initial pose.
+			 * @param[in] goal The goal pose.
+			 * @param[in] minTurningRadius Minimum turning radius.
+			 * @param[in] reverseCostMultiplier
+			 * @param[in] forwardCostMultiplier
+			 * @param[in] directionSwitchingCost
+			 * @param[out] word The word representing the optimal path.
+			 */
 			static PathSegment GetOptimalPath(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, float reverseCostMultiplier, float forwardCostMultiplier, float directionSwitchingCost, PathWords* word = nullptr)
 			{
 				const std::array<Pose2D<>, 4> goals = GetGoalArray(start, goal, minTurningRadius);
@@ -884,7 +908,7 @@ namespace Planner {
 
 				// clang-format off
 				switch (motion.steer) {
-					case Steer::Straight: interp = Straight(interp, motion.direction, motion.length * motionRatio); break;
+					case Steer::Straight: interp = Straight(interp, motion.direction,               motion.length * motionRatio); break;
 					case Steer::Left:     interp = Turn    (interp, motion.direction, motion.steer, motion.length * motionRatio); break;
 					case Steer::Right:    interp = Turn    (interp, motion.direction, motion.steer, motion.length * motionRatio); break;
 				}
@@ -923,7 +947,7 @@ namespace Planner {
 
 					// clang-format off
 					switch (motion.steer) {
-						case Steer::Straight: interp = Straight(interp, motion.direction, motion.length * motionRatio); break;
+						case Steer::Straight: interp = Straight(interp, motion.direction,               motion.length * motionRatio); break;
 						case Steer::Left:     interp = Turn    (interp, motion.direction, motion.steer, motion.length * motionRatio); break;
 						case Steer::Right:    interp = Turn    (interp, motion.direction, motion.steer, motion.length * motionRatio); break;
 					}
@@ -1001,12 +1025,17 @@ namespace Planner {
 		/// when driving Reeds-Shepp paths.
 		virtual double ComputeDistance(const Pose& from, const Pose& to) override
 		{
-			auto path = ReedsShepp::Solver::GetShortestPath(from, to, minTurningRadius);
-			return ComputeDistance(path);
+			return ReedsShepp::Solver::GetShortestDistance(from, to, minTurningRadius);
+		}
+		/// @brief Compute the shortest path between two poses
+		Ref<PathReedsShepp> ComputeShortestPath(const Pose& from, const Pose& to)
+		{
+			auto pathSegment = ReedsShepp::Solver::GetShortestPath(from, to, minTurningRadius);
+			return makeRef<PathReedsShepp>(from, pathSegment, minTurningRadius);
 		}
 
 		/// @brief Compute the cost of a Reeds-Shepp path.
-		double ComputeOptimalCost(const ReedsShepp::PathSegment& path) const
+		double ComputeCost(const ReedsShepp::PathSegment& path) const
 		{
 			return path.ComputeCost(minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
 		}
@@ -1015,7 +1044,13 @@ namespace Planner {
 		double ComputeCost(const Pose2D<>& from, const Pose2D<>& to) const
 		{
 			auto path = ReedsShepp::Solver::GetOptimalPath(from, to, minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
-			return ComputeOptimalCost(path);
+			return ComputeCost(path);
+		}
+		/// @brief Compute the optimal path between two poses
+		Ref<PathReedsShepp> ComputeOptimalPath(const Pose& from, const Pose& to)
+		{
+			auto pathSegment = ReedsShepp::Solver::GetOptimalPath(from, to, minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
+			return makeRef<PathReedsShepp>(from, pathSegment, minTurningRadius);
 		}
 
 	public:

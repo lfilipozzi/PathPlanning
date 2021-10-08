@@ -66,6 +66,11 @@ namespace Planner {
 		/// @brief Compute the distance between two states.
 		virtual double ComputeDistance(const State& from, const State& to) = 0;
 
+		/// @brief Sample a double with a uniform distribution from 0.0 to 1.0.
+		double SampleDoubleUniform()
+		{
+			return s_uniformDistribution(*s_engine);
+		}
 		/// @brief Sample the configuration space using a uniform distribution.
 		State SampleUniform()
 		{

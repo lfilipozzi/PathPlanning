@@ -63,12 +63,11 @@ namespace Planner {
 		/**
 		 * @brief Define the state-space used for the A* search.
 		 */
-		class StateSpace : public AStarStateSpace<State> {
-		public:
-			StateSpace(const Ref<StateSpaceReedsShepp>& reedsSheppStateSpace, const Ref<StateValidator<Pose2D<>>>& stateValidator) :
-				m_reedsSheppStateSpace(reedsSheppStateSpace), m_validator(stateValidator) { }
+		class StateSpace : public AStarStateSpace<State>, public StateSpaceReedsShepp {
+			friend HybridAStar;
 
-			Ref<StateSpaceReedsShepp>& GetReedsSheppStateSpace() { return m_reedsSheppStateSpace; }
+		public:
+			StateSpace() = default;
 
 			/**
 			 * @brief Discretize a state.
@@ -85,11 +84,11 @@ namespace Planner {
 			/**
 			 * @brief Create an augmented state from a path.
 			 */
-			State CreateStateFromPath(const Ref<PathConstantSteer>& path) const
+			State CreateStateFromPath(const Ref<Path<Pose2D<>>>& path) const
 			{
 				State state;
 				state.discrete = DiscretizePose(path->GetFinalState());
-				state.path = std::move(path);
+				state.path = path;
 				return state;
 			}
 
@@ -104,6 +103,57 @@ namespace Planner {
 				return state;
 			}
 
+			/**
+			 * @copydoc Planner::AStarStateSpace::GetNeighborStates()
+			 */
+			virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) override
+			{
+				// TODO compute delta from minTurning radius and numMotion
+				std::vector<double> deltas = { -10, -7.5, -5, -2.5, -0, 2.5, 5, 7.5, 10 };
+
+				std::vector<std::tuple<State, double>> neighbors;
+				neighbors.reserve(2 * deltas.size());
+				for (double delta : deltas) {
+					State newState;
+					double cost;
+
+					// Find neighbor state in forward direction
+					if (ConstantSteer(state, delta, Direction::Forward, newState, cost))
+						neighbors.push_back({ newState, cost });
+
+					// Find neighbor state in forward direction
+					if (ConstantSteer(state, delta, Direction::Backward, newState, cost))
+						neighbors.push_back({ newState, cost });
+				}
+
+				// Randomly add a child using a Reeds-Shepp path with a
+				// probability which is function of the heuristic to the goal
+				double cost = Heuristic(state, m_goalState);
+				if (cost < 10.0 || SampleDoubleUniform() < 10.0 / (cost * cost)) {
+					State reedsShepp;
+					if (GetReedsSheppChild(state, reedsShepp, cost))
+						neighbors.push_back({ reedsShepp, cost });
+				}
+
+				return neighbors;
+			}
+
+			/**
+			* @brief Heuristic used by the A* algorithm.
+			* @details Use the maximum of two heuristic:
+			*   - Heuristic with constraints without obstacles
+			*   - Heuristic with obstacles without constraints
+			* The heuristic with obstacles but without constraints is implemented 
+			* by running a 2D flow fields algorithm.
+			*/
+			virtual double Heuristic(const State& from, const State& to) override
+			{
+				return std::max(
+					HeuristicNonHolonomicConstraintsWithoutObstacles(from, to),
+					HeuristicObstaclesWithoutNonHolonomicConstraints(from, to));
+			}
+
+		private:
 			/**
 			 * @brief Compute the transition cost
 			 */
@@ -150,33 +200,67 @@ namespace Planner {
 			}
 
 			/**
-			 * @copydoc Planner::AStarStateSpace::GetNeighborStates()
+			 * @brief Compute Reeds-Shepp path from a state to the goal.
+			 * @param[in] state The previous state.
+			 * @param[out] reedsShepp The goal state containing the Reeds-Shepp 
+			 * path from the state to the goal.
+			 * @param[out] cost The transition cost.
+			 * @return Boolean to indicate if the transition is valid.
 			 */
-			virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) override
+			[[nodiscard]] bool GetReedsSheppChild(const State& state, State& reedsShepp, double& cost)
 			{
-				// TODO compute delta from minTurning radius and numMotion
-				std::vector<double> deltas = { -10, -7.5, -5, -2.5, -0, 2.5, 5, 7.5, 10 };
+				auto path = ComputeOptimalPath(state.GetPose(), m_goalState.GetPose());
+				reedsShepp = CreateStateFromPath(path);
+				if (!m_validator->IsPathValid(*(reedsShepp.path)))
+					return false;
 
-				std::vector<std::tuple<State, double>> vec;
-				vec.reserve(2 * deltas.size());
-				for (double delta : deltas) {
-					State newState;
-					double cost;
+				// Compute transition cost
+				cost = GetTransitionCost(reedsShepp.path);
+				return true;
+			}
 
-					// Find neighbor state in forward direction
-					if (ConstantSteer(state, delta, Direction::Forward, newState, cost))
-						vec.push_back({ newState, cost });
+			double HeuristicNonHolonomicConstraintsWithoutObstacles(const State& from, const State& to)
+			{
+				// TODO this heuristic could be pre-computed offline by setting the goal at the origin
+#if 0 // Heuristic estimates only length
+				double distanceMultiplier = std::min(reverseCostMultiplier, forwardCostMultiplier);
+				if (distanceMultiplier == 0.0)
+					return 0.0;
 
-					// Find neighbor state in forward direction
-					if (ConstantSteer(state, delta, Direction::Backward, newState, cost))
-						vec.push_back({ newState, cost });
-				}
+				// Euclidean distance
+				auto delta = to.GetPose() - from.GetPose();
+				double euclideanDistance = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
 
-				// Randomly add a child using a Reeds-Shepp path with a
-				// probability which is function of the heuristic to the goal
-				// TODO add reeds shepp path
+				// Distance with Reeds-Shepp path
+				double reedsSheppDistance = ComputeDistance(from.GetPose(), to.GetPose());
 
-				return vec;
+				double distance = std::max(euclideanDistance, reedsSheppDistance);
+				return distanceMultiplier * distance;
+#else // Heuristic estimate cost
+				double distanceMultiplier = std::min(reverseCostMultiplier, forwardCostMultiplier);
+
+				// Euclidean distance
+				auto delta = to.GetPose() - from.GetPose();
+				double euclideanDistance = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
+
+				// Distance with Reeds-Shepp path
+				double reedsSheppCost = ComputeCost(from.GetPose(), to.GetPose());
+
+				double heuristic = std::max(distanceMultiplier * euclideanDistance, reedsSheppCost);
+				return heuristic;
+#endif
+			}
+
+			double HeuristicObstaclesWithoutNonHolonomicConstraints(const State& /*from*/, const State& /*to*/)
+			{
+				// TODO use flow-fields algorithm
+				return 0.0;
+			}
+
+			State& SetGoalState(const Pose2D<>& goal)
+			{
+				m_goalState = CreateStateFromPose(goal);
+				return m_goalState;
 			}
 
 		public:
@@ -185,65 +269,30 @@ namespace Planner {
 			unsigned int numGeneratedMotion = 5;
 
 		private:
-			Ref<StateSpaceReedsShepp> m_reedsSheppStateSpace;
-			Ref<StateValidator<Pose2D<>>> m_validator;
-		};
-
-		/**
-		 * @brief Heuristic used by the A* algorithm.
-		 * @details Use the maximum of two heuristic:
-		 *   - Heuristic with constraints without obstacles
-		 *   - Heuristic with obstacles without constraints
-		 * The heuristic with obstacles but without constraints is implemented 
-		 * by running a 2D flow fields algorithm.
-		 */
-		struct Heuristic {
-			Heuristic(const Ref<StateSpaceReedsShepp>& reedsSheppStateSpace, const Ref<StateValidator<Pose2D<>>>& stateValidator) :
-				m_reedsSheppStateSpace(reedsSheppStateSpace), m_validator(stateValidator) { }
-
-			double HeuristicConstraintsWithoutObstacles(const State& from, const State& to)
-			{
-				// TODO compute arc
-				auto delta = to.GetPose() - from.GetPose();
-				double euclidean = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
-				return euclidean;
-			}
-
-			double HeuristicObstaclesWithoutConstraints(const State& /*from*/, const State& /*to*/)
-			{
-				// TODO use flow-fields algorithm
-				return 0.0;
-			}
-
-			double operator()(const State& from, const State& to)
-			{
-				return std::max(
-					HeuristicConstraintsWithoutObstacles(from, to),
-					HeuristicObstaclesWithoutConstraints(from, to));
-			}
-
-		private:
-			Ref<StateSpaceReedsShepp> m_reedsSheppStateSpace;
-			Ref<StateValidator<Pose2D<>>> m_validator;
+			StateValidator<Pose2D<>>* m_validator;
+			State m_goalState;
 		};
 
 	public:
-		HybridAStar(const Ref<StateSpaceReedsShepp>& reedsSheppStateSpace, const Ref<StateValidator<Pose2D<>>>& stateValidator) :
-			m_reedsSheppStateSpace(reedsSheppStateSpace), m_stateValidator(stateValidator)
+		HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidator<Pose2D<>>>& stateValidator) :
+			m_stateSpace(stateSpace), m_stateValidator(stateValidator)
 		{
-			m_stateSpace = makeRef<StateSpace>(reedsSheppStateSpace, stateValidator);
-			auto heuristic = Heuristic(reedsSheppStateSpace, stateValidator);
-			m_aStarSearch = makeScope<AStar<State, State::Hash>>(m_stateSpace, heuristic);
+			m_aStarSearch = makeScope<AStar<State, State::Hash>>(m_stateSpace);
 		}
 		virtual ~HybridAStar() = default;
 
 		virtual Status SearchPath() override
 		{
+			// Set the validator of the state-space
+			if (!m_stateValidator)
+				return Status::Failure;
+			m_stateSpace->m_validator = m_stateValidator.get();
+
 			// Run A* on 2D pose
-			State init_state = m_stateSpace->CreateStateFromPose(this->m_init);
-			State goal_state = m_stateSpace->CreateStateFromPose(this->m_goal);
-			m_aStarSearch->SetInitState(init_state);
-			m_aStarSearch->SetGoalState(goal_state);
+			State initState = m_stateSpace->CreateStateFromPose(this->m_init);
+			State goalState = m_stateSpace->SetGoalState(this->m_goal);
+			m_aStarSearch->SetInitState(initState);
+			m_aStarSearch->SetGoalState(goalState);
 			auto status = m_aStarSearch->SearchPath();
 
 			auto solutionStates = m_aStarSearch->GetPath();
@@ -263,14 +312,12 @@ namespace Planner {
 			return m_path;
 		}
 
-		Ref<StateSpaceReedsShepp>& GetReedsSheppStateSpace() { return m_reedsSheppStateSpace; }
-		Ref<StateValidator<Pose2D<>>>& GetStateValidator() { return m_stateValidator; }
 		Ref<StateSpace>& GetStateSpace() { return m_stateSpace; }
+		Ref<StateValidator<Pose2D<>>>& GetStateValidator() { return m_stateValidator; }
 
 	private:
-		Ref<StateSpaceReedsShepp> m_reedsSheppStateSpace;
-		Ref<StateValidator<Pose2D<>>> m_stateValidator;
 		Ref<StateSpace> m_stateSpace;
+		Ref<StateValidator<Pose2D<>>> m_stateValidator;
 		Scope<AStar<State, State::Hash>> m_aStarSearch;
 		std::vector<Pose2D<>> m_path;
 	};

@@ -8,7 +8,6 @@
 #include <queue>
 #include <unordered_set>
 #include <unordered_map>
-#include <functional>
 
 namespace Planner {
 
@@ -30,12 +29,11 @@ namespace Planner {
 		* transition cost.
 		*/
 		virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) = 0;
-	};
 
-	/**
-	 * @brief Tunable parameters of the A* algorithm.
-	 */
-	struct AStarParameters {
+		/**
+		 * @brief Heuristic function.
+		 */
+		virtual double Heuristic(const State& from, const State& to) = 0;
 	};
 
 	/**
@@ -201,18 +199,10 @@ namespace Planner {
 		/**
 		 * @brief Constructor.
 		 * @param stateSpace The configuration space.
-		 * @param heuristic The heuristic used by the algorithm. Its prototype 
-		 * is:
-		 * <code>double Heuristic (const State& from, const State& to)</code>
-		 * where `from' is the origin state and `to' is the destination state. 
 		 */
-		AStar(const Ref<AStarStateSpace<State>>& stateSpace, std::function<double(const State&, const State&)> heuristicFcn) :
-			m_stateSpace(stateSpace), m_heuristicFcn(heuristicFcn) {};
+		AStar(const Ref<AStarStateSpace<State>>& stateSpace) :
+			m_stateSpace(stateSpace) {};
 		virtual ~AStar() = default;
-
-		AStarParameters& GetParameters() { return m_parameters; }
-		const AStarParameters& GetParameters() const { return m_parameters; }
-		void SetParameters(const AStarParameters& params) { m_parameters = params; }
 
 		virtual Status SearchPath() override
 		{
@@ -246,7 +236,7 @@ namespace Planner {
 					Scope<Node> childScope = makeScope<Node>(childState);
 					Node* child = childScope.get();
 					child->meta.pathCost = node->meta.pathCost + transitionCost;
-					child->meta.totalCost = child->meta.pathCost + m_heuristicFcn(child->GetState(), this->m_goal);
+					child->meta.totalCost = child->meta.pathCost + m_stateSpace->Heuristic(child->GetState(), this->m_goal);
 
 					// Check if the child node is in the frontier or explored set
 					Node* const* inFrontier = frontier.Find(child->GetState());
@@ -295,9 +285,7 @@ namespace Planner {
 		Ref<AStarStateSpace<State>> GetStateSpace() const { return m_stateSpace; }
 
 	private:
-		AStarParameters m_parameters;
 		Ref<AStarStateSpace<State>> m_stateSpace;
-		std::function<double(const State&, const State&)> m_heuristicFcn;
 
 		Scope<Node> m_rootNode;
 		Node* m_solutionNode = nullptr;

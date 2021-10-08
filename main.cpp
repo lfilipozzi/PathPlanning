@@ -3,7 +3,7 @@
 #include "core/log.h"
 #include "core/timer.h"
 
-#define MODE 2
+#define MODE 1
 
 #if MODE == 0
 
@@ -58,8 +58,9 @@ int main()
 {
 	PP_INIT_LOGGER;
 
+	Planner::Ref<Planner::HybridAStar::StateSpace> stateSpace = Planner::makeRef<Planner::HybridAStar::StateSpace>();
 	Planner::Ref<Planner::StateValidator<Planner::Pose2D<>>> stateValidator = Planner::makeRef<Planner::StateValidatorFree<Planner::Pose2D<>>>();
-	Planner::HybridAStar hybridAStar(stateValidator);
+	Planner::HybridAStar hybridAStar(stateSpace, stateValidator);
 
 	Planner::Pose2D<> start = { 0.0, 0.0, 0.0 };
 	Planner::Pose2D<> goal = { 10.0, 10.0, 0.78 };
