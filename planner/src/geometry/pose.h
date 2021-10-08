@@ -32,7 +32,23 @@ namespace Planner {
 	}
 
 	template <typename T>
-	Pose2D<T> operator-(const Pose2D<T>& lhs) { return { -lhs.x, -lhs.y, -lhs.theta }; }
+	Pose2D<T> operator+(const Pose2D<T>& lhs, const Pose2D<T>& rhs)
+	{
+		Pose2D<T> out;
+
+		// Rotate
+		auto& theta = lhs.theta;
+		out.x = rhs.x * cos(theta) - rhs.y * sin(theta);
+		out.y = rhs.x * sin(theta) + rhs.y * cos(theta);
+		out.theta = rhs.theta;
+
+		// Translate
+		out.x += lhs.x;
+		out.y += lhs.y;
+		out.theta += lhs.theta;
+
+		return out;
+	}
 
 	template <typename T>
 	Pose2D<T> operator-(const Pose2D<T>& lhs, const Pose2D<T>& rhs)
@@ -40,34 +56,16 @@ namespace Planner {
 		Pose2D<T> out;
 
 		// Translate
-		auto tx = lhs.x - rhs.x;
-		auto ty = lhs.y - rhs.y;
-		auto& ttheta = rhs.theta;
+		auto x = lhs.x - rhs.x;
+		auto y = lhs.y - rhs.y;
+		auto& theta = rhs.theta;
 
 		// Rotate
-		out.x = tx * cos(ttheta) - ty * sin(ttheta);
-		out.y = tx * sin(ttheta) + ty * cos(ttheta);
+		out.x = x * cos(theta) + y * sin(theta);
+		out.y = -x * sin(theta) + y * cos(theta);
 		out.theta = lhs.theta - rhs.theta;
 
 		return out;
-	}
-
-	template <typename T>
-	Pose2D<T> operator*(float lhs, const Pose2D<T>& rhs)
-	{
-		Pose2D<T> out;
-
-		out.x = lhs * rhs.x;
-		out.y = lhs * rhs.y;
-		out.theta = lhs * rhs.theta;
-
-		return out;
-	}
-
-	template <typename T>
-	Pose2D<T> operator*(const Pose2D<T>& lhs, float rhs)
-	{
-		return rhs * lhs;
 	}
 
 	template <typename T>

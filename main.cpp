@@ -3,7 +3,7 @@
 #include "core/log.h"
 #include "core/timer.h"
 
-#define MODE 3
+#define MODE 2
 
 #if MODE == 0
 
@@ -97,12 +97,12 @@ int main(int argc, char** argv)
 	Planner::Pose2D<> goal { atof(argv[4]), atof(argv[5]), atof(argv[6]) };
 
 	Planner::ReedsShepp::PathWords word = Planner::ReedsShepp::PathWords::NoPath;
-	float unit = 1.0f;
+	double unit = 1.0;
 	auto path = Planner::ReedsShepp::Solver::GetShortestPath(start, goal, unit, &word);
 
 	PP_INFO("Start: {}, {}, {}", start.x, start.y, start.theta);
 	PP_INFO("Goal:  {}, {}, {}", goal.x, goal.y, goal.theta);
-	PP_INFO("Word {}: Length {}", word, path.GetLength());
+	PP_INFO("Word {}: Length {}", word, path.GetLength(unit));
 }
 
 #elif MODE == 3

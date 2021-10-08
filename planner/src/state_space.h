@@ -16,7 +16,7 @@ namespace Planner {
 		static_assert(sizeof(State) == Dimension * sizeof(T));
 
 	public:
-		StateSpace(std::array<std::array<T, 2>, Dimension> bounds) :
+		StateSpace(std::array<std::array<double, 2>, Dimension> bounds) :
 			m_bounds(bounds)
 		{
 			if (!s_randomDevice) {
@@ -28,8 +28,8 @@ namespace Planner {
 		}
 		virtual ~StateSpace() = default;
 
-		void SetBounds(std::array<std::array<T, 2>, Dimension> bounds) { m_bounds = bounds; }
-		std::array<std::array<T, 2>, Dimension> GetBounds() const { return m_bounds; };
+		void SetBounds(std::array<std::array<double, 2>, Dimension> bounds) { m_bounds = bounds; }
+		std::array<std::array<double, 2>, Dimension> GetBounds() const { return m_bounds; };
 
 		/// @brief Modify the state if necessary to enforce state bounds
 		/// @param[in,out] state The state to enforce bound.
@@ -44,8 +44,24 @@ namespace Planner {
 			}
 		}
 
-		/// @brief Define how to interpolate between states
-		virtual State Interpolate(const State& from, const State& to, float ratio) = 0;
+		/// @brief Check if a state validate the bounds
+		bool ValidateBounds(const State& state)
+		{
+			bool validate = true;
+
+			const T* basePtr = reinterpret_cast<const T*>(&state);
+			for (unsigned int i = 0; i < Dimension; i++) {
+				auto lb = m_bounds[i][0];
+				auto ub = m_bounds[i][1];
+				T* ptr = basePtr + i;
+				if (*ptr < lb || *ptr > ub) {
+					validate = false;
+					break;
+				}
+			}
+
+			return validate;
+		}
 
 		/// @brief Compute the distance between two states.
 		virtual double ComputeDistance(const State& from, const State& to) = 0;
@@ -103,7 +119,7 @@ namespace Planner {
 		}
 
 	protected:
-		std::array<std::array<T, 2>, Dimension> m_bounds;
+		std::array<std::array<double, 2>, Dimension> m_bounds;
 
 	private:
 		inline static Scope<std::random_device> s_randomDevice;

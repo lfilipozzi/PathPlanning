@@ -1,7 +1,9 @@
 #pragma once
 
+#include "maths.h"
 #include "geometry/pose.h"
 #include "core/assert.h"
+#include "path.h"
 #include "state_space.h"
 
 #include <array>
@@ -9,6 +11,8 @@
 #include <cmath>
 
 namespace Planner {
+
+	class PathReedsShepp;
 
 	namespace ReedsShepp {
 		/**
@@ -101,39 +105,28 @@ namespace Planner {
 			return i >= 0 && i < static_cast<int>(PathWords::NumPathWords);
 		}
 
-		enum class Steer {
-			Left,
-			Straight,
-			Right
-		};
-
-		enum class Gear {
-			Forward,
-			Backward
-		};
-
 		/**
 		 * @brief Represents a motion with a constant steering and direction over some length.
 		 */
 		struct Motion {
 			Steer steer;
-			Gear gear;
-			float length = std::numeric_limits<float>::infinity();
+			Direction direction = Direction::NoMotion;
+			double length = std::numeric_limits<double>::infinity();
 
 			/**
 			 * @brief Initialize an motion with an invalid motion.
 			 */
 			Motion() = default;
 
-			Motion(Steer steer, Gear gear, float length) :
-				steer(steer), gear(gear), length(length) { }
+			Motion(Steer steer, Direction direction, double length) :
+				steer(steer), direction(direction), length(length) { }
 
 			/**
 			 * @brief Check if an motion is valid
 			 */
 			bool IsValid() const
 			{
-				return length != std::numeric_limits<float>::infinity();
+				return length != std::numeric_limits<double>::infinity() && direction != Direction::NoMotion;
 			}
 		};
 
@@ -144,6 +137,11 @@ namespace Planner {
 		 * motion are normalized.
 		 */
 		class PathSegment {
+			friend class ::Planner::PathReedsShepp;
+
+		public:
+			static constexpr unsigned int numMotion = 5;
+
 		public:
 			/**
 			 * @brief Construct a set of invalid motions.
@@ -152,21 +150,19 @@ namespace Planner {
 			{
 				// Initialize all motions with an infinite length
 				for (auto& motion : m_motions) {
-					motion.steer = Steer::Straight;
-					motion.gear = Gear::Forward;
-					motion.length = std::numeric_limits<float>::infinity();
+					motion = Motion();
 				}
-				m_length = 0.0f;
+				m_length = 0.0;
 			}
 
 			/**
 			 * @brief Add a motion to the path.
 			 */
-			void AddMotion(Steer steer, Gear gear, float length)
+			void AddMotion(Steer steer, Direction direction, double length)
 			{
 				// Find index of first invalid motion
 				int index = -1;
-				for (int i = 0; i < s_numMotion; i++) {
+				for (int i = 0; i < numMotion; i++) {
 					if (!m_motions[i].IsValid()) {
 						index = i;
 						break;
@@ -175,43 +171,67 @@ namespace Planner {
 				PP_ASSERT(index >= 0, "Cannot add a motion.");
 
 				m_motions[index].steer = steer;
-				m_motions[index].gear = gear;
+				m_motions[index].direction = direction;
 				m_motions[index].length = length;
 				m_length += std::abs(length);
 			}
 
 			/**
+			 * @brief Get number of valid motion in the path.
+			 */
+			int GetNumMotions() const
+			{
+				int index = 0;
+				while (m_motions[index].IsValid()) {
+					index++;
+					if (index == numMotion)
+						break;
+				}
+				return index;
+			}
+
+			/**
+			 * @brief Return the i-th motion.
+			 */
+			const Motion& GetMotion(int i) const { return m_motions[i]; }
+
+			/**
+			 * @brief Return the motions
+			 */
+			const std::array<Motion, numMotion>& GetMotions() const { return m_motions; }
+
+			/**
 			 * @brief Get length.
 			 */
-			float GetLength() const { return m_length; }
+			double GetLength(double minTurningRadius) const { return m_length * minTurningRadius; }
 
 			/**
 			 * @brief Compute the cost of the path.
 			 */
-			float ComputeCost(float unit, float reverseCostMultiplier, float forwardCostMultiplier, float gearSwitchCost) const
+			float ComputeCost(double minTurningRadius, float reverseCostMultiplier, float forwardCostMultiplier, float directionSwitchingCost) const
 			{
 				if (!m_motions[0].IsValid())
 					return std::numeric_limits<float>::infinity();
 
-				if (reverseCostMultiplier == 1.0f && gearSwitchCost == 0.0f)
-					return m_length * unit;
+				if (reverseCostMultiplier == 1.0f && directionSwitchingCost == 0.0f)
+					return m_length * minTurningRadius;
 
 				float cost = 0;
 
-				Gear prevGear = m_motions[0].gear;
+				Direction prevDirection = m_motions[0].direction;
 				for (const auto& motion : m_motions) {
 					if (!motion.IsValid())
 						break;
 
-					float motionCost = motion.length * unit;
-					if (motion.gear == Gear::Forward)
+					float motionCost = motion.length * minTurningRadius;
+					if (motion.direction == Direction::Forward)
 						motionCost *= forwardCostMultiplier;
-					else if (motion.gear == Gear::Backward)
+					else if (motion.direction == Direction::Backward)
 						motionCost *= reverseCostMultiplier;
-					if (motion.gear != prevGear)
-						motionCost += gearSwitchCost;
+					if (motion.direction != prevDirection)
+						motionCost += directionSwitchingCost;
 
-					prevGear = motion.gear;
+					prevDirection = motion.direction;
 					cost += motionCost;
 				}
 
@@ -226,7 +246,7 @@ namespace Planner {
 			PathSegment&& TimeflipTransform()
 			{
 				for (auto& motion : m_motions)
-					motion.gear = motion.gear == Gear::Backward ? Gear::Forward : Gear::Backward;
+					motion.direction = motion.direction == Direction::Backward ? Direction::Forward : Direction::Backward;
 				return std::move(*this);
 			}
 
@@ -247,9 +267,8 @@ namespace Planner {
 			}
 
 		private:
-			static constexpr unsigned int s_numMotion = 5;
-			std::array<Motion, s_numMotion> m_motions;
-			float m_length = 0.0f;
+			std::array<Motion, numMotion> m_motions;
+			double m_length = 0.0;
 		};
 
 		class Solver {
@@ -258,44 +277,92 @@ namespace Planner {
 			 * @brief Return the shortest path from the start to the goal.
 			 * @param[in] start The initial pose.
 			 * @param[in] goal The goal pose.
-			 * @param[in] unit Normalization factor for the turning radius.
+			 * @param[in] minTurningRadius Minimum turning radius.
 			 * @param[out] word The word representing the optimal path.
 			 */
-			static PathSegment GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, float unit, PathWords* word = nullptr)
+			static PathSegment GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, PathWords* word = nullptr)
 			{
-				float t, u, v;
-				PathWords optimalWord = optimalWord = GetShortestPathWord(start, goal, unit, t, u, v);
+				const std::array<Pose2D<>, 4> goals = GetGoalArray(start, goal, minTurningRadius);
+
+				// Iterate over pathwords to find the shortest path
+				double smallestLength = std::numeric_limits<double>::infinity();
+				PathWords smallestWord = PathWords::NoPath;
+				double t, u, v;
+				for (int w = 0; w < static_cast<int>(PathWords::NumPathWords); w++) {
+					double tt, uu, vv;
+					PathWords word = static_cast<PathWords>(w);
+					double length = GetMotionLengths(word, goals, tt, uu, vv);
+
+					if (length < smallestLength) {
+						PP_ASSERT(length > 0, "Invalid length");
+						smallestLength = length;
+						smallestWord = word;
+						t = tt;
+						u = uu;
+						v = vv;
+					}
+				}
+
+				if (word)
+					*word = smallestWord;
+				if (!IsPathWordValid(smallestWord))
+					return PathSegment();
+
+				return GetPath(smallestWord, t, u, v);
+			}
+
+			/**
+				* @brief Return the optimal path from the start to the goal.
+				* @param[in] start The initial pose.
+				* @param[in] goal The goal pose.
+				* @param[in] minTurningRadius Minimum turning radius.
+				* @param[in] reverseCostMultiplier
+				* @param[in] forwardCostMultiplier
+				* @param[in] directionSwitchingCost
+				* @param[out] word The word representing the optimal path.
+				*/
+			static PathSegment GetOptimalPath(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, float reverseCostMultiplier, float forwardCostMultiplier, float directionSwitchingCost, PathWords* word = nullptr)
+			{
+				const std::array<Pose2D<>, 4> goals = GetGoalArray(start, goal, minTurningRadius);
+
+				// Iterate over pathwords to find the shortest path
+				float optimalCost = std::numeric_limits<float>::infinity();
+				PathWords optimalWord = PathWords::NoPath;
+				PathSegment optimalPath;
+				for (int w = 0; w < static_cast<int>(PathWords::NumPathWords); w++) {
+					double t, u, v;
+					PathWords word = static_cast<PathWords>(w);
+					double length = GetMotionLengths(word, goals, t, u, v);
+					if (length == std::numeric_limits<double>::infinity())
+						continue;
+					PathSegment path = GetPath(word, t, u, v);
+					float cost = path.ComputeCost(minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
+
+					if (cost < optimalCost) {
+						optimalCost = cost;
+						optimalWord = word;
+						optimalPath = path;
+					}
+				}
 
 				if (word)
 					*word = optimalWord;
-
 				if (!IsPathWordValid(optimalWord))
 					return PathSegment();
-
-				return GetPath(optimalWord, t, u, v);
+				return optimalPath;
 			}
 
 		private:
-			/**
-			 * @brief Return the path word to generate the shortest path from 
-			 * the start to the goal.
-			 * @param[in] start The initial pose.
-			 * @param[in] goal The goal pose.
-			 * @param[in] unit Normalization factor.
-			 * @param[out] t Length of the first motion primitive.
-			 * @param[out] u Length of the second motion primitive.
-			 * @param[out] v Length of the third motion primitive.
-			 */
-			static PathWords GetShortestPathWord(const Pose2D<>& start, const Pose2D<>& goal, float unit, float& t, float& u, float& v)
+			static std::array<Pose2D<>, 4> GetGoalArray(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius)
 			{
 				// Translate the goal so that the start position is at the origin with orientation 0
 				Pose2D<> newGoal = goal - start;
-				newGoal.x = newGoal.x / unit;
-				newGoal.y = newGoal.y / unit;
+				newGoal.x = newGoal.x / minTurningRadius;
+				newGoal.y = newGoal.y / minTurningRadius;
 				newGoal.theta = newGoal.WrapTheta();
 
 				// clang-format off
-				const std::array<Pose2D<>, 4> goals = {
+				std::array<Pose2D<>, 4> goals = {
 					Pose2D<>( newGoal.x,  newGoal.y,  newGoal.theta),
 					Pose2D<>(-newGoal.x,  newGoal.y, -newGoal.theta),
 					Pose2D<>( newGoal.x, -newGoal.y, -newGoal.theta),
@@ -303,734 +370,657 @@ namespace Planner {
 				};
 				// clang-format on
 
-				// Iterate over pathwords to find the optimal path
-				float bestPathLength = std::numeric_limits<float>::infinity();
-				PathWords bestWord = PathWords::NoPath;
-				std::array<float, 4> lengths;
-				for (auto& l : lengths) {
-					l = std::numeric_limits<float>::infinity();
-				}
-				std::array<float, 4> tt, tu, tv;
-				for (int w = 0; w < static_cast<int>(PathWords::NumPathWords); w += 4) {
-
-					switch (static_cast<PathWords>(w)) {
-					// Reeds-Shepp 8.1: CSC, same turn
-					case PathWords::LfSfLf:
-						lengths[0] = LfSfLf(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfSfLf(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfSfLf(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfSfLf(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					// Reeds-Shepp 8.2: CSC, different turn
-					case PathWords::LfSfRf:
-						lengths[0] = LfSfRf(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfSfRf(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfSfRf(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfSfRf(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					// Reeds-Shepp 8.3: C|C|C
-					case PathWords::LfRbLf:
-						lengths[0] = LfRbLf(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfRbLf(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfRbLf(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfRbLf(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					// Reeds-Shepp 8.4: C|CC
-					case PathWords::LfRbLb:
-						lengths[0] = LfRbLb(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfRbLb(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfRbLb(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfRbLb(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					// Reeds-Shepp 8.4: CC|C
-					case PathWords::LfRfLb:
-						lengths[0] = LfRfLb(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfRfLb(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfRfLb(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfRfLb(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					// Reeds-Shepp 8.7: CCu|CuC
-					case PathWords::LfRufLubRb:
-						lengths[0] = LfRufLubRb(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfRufLubRb(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfRufLubRb(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfRufLubRb(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					// Reeds-Shepp 8.8: C|CuCu|C
-					case PathWords::LfRubLubRf:
-						lengths[0] = LfRubLubRf(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfRubLubRf(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfRubLubRf(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfRubLubRf(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					// Reeds-Shepp 8.9: C|C(pi/2)SC, same turn
-					case PathWords::LfRbpi2SbLb:
-						lengths[0] = LfRbpi2SbLb(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfRbpi2SbLb(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfRbpi2SbLb(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfRbpi2SbLb(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					// Reeds-Shepp 8.10: C|C(pi/2)SC, different turn
-					case PathWords::LfRbpi2SbRb:
-						lengths[0] = LfRbpi2SbRb(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfRbpi2SbRb(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfRbpi2SbRb(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfRbpi2SbRb(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					// Reeds-Shepp 8.9 (reversed): CSC(pi/2)|C, same turn
-					case PathWords::LfSfRfpi2Lb:
-						lengths[0] = LfSfRfpi2Lb(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfSfRfpi2Lb(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfSfRfpi2Lb(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfSfRfpi2Lb(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					// Reeds-Shepp 8.10 (reversed): CSC(pi/2)|C, different turn
-					case PathWords::LfSfLfpi2Rb:
-						lengths[0] = LfSfLfpi2Rb(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfSfLfpi2Rb(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfSfLfpi2Rb(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfSfLfpi2Rb(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					// Reeds-Shepp 8.11: C|C(pi/2)SC(pi/2)|C
-					case PathWords::LfRbpi2SbLbpi2Rf:
-						lengths[0] = LfRbpi2SbLbpi2Rf(goals[0], tt[0], tu[0], tv[0]);
-						lengths[1] = LfRbpi2SbLbpi2Rf(goals[1], tt[1], tu[1], tv[1]);
-						lengths[2] = LfRbpi2SbLbpi2Rf(goals[2], tt[2], tu[2], tv[2]);
-						lengths[3] = LfRbpi2SbLbpi2Rf(goals[3], tt[3], tu[3], tv[3]);
-						break;
-
-					default:
-						PP_ASSERT(false, "No equivalent Reeds-Shepp base path word.");
-						break;
-					}
-
-					for (unsigned int i = 0; i < 4; i++) {
-						if (lengths[i] < bestPathLength) {
-							PP_ASSERT(lengths[i] > 0, "Invalid length");
-							bestPathLength = lengths[i];
-							bestWord = static_cast<PathWords>(w + i);
-							t = tt[i];
-							u = tu[i];
-							v = tv[i];
-						}
-					}
-				}
-				return bestWord;
+				return goals;
 			}
 
-			static PathSegment GetPath(PathWords word, float t, float u, float v)
+			[[nodiscard]] static double GetMotionLengths(PathWords word, const std::array<Pose2D<>, 4> goals, double& t, double& u, double& v)
 			{
+				int w = static_cast<int>(word);
+
+				switch (static_cast<PathWords>(4 * (w / 4))) {
 				// clang-format off
-				switch (word) {
-				// Reeds-Shepp 8.1: CSC, same turn
-				case PathWords::LfSfLf: return LfSfLfPath(t, u, v);
-				case PathWords::LbSbLb: return LfSfLfPath(t, u, v).TimeflipTransform();
-				case PathWords::RfSfRf: return LfSfLfPath(t, u, v).ReflectTransform();
-				case PathWords::RbSbRb: return LfSfLfPath(t, u, v).TimeflipTransform().ReflectTransform();
-				
-				// Reeds-Shepp 8.2: CSC, different turn
-				case PathWords::LfSfRf: return LfSfRfPath(t, u, v);
-				case PathWords::LbSbRb: return LfSfRfPath(t, u, v).TimeflipTransform();
-				case PathWords::RfSfLf: return LfSfRfPath(t, u, v).ReflectTransform();
-				case PathWords::RbSbLb: return LfSfRfPath(t, u, v).TimeflipTransform().ReflectTransform();
-				
-				// Reeds-Shepp 8.3: C|C|C
-				case PathWords::LfRbLf: return LfRbLfPath(t, u, v);
-				case PathWords::LbRfLb: return LfRbLfPath(t, u, v).TimeflipTransform();
-				case PathWords::RfLbRf: return LfRbLfPath(t, u, v).ReflectTransform();
-				case PathWords::RbLfRb: return LfRbLfPath(t, u, v).TimeflipTransform().ReflectTransform();
-				
-				// Reeds-Shepp 8.4: C|CC
-				case PathWords::LfRbLb: return LfRbLbPath(t, u, v);
-				case PathWords::LbRfLf: return LfRbLbPath(t, u, v).TimeflipTransform();
-				case PathWords::RfLbRb: return LfRbLbPath(t, u, v).ReflectTransform();
-				case PathWords::RbLfRf: return LfRbLbPath(t, u, v).TimeflipTransform().ReflectTransform();
-				
-				// Reeds-Shepp 8.4: CC|C
-				case PathWords::LfRfLb: return LfRfLbPath(t, u, v);
-				case PathWords::LbRbLf: return LfRfLbPath(t, u, v).TimeflipTransform();
-				case PathWords::RfLfRb: return LfRfLbPath(t, u, v).ReflectTransform();
-				case PathWords::RbLbRf: return LfRfLbPath(t, u, v).TimeflipTransform().ReflectTransform();
-				
-				// Reeds-Shepp 8.7: CCu|CuC 
-				case PathWords::LfRufLubRb: return LfRufLubRbPath(t, u, v);
-				case PathWords::LbRubLufRf: return LfRufLubRbPath(t, u, v).TimeflipTransform();
-				case PathWords::RfLufRubLb: return LfRufLubRbPath(t, u, v).ReflectTransform();
-				case PathWords::RbLubRufLf: return LfRufLubRbPath(t, u, v).TimeflipTransform().ReflectTransform();
-				
-				// Reeds-Shepp 8.8: C|CuCu|C
-				case PathWords::LfRubLubRf: return LfRubLubRfPath(t, u, v);
-				case PathWords::LbRufLufRb: return LfRubLubRfPath(t, u, v).TimeflipTransform();
-				case PathWords::RfLubRubLf: return LfRubLubRfPath(t, u, v).ReflectTransform();
-				case PathWords::RbLufRufLb: return LfRubLubRfPath(t, u, v).TimeflipTransform().ReflectTransform();
-				
-				// Reeds-Shepp 8.9: C|C(pi/2)SC, same turn
-				case PathWords::LfRbpi2SbLb: return LfRbpi2SbLbPath(t, u, v);
-				case PathWords::LbRfpi2SfLf: return LfRbpi2SbLbPath(t, u, v).TimeflipTransform();
-				case PathWords::RfLbpi2SbRb: return LfRbpi2SbLbPath(t, u, v).ReflectTransform();
-				case PathWords::RbLfpi2SfRf: return LfRbpi2SbLbPath(t, u, v).TimeflipTransform().ReflectTransform();
-				
-				// Reeds-Shepp 8.10: C|C(pi/2)SC, different turn
-				case PathWords::LfRbpi2SbRb: return LfRbpi2SbRbPath(t, u, v);
-				case PathWords::LbRfpi2SfRf: return LfRbpi2SbRbPath(t, u, v).TimeflipTransform();
-				case PathWords::RfLbpi2SbLb: return LfRbpi2SbRbPath(t, u, v).ReflectTransform();
-				case PathWords::RbLfpi2SfLf: return LfRbpi2SbRbPath(t, u, v).TimeflipTransform().ReflectTransform();
-				
-				// Reeds-Shepp 8.9 (reversed): CSC(pi/2)|C, same turn
-				case PathWords::LfSfRfpi2Lb: return LfSfRfpi2LbPath(t, u, v);
-				case PathWords::LbSbRbpi2Lf: return LfSfRfpi2LbPath(t, u, v).TimeflipTransform();
-				case PathWords::RfSfLfpi2Rb: return LfSfRfpi2LbPath(t, u, v).ReflectTransform();
-				case PathWords::RbSbLbpi2Rf: return LfSfRfpi2LbPath(t, u, v).TimeflipTransform().ReflectTransform();
-				
-				// Reeds-Shepp 8.10 (reversed): CSC(pi/2)|C, different turn
-				case PathWords::LfSfLfpi2Rb: return LfSfLfpi2RbPath(t, u, v);
-				case PathWords::LbSbLbpi2Rf: return LfSfLfpi2RbPath(t, u, v).TimeflipTransform();
-				case PathWords::RfSfRfpi2Lb: return LfSfLfpi2RbPath(t, u, v).ReflectTransform();
-				case PathWords::RbSbRbpi2Lf: return LfSfLfpi2RbPath(t, u, v).TimeflipTransform().ReflectTransform();
-				
-				// Reeds-Shepp 8.11: C|C(pi/2)SC(pi/2)|C
-				case PathWords::LfRbpi2SbLbpi2Rf: return LfRbpi2SbLbpi2RfPath(t, u, v);
-				case PathWords::LbRfpi2SfLfpi2Rb: return LfRbpi2SbLbpi2RfPath(t, u, v).TimeflipTransform();
-				case PathWords::RfLbpi2SbRbpi2Lf: return LfRbpi2SbLbpi2RfPath(t, u, v).ReflectTransform();
-				case PathWords::RbLfpi2SfRfpi2Lb: return LfRbpi2SbLbpi2RfPath(t, u, v).TimeflipTransform().ReflectTransform();
+				case PathWords::LfSfLf:           return LfSfLf          (goals[w % 4], t, u, v);
+				case PathWords::LfSfRf:           return LfSfRf          (goals[w % 4], t, u, v);
+				case PathWords::LfRbLf:           return LfRbLf          (goals[w % 4], t, u, v);
+				case PathWords::LfRbLb:           return LfRbLb          (goals[w % 4], t, u, v);
+				case PathWords::LfRfLb:           return LfRfLb          (goals[w % 4], t, u, v);
+				case PathWords::LfRufLubRb:       return LfRufLubRb      (goals[w % 4], t, u, v);
+				case PathWords::LfRubLubRf:       return LfRubLubRf      (goals[w % 4], t, u, v);
+				case PathWords::LfRbpi2SbLb:      return LfRbpi2SbLb     (goals[w % 4], t, u, v);
+				case PathWords::LfRbpi2SbRb:      return LfRbpi2SbRb     (goals[w % 4], t, u, v);
+				case PathWords::LfSfRfpi2Lb:      return LfSfRfpi2Lb     (goals[w % 4], t, u, v);
+				case PathWords::LfSfLfpi2Rb:      return LfSfLfpi2Rb     (goals[w % 4], t, u, v);
+				case PathWords::LfRbpi2SbLbpi2Rf: return LfRbpi2SbLbpi2Rf(goals[w % 4], t, u, v);
+					// clang-format on
+
+				default:
+					PP_ASSERT(false, "No equivalent Reeds-Shepp base path word.");
+					t = 0;
+					u = 0;
+					v = 0;
+					return std::numeric_limits<double>::infinity();
+				}
+			}
+
+			[[nodiscard]] static PathSegment GetPath(PathWords word, double t, double u, double v)
+			{
+				PathSegment path;
+				int w = static_cast<int>(word);
+
+				switch (static_cast<PathWords>(4 * (w / 4))) {
+				// clang-format off
+				case PathWords::LfSfLf:           path = LfSfLfPath          (t, u, v); break;
+				case PathWords::LfSfRf:           path = LfSfRfPath          (t, u, v); break;
+				case PathWords::LfRbLf:           path = LfRbLfPath          (t, u, v); break;
+				case PathWords::LfRbLb:           path = LfRbLbPath          (t, u, v); break;
+				case PathWords::LfRfLb:           path = LfRfLbPath          (t, u, v); break;
+				case PathWords::LfRufLubRb:       path = LfRufLubRbPath      (t, u, v); break;
+				case PathWords::LfRubLubRf:       path = LfRubLubRfPath      (t, u, v); break;
+				case PathWords::LfRbpi2SbLb:      path = LfRbpi2SbLbPath     (t, u, v); break;
+				case PathWords::LfRbpi2SbRb:      path = LfRbpi2SbRbPath     (t, u, v); break;
+				case PathWords::LfSfRfpi2Lb:      path = LfSfRfpi2LbPath     (t, u, v); break;
+				case PathWords::LfSfLfpi2Rb:      path = LfSfLfpi2RbPath     (t, u, v); break;
+				case PathWords::LfRbpi2SbLbpi2Rf: path = LfRbpi2SbLbpi2RfPath(t, u, v); break;
+					// clang-format on
 
 				default:
 					PP_ASSERT(false, "Word is not a valid Reeds-Shepp path word.");
 					return PathSegment();
 				}
-				// clang-format on
+
+				switch (w % 4) {
+				case 1:
+					path = path.TimeflipTransform();
+					break;
+				case 2:
+					path = path.ReflectTransform();
+					break;
+				case 3:
+					path = path.TimeflipTransform().ReflectTransform();
+					break;
+				default:
+					break;
+				}
+				return path;
 			}
 
-			static float Modulo(float in, float mod)
-			{
-				// Return the modulo of x by y
-				float out = fmod(in, mod);
-				if (out < 0)
-					out += mod;
-				return out;
-			}
-
-			static bool IsAngleInvalid(float theta)
+			static bool IsAngleInvalid(double theta)
 			{
 				return theta < 0 || theta > M_PI;
 			}
 
-			static float WrapAngle(float theta)
+			static double WrapAngle(double theta)
 			{
-				return Modulo(theta + M_PI, 2 * M_PI) - M_PI;
+				return Maths::Modulo(theta + M_PI, 2 * M_PI) - M_PI;
 			}
 
-			static float LfSfLf(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfSfLf(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.1
-				t = 0;
-				u = 0;
-				v = 0;
-
-				float x = goal.x - sin(goal.theta);
-				float y = goal.y - 1 + cos(goal.theta);
+				double x = goal.x - sin(goal.theta);
+				double y = goal.y - 1 + cos(goal.theta);
 
 				u = sqrt(x * x + y * y);
 				t = atan2(y, x);
 				v = WrapAngle(goal.theta - t);
 
 				if (IsAngleInvalid(t) || IsAngleInvalid(v))
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
 				return t + u + v;
 			}
 
-			static float LfSfRf(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfSfRf(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.2
-				t = 0;
-				u = 0;
-				v = 0;
+				double x = goal.x + sin(goal.theta);
+				double y = goal.y - 1 - cos(goal.theta);
 
-				float x = goal.x + sin(goal.theta);
-				float y = goal.y - 1 - cos(goal.theta);
-
-				float u1squared = x * x + y * y;
-				float t1 = std::atan2(y, x);
+				double u1squared = x * x + y * y;
+				double t1 = std::atan2(y, x);
 
 				if (u1squared < 4)
-					std::numeric_limits<float>::infinity();
+					std::numeric_limits<double>::infinity();
 
 				u = sqrt(u1squared - 4);
-				float phi = atan2(2, u);
+				double phi = atan2(2, u);
 				t = WrapAngle(t1 + phi);
 				v = WrapAngle(t - goal.theta);
 
 				if (IsAngleInvalid(t) || IsAngleInvalid(v))
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
 				return t + u + v;
 			}
 
-			static float LfRbLf(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfRbLf(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.3
 				// Uses a modified formula adapted from the c_c_c function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				t = 0;
-				u = 0;
-				v = 0;
+				double xi = goal.x - sin(goal.theta);
+				double eta = goal.y - 1 + cos(goal.theta);
 
-				float xi = goal.x - sin(goal.theta);
-				float eta = goal.y - 1 + cos(goal.theta);
-
-				float u1 = sqrt(xi * xi + eta * eta);
+				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 > 4)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float phi = atan2(eta, xi);
-				float alpha = acos(u1 / 4.0f);
-				t = Modulo(M_PI_2 + alpha + phi, 2 * M_PI);
-				u = Modulo(M_PI - 2 * alpha, 2 * M_PI);
-				v = Modulo(goal.theta - t - u, 2 * M_PI);
+				double phi = atan2(eta, xi);
+				double alpha = acos(u1 / 4.0);
+				t = Maths::Modulo(M_PI_2 + alpha + phi, 2 * M_PI);
+				u = Maths::Modulo(M_PI - 2 * alpha, 2 * M_PI);
+				v = Maths::Modulo(goal.theta - t - u, 2 * M_PI);
 
 				if (IsAngleInvalid(t) || IsAngleInvalid(u) || IsAngleInvalid(v))
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
 				return t + u + v;
 			}
 
-			static float LfRbLb(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfRbLb(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.4
 				// Uses a modified formula adapted from the c_cc function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				t = 0;
-				u = 0;
-				v = 0;
+				double xi = goal.x - sin(goal.theta);
+				double eta = goal.y - 1 + cos(goal.theta);
 
-				float xi = goal.x - sin(goal.theta);
-				float eta = goal.y - 1 + cos(goal.theta);
-
-				float u1 = sqrt(xi * xi + eta * eta);
+				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 > 4)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float phi = atan2(eta, xi);
-				float alpha = acos(u1 / 4.0f);
-				t = Modulo(M_PI_2 + alpha + phi, 2 * M_PI);
-				u = Modulo(M_PI - 2 * alpha, 2 * M_PI);
-				v = Modulo(t + u - goal.theta, 2 * M_PI);
+				double phi = atan2(eta, xi);
+				double alpha = acos(u1 / 4.0);
+				t = Maths::Modulo(M_PI_2 + alpha + phi, 2 * M_PI);
+				u = Maths::Modulo(M_PI - 2 * alpha, 2 * M_PI);
+				v = Maths::Modulo(t + u - goal.theta, 2 * M_PI);
 
 				return t + u + v;
 			}
 
-			static float LfRfLb(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfRfLb(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.4
 				// Uses a modified formula adapted from the cc_c function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				t = 0;
-				u = 0;
-				v = 0;
+				double xi = goal.x - sin(goal.theta);
+				double eta = goal.y - 1 + cos(goal.theta);
 
-				float xi = goal.x - sin(goal.theta);
-				float eta = goal.y - 1 + cos(goal.theta);
-
-				float u1 = sqrt(xi * xi + eta * eta);
+				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 > 4)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float phi = atan2(eta, xi);
-				u = acos((8 - u1 * u1) / 8.0f);
-				float va = sin(u);
-				float alpha = asin(2 * va / u1);
-				t = Modulo(M_PI_2 - alpha + phi, 2 * M_PI);
-				v = Modulo(t - u - goal.theta, 2 * M_PI);
+				double phi = atan2(eta, xi);
+				u = acos((8 - u1 * u1) / 8.0);
+				double va = sin(u);
+				double alpha = asin(2 * va / u1);
+				t = Maths::Modulo(M_PI_2 - alpha + phi, 2 * M_PI);
+				v = Maths::Modulo(t - u - goal.theta, 2 * M_PI);
 
 				return t + u + v;
 			}
 
-			static float LfRufLubRb(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfRufLubRb(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.7
 				// Uses a modified formula adapted from the ccu_cuc function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				t = 0;
-				u = 0;
-				v = 0;
+				double xi = goal.x + sin(goal.theta);
+				double eta = goal.y - 1 - cos(goal.theta);
 
-				float xi = goal.x + sin(goal.theta);
-				float eta = goal.y - 1 - cos(goal.theta);
-
-				float u1 = sqrt(xi * xi + eta * eta);
+				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 > 4)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float phi = atan2(eta, xi);
+				double phi = atan2(eta, xi);
 
 				if (u1 > 2) {
-					float alpha = acos(u1 / 4 - 0.5);
-					t = Modulo(M_PI_2 + phi - alpha, 2 * M_PI);
-					u = Modulo(M_PI - alpha, 2 * M_PI);
-					v = Modulo(goal.theta - t + 2 * u, 2 * M_PI);
+					double alpha = acos(u1 / 4 - 0.5);
+					t = Maths::Modulo(M_PI_2 + phi - alpha, 2 * M_PI);
+					u = Maths::Modulo(M_PI - alpha, 2 * M_PI);
+					v = Maths::Modulo(goal.theta - t + 2 * u, 2 * M_PI);
 				} else {
-					float alpha = acos(u1 / 4 + 0.5);
-					t = Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
-					u = Modulo(alpha, 2 * M_PI);
-					v = Modulo(goal.theta - t + 2 * u, 2 * M_PI);
+					double alpha = acos(u1 / 4 + 0.5);
+					t = Maths::Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
+					u = Maths::Modulo(alpha, 2 * M_PI);
+					v = Maths::Modulo(goal.theta - t + 2 * u, 2 * M_PI);
 				}
 
 				return t + u + u + v;
 			}
 
-			static float LfRubLubRf(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfRubLubRf(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.8
 				// Uses a modified formula adapted from the c_cucu_c function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				t = 0;
-				u = 0;
-				v = 0;
+				double xi = goal.x + sin(goal.theta);
+				double eta = goal.y - 1 - cos(goal.theta);
 
-				float xi = goal.x + sin(goal.theta);
-				float eta = goal.y - 1 - cos(goal.theta);
-
-				float u1 = sqrt(xi * xi + eta * eta);
+				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 > 6)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float phi = atan2(eta, xi);
-				float va1 = 1.25f - u1 * u1 / 16;
+				double phi = atan2(eta, xi);
+				double va1 = 1.25f - u1 * u1 / 16;
 				if (va1 < 0 || va1 > 1)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
 				u = acos(va1);
-				float va2 = sin(u);
-				float alpha = asin(2 * va2 / u1);
-				t = Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
-				v = Modulo(t - goal.theta, 2 * M_PI);
+				double va2 = sin(u);
+				double alpha = asin(2 * va2 / u1);
+				t = Maths::Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
+				v = Maths::Modulo(t - goal.theta, 2 * M_PI);
 
 				return t + u + u + v;
 			}
 
-			static float LfRbpi2SbLb(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfRbpi2SbLb(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.9
 				// Uses a modified formula adapted from the c_c2sca function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				t = 0;
-				u = 0;
-				v = 0;
+				double xi = goal.x - sin(goal.theta);
+				double eta = goal.y - 1 + cos(goal.theta);
 
-				float xi = goal.x - sin(goal.theta);
-				float eta = goal.y - 1 + cos(goal.theta);
-
-				float u1squared = xi * xi + eta * eta;
+				double u1squared = xi * xi + eta * eta;
 				if (u1squared < 4)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float phi = atan2(eta, xi);
+				double phi = atan2(eta, xi);
 
 				u = sqrt(u1squared - 4) - 2;
 				if (u < 0)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float alpha = atan2(2, u + 2);
-				t = Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
-				v = Modulo(t + M_PI_2 - goal.theta, 2 * M_PI);
+				double alpha = atan2(2, u + 2);
+				t = Maths::Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
+				v = Maths::Modulo(t + M_PI_2 - goal.theta, 2 * M_PI);
 
 				return t + M_PI_2 + u + v;
 			}
 
-			static float LfRbpi2SbRb(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfRbpi2SbRb(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.10
 				// Uses a modified formula adapted from the c_c2scb function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				t = 0;
-				u = 0;
-				v = 0;
+				double xi = goal.x + sin(goal.theta);
+				double eta = goal.y - 1 - cos(goal.theta);
 
-				float xi = goal.x + sin(goal.theta);
-				float eta = goal.y - 1 - cos(goal.theta);
-
-				float u1 = sqrt(xi * xi + eta * eta);
+				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 < 2)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float phi = atan2(eta, xi);
+				double phi = atan2(eta, xi);
 
-				t = Modulo(M_PI_2 + phi, 2 * M_PI);
+				t = Maths::Modulo(M_PI_2 + phi, 2 * M_PI);
 				u = u1 - 2;
-				v = Modulo(goal.theta - t - M_PI_2, 2 * M_PI);
+				v = Maths::Modulo(goal.theta - t - M_PI_2, 2 * M_PI);
 
 				return t + M_PI_2 + u + v;
 			}
 
-			static float LfSfRfpi2Lb(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfSfRfpi2Lb(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.9 (reversed)
 				// Uses a modified formula adapted from the csc2_ca function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				t = 0;
-				u = 0;
-				v = 0;
+				double xi = goal.x - sin(goal.theta);
+				double eta = goal.y - 1 + cos(goal.theta);
 
-				float xi = goal.x - sin(goal.theta);
-				float eta = goal.y - 1 + cos(goal.theta);
-
-				float u1squared = xi * xi + eta * eta;
+				double u1squared = xi * xi + eta * eta;
 				if (u1squared < 4)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float phi = atan2(eta, xi);
+				double phi = atan2(eta, xi);
 
 				u = sqrt(u1squared - 4) - 2;
 				if (u < 0)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float alpha = atan2(u + 2, 2);
-				t = Modulo(M_PI_2 + phi - alpha, 2 * M_PI);
-				v = Modulo(t - M_PI_2 - goal.theta, 2 * M_PI);
+				double alpha = atan2(u + 2, 2);
+				t = Maths::Modulo(M_PI_2 + phi - alpha, 2 * M_PI);
+				v = Maths::Modulo(t - M_PI_2 - goal.theta, 2 * M_PI);
 
 				return t + u + M_PI_2 + v;
 			}
 
-			static float LfSfLfpi2Rb(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfSfLfpi2Rb(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.10 (reversed)
 				// Uses a modified formula adapted from the csc2_cb function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				t = 0;
-				u = 0;
-				v = 0;
+				double xi = goal.x + sin(goal.theta);
+				double eta = goal.y - 1 - cos(goal.theta);
 
-				float xi = goal.x + sin(goal.theta);
-				float eta = goal.y - 1 - cos(goal.theta);
-
-				float u1 = sqrt(xi * xi + eta * eta);
+				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 < 2)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float phi = atan2(eta, xi);
+				double phi = atan2(eta, xi);
 
-				t = Modulo(phi, 2 * M_PI);
+				t = Maths::Modulo(phi, 2 * M_PI);
 				u = u1 - 2;
-				v = Modulo(-t - M_PI_2 + goal.theta, 2 * M_PI);
+				v = Maths::Modulo(-t - M_PI_2 + goal.theta, 2 * M_PI);
 
 				return t + u + M_PI_2 + v;
 			}
 
-			static float LfRbpi2SbLbpi2Rf(const Pose2D<>& goal, float& t, float& u, float& v)
+			static double LfRbpi2SbLbpi2Rf(const Pose2D<>& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.11
 				// Uses a modified formula adapted from the c_c2sc2_c function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				t = 0;
-				u = 0;
-				v = 0;
+				double xi = goal.x + sin(goal.theta);
+				double eta = goal.y - 1 - cos(goal.theta);
 
-				float xi = goal.x + sin(goal.theta);
-				float eta = goal.y - 1 - cos(goal.theta);
-
-				float u1squared = xi * xi + eta * eta;
+				double u1squared = xi * xi + eta * eta;
 				if (u1squared < 16)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float phi = atan2(eta, xi);
+				double phi = atan2(eta, xi);
 
 				u = sqrt(u1squared - 4) - 4;
 				if (u < 0)
-					return std::numeric_limits<float>::infinity();
+					return std::numeric_limits<double>::infinity();
 
-				float alpha = atan2(2, u + 4);
-				t = Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
-				v = Modulo(t - goal.theta, 2 * M_PI);
+				double alpha = atan2(2, u + 4);
+				t = Maths::Modulo(M_PI_2 + phi + alpha, 2 * M_PI);
+				v = Maths::Modulo(t - goal.theta, 2 * M_PI);
 
 				return t + u + v + M_PI;
 			}
 
-			static PathSegment LfSfLfPath(float t, float u, float v)
+			static PathSegment LfSfLfPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Straight, Gear::Forward, u);
-				motions.AddMotion(Steer::Left, Gear::Forward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Straight, Direction::Forward, u);
+				motions.AddMotion(Steer::Left, Direction::Forward, v);
 				return motions;
 			}
 
-			static PathSegment LfSfRfPath(float t, float u, float v)
+			static PathSegment LfSfRfPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Straight, Gear::Forward, u);
-				motions.AddMotion(Steer::Right, Gear::Forward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Straight, Direction::Forward, u);
+				motions.AddMotion(Steer::Right, Direction::Forward, v);
 				return motions;
 			}
 
-			static PathSegment LfRbLfPath(float t, float u, float v)
+			static PathSegment LfRbLfPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Right, Gear::Backward, u);
-				motions.AddMotion(Steer::Left, Gear::Forward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Right, Direction::Backward, u);
+				motions.AddMotion(Steer::Left, Direction::Forward, v);
 				return motions;
 			}
 
-			static PathSegment LfRbLbPath(float t, float u, float v)
+			static PathSegment LfRbLbPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Right, Gear::Backward, u);
-				motions.AddMotion(Steer::Left, Gear::Backward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Right, Direction::Backward, u);
+				motions.AddMotion(Steer::Left, Direction::Backward, v);
 				return motions;
 			}
 
-			static PathSegment LfRfLbPath(float t, float u, float v)
+			static PathSegment LfRfLbPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Right, Gear::Forward, u);
-				motions.AddMotion(Steer::Left, Gear::Backward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Right, Direction::Forward, u);
+				motions.AddMotion(Steer::Left, Direction::Backward, v);
 				return motions;
 			}
 
-			static PathSegment LfRufLubRbPath(float t, float u, float v)
+			static PathSegment LfRufLubRbPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Right, Gear::Forward, u);
-				motions.AddMotion(Steer::Left, Gear::Backward, u);
-				motions.AddMotion(Steer::Right, Gear::Backward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Right, Direction::Forward, u);
+				motions.AddMotion(Steer::Left, Direction::Backward, u);
+				motions.AddMotion(Steer::Right, Direction::Backward, v);
 				return motions;
 			}
 
-			static PathSegment LfRubLubRfPath(float t, float u, float v)
+			static PathSegment LfRubLubRfPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Right, Gear::Backward, u);
-				motions.AddMotion(Steer::Left, Gear::Backward, u);
-				motions.AddMotion(Steer::Right, Gear::Forward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Right, Direction::Backward, u);
+				motions.AddMotion(Steer::Left, Direction::Backward, u);
+				motions.AddMotion(Steer::Right, Direction::Forward, v);
 				return motions;
 			}
 
-			static PathSegment LfRbpi2SbLbPath(float t, float u, float v)
+			static PathSegment LfRbpi2SbLbPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Right, Gear::Backward, M_PI_2);
-				motions.AddMotion(Steer::Straight, Gear::Backward, u);
-				motions.AddMotion(Steer::Left, Gear::Backward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Right, Direction::Backward, M_PI_2);
+				motions.AddMotion(Steer::Straight, Direction::Backward, u);
+				motions.AddMotion(Steer::Left, Direction::Backward, v);
 				return motions;
 			}
 
-			static PathSegment LfRbpi2SbRbPath(float t, float u, float v)
+			static PathSegment LfRbpi2SbRbPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Right, Gear::Backward, M_PI_2);
-				motions.AddMotion(Steer::Straight, Gear::Backward, u);
-				motions.AddMotion(Steer::Right, Gear::Backward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Right, Direction::Backward, M_PI_2);
+				motions.AddMotion(Steer::Straight, Direction::Backward, u);
+				motions.AddMotion(Steer::Right, Direction::Backward, v);
 				return motions;
 			}
 
-			static PathSegment LfSfRfpi2LbPath(float t, float u, float v)
+			static PathSegment LfSfRfpi2LbPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Straight, Gear::Forward, u);
-				motions.AddMotion(Steer::Right, Gear::Forward, M_PI_2);
-				motions.AddMotion(Steer::Left, Gear::Backward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Straight, Direction::Forward, u);
+				motions.AddMotion(Steer::Right, Direction::Forward, M_PI_2);
+				motions.AddMotion(Steer::Left, Direction::Backward, v);
 				return motions;
 			}
 
-			static PathSegment LfSfLfpi2RbPath(float t, float u, float v)
+			static PathSegment LfSfLfpi2RbPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Straight, Gear::Forward, u);
-				motions.AddMotion(Steer::Left, Gear::Forward, M_PI_2);
-				motions.AddMotion(Steer::Right, Gear::Backward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Straight, Direction::Forward, u);
+				motions.AddMotion(Steer::Left, Direction::Forward, M_PI_2);
+				motions.AddMotion(Steer::Right, Direction::Backward, v);
 				return motions;
 			}
 
-			static PathSegment LfRbpi2SbLbpi2RfPath(float t, float u, float v)
+			static PathSegment LfRbpi2SbLbpi2RfPath(double t, double u, double v)
 			{
 				PathSegment motions;
-				motions.AddMotion(Steer::Left, Gear::Forward, t);
-				motions.AddMotion(Steer::Right, Gear::Backward, M_PI_2);
-				motions.AddMotion(Steer::Straight, Gear::Backward, u);
-				motions.AddMotion(Steer::Left, Gear::Backward, M_PI_2);
-				motions.AddMotion(Steer::Right, Gear::Forward, v);
+				motions.AddMotion(Steer::Left, Direction::Forward, t);
+				motions.AddMotion(Steer::Right, Direction::Backward, M_PI_2);
+				motions.AddMotion(Steer::Straight, Direction::Backward, u);
+				motions.AddMotion(Steer::Left, Direction::Backward, M_PI_2);
+				motions.AddMotion(Steer::Right, Direction::Forward, v);
 				return motions;
 			}
 		};
 	}
 
-	class StateSpaceReedsShepp : public StateSpace<Pose2D<>, 3> {
+	class PathReedsShepp : public Path<Pose2D<>> {
 		using State = Pose2D<>;
 
 	public:
-		StateSpaceReedsShepp() :
-			StateSpace<State, 3>({ { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } }) { }
+		PathReedsShepp(const State& init, const ReedsShepp::PathSegment& pathSegment, double minTurningRadius) :
+			Path<State>(init, pathSegment.GetLength(minTurningRadius)),
+			m_pathSegment(pathSegment), m_minTurningRadius(minTurningRadius)
+		{
+			m_final = Interpolate(1.0);
+		}
+
+		virtual State Interpolate(double ratio) const override
+		{
+			PP_ASSERT(ratio >= 0 && ratio <= 1, "Ratio should be between 0 and 1.");
+
+			const double& totalLength = m_length;
+			if (totalLength == 0)
+				return m_init;
+
+			State interp = m_init;
+			double length = 0;
+			for (const auto& motion : m_pathSegment.m_motions) {
+				if (!motion.IsValid())
+					break;
+
+				double motionLength = motion.length * m_minTurningRadius;
+				if (motionLength == 0)
+					continue;
+
+				double motionRatio = (ratio * totalLength - length) / motionLength;
+				motionRatio = std::min(motionRatio, 1.0);
+
+				// clang-format off
+				switch (motion.steer) {
+					case Steer::Straight: interp = Straight(interp, motion.direction, motion.length * motionRatio); break;
+					case Steer::Left:     interp = Turn    (interp, motion.direction, motion.steer, motion.length * motionRatio); break;
+					case Steer::Right:    interp = Turn    (interp, motion.direction, motion.steer, motion.length * motionRatio); break;
+				}
+				// clang-format on
+
+				length += motionLength;
+				if (length >= ratio * totalLength)
+					break;
+			}
+
+			return interp;
+		}
+
+		virtual void Truncate(double ratio) override
+		{
+			PP_ASSERT(ratio >= 0 && ratio <= 1, "Ratio should be between 0 and 1.");
+
+			// Update the final state and modify the Reeds-Shepp motions
+			const double& totalLength = m_length;
+			if (totalLength == 0)
+				m_final = m_init;
+			else {
+				State interp = m_init;
+				double length = 0;
+				for (int i = 0; i < ReedsShepp::PathSegment::numMotion; i++) {
+					const auto& motion = m_pathSegment.m_motions[i];
+					if (!motion.IsValid())
+						break;
+
+					double motionLength = motion.length * m_minTurningRadius;
+					if (motionLength == 0)
+						continue;
+
+					double motionRatio = (ratio * totalLength - length) / motionLength;
+					motionRatio = std::min(motionRatio, 1.0);
+
+					// clang-format off
+					switch (motion.steer) {
+						case Steer::Straight: interp = Straight(interp, motion.direction, motion.length * motionRatio); break;
+						case Steer::Left:     interp = Turn    (interp, motion.direction, motion.steer, motion.length * motionRatio); break;
+						case Steer::Right:    interp = Turn    (interp, motion.direction, motion.steer, motion.length * motionRatio); break;
+					}
+					// clang-format on
+
+					length += motionLength;
+					if (length >= ratio * totalLength) {
+						m_pathSegment.m_motions[i].length *= motionRatio;
+						for (int ii = i + 1; ii < ReedsShepp::PathSegment::numMotion; ii++) {
+							m_pathSegment.m_motions[i] = ReedsShepp::Motion();
+						}
+						break;
+					}
+				}
+				m_final = interp;
+			}
+
+			// Update the path length
+			m_length *= ratio;
+		}
+
+	private:
+		State Straight(const State& start, Direction direction, double length) const
+		{
+			if (direction == Direction::Backward)
+				length = -length;
+
+			length *= m_minTurningRadius;
+
+			State end = {
+				start.x + length * cos(start.theta),
+				start.y + length * sin(start.theta),
+				start.theta
+			};
+			return end;
+		}
+
+		State Turn(const State& start, Direction direction, Steer steer, double turnAngle) const
+		{
+			if (direction == Direction::Backward)
+				turnAngle = -turnAngle;
+			double phi = turnAngle / 2;
+			double cosPhi = cos(phi);
+			double sinPhi = sin(phi);
+			double L = 2 * sinPhi * m_minTurningRadius;
+			double x = L * cosPhi;
+			double y = L * sinPhi;
+			if (steer == Steer::Right) {
+				y *= -1;
+				turnAngle *= -1;
+			}
+
+			return start + State(x, y, turnAngle);
+		}
+
+	private:
+		ReedsShepp::PathSegment m_pathSegment;
+		double m_minTurningRadius = 1;
+	};
+
+	class StateSpaceReedsShepp : public StateSpace<Pose2D<>, 3> {
+		using Pose = Pose2D<>;
+
+	public:
+		StateSpaceReedsShepp(std::array<std::array<double, 2>, 3> bounds = { { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } }) :
+			StateSpace<Pose, 3>(bounds) { }
 		~StateSpaceReedsShepp() = default;
 
-		virtual State Interpolate(const State& from, const State& to, float ratio) override
-		{
-			State state;
-
-			// TODO
-
-			return state;
-		}
-
-		/// @brief Compute the distance of a ReedsShepp path.
+		/// @brief Compute the distance of a Reeds-Shepp path.
 		double ComputeDistance(const ReedsShepp::PathSegment& path)
 		{
-			return path.GetLength() * m_minTurningRadius;
+			return path.GetLength(minTurningRadius);
 		}
-		/// @overload
-		virtual double ComputeDistance(const State& from, const State& to) override
+		/// @brief Compute the shortest distance from the pose @from to @to
+		/// when driving Reeds-Shepp paths.
+		virtual double ComputeDistance(const Pose& from, const Pose& to) override
 		{
-			auto path = ReedsShepp::Solver::GetShortestPath(from, to, m_minTurningRadius);
+			auto path = ReedsShepp::Solver::GetShortestPath(from, to, minTurningRadius);
 			return ComputeDistance(path);
 		}
 
-		double ComputeCost(const ReedsShepp::PathSegment& path) const
+		/// @brief Compute the cost of a Reeds-Shepp path.
+		double ComputeOptimalCost(const ReedsShepp::PathSegment& path) const
 		{
-			return path.ComputeCost(m_minTurningRadius, m_reverseCostMultiplier, m_forwardCostMultiplier, m_gearSwitchCost);
+			return path.ComputeCost(minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
 		}
-		/// @overload
+		/// @brief Compute the cost associated the the most optimal Reeds-Shepp
+		/// path.
 		double ComputeCost(const Pose2D<>& from, const Pose2D<>& to) const
 		{
-			// TODO
-			//auto path =
-			//return ComputeCost(path);
+			auto path = ReedsShepp::Solver::GetOptimalPath(from, to, minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
+			return ComputeOptimalCost(path);
 		}
 
-		void SetMinTurningRadius(double turningRadius) { m_minTurningRadius = turningRadius; }
-		double GetMinTurningRadius() const { return m_minTurningRadius; }
-
-		void SetReverseCostMultiplier(double cost) { m_reverseCostMultiplier = cost; }
-		double GetReverseCostMultiplier() const { return m_reverseCostMultiplier; }
-
-		void SetForwardCostMultiplier(double cost) { m_forwardCostMultiplier = cost; }
-		double GetForwardCostMultiplier() const { return m_forwardCostMultiplier; }
-
-		void SetGearSwitchCost(double cost) { m_gearSwitchCost = cost; }
-		double GetGearSwitchCost() const { return m_gearSwitchCost; }
-
-	private:
-		double m_minTurningRadius = 1;
-		double m_reverseCostMultiplier = 1, m_forwardCostMultiplier = 1;
-		double m_gearSwitchCost;
+	public:
+		double minTurningRadius = 1.0;
+		double reverseCostMultiplier = 1.0, forwardCostMultiplier = 1.0;
+		double directionSwitchingCost = 0.0;
 	};
 }

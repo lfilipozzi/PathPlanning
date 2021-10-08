@@ -41,8 +41,10 @@ namespace Planner {
 	/**
 	 * @brief Implementation of the A* algorithm.
 	 */
-	template <typename State, class Hash = std::hash<State>>
+	template <typename State, typename Hash = std::hash<State>>
 	class AStar : public PathPlanner<State> {
+		static_assert(std::is_copy_constructible<State>::value);
+
 	private:
 		/**
 		 * @brief Node metadata used by A* star.
@@ -66,8 +68,7 @@ namespace Planner {
 			using T = Node*;
 
 		public:
-			PriorityQueue(const Ref<AStarStateSpace<State>>& stateSpace) :
-				m_stateSpace(stateSpace) { }
+			PriorityQueue() = default;
 
 			size_t Size() const { return m_vec.size(); }
 
@@ -194,7 +195,6 @@ namespace Planner {
 		private:
 			std::vector<T> m_vec;
 			std::unordered_map<State, T, Hash> m_map;
-			Ref<AStarStateSpace<State>> m_stateSpace;
 		};
 
 	public:
@@ -218,7 +218,7 @@ namespace Planner {
 		{
 			m_rootNode = makeScope<Node>(this->m_init);
 
-			PriorityQueue frontier(m_stateSpace);
+			PriorityQueue frontier;
 			frontier.Push(m_rootNode.get());
 
 			std::unordered_set<State, Hash> explored;

@@ -18,10 +18,10 @@ namespace Planner {
 			return true;
 		}
 
-		virtual bool IsPathValid(const State& /*from*/, const State& to, State* last = nullptr) override
+		virtual bool IsPathValid(const Path<State>& /*path*/, float* last = nullptr) override
 		{
 			if (last)
-				*last = to;
+				*last = 1.0;
 			return true;
 		}
 	};

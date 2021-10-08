@@ -15,20 +15,9 @@ namespace Planner {
 		using State = Pose2D<>;
 
 	public:
-		StateSpaceSE2() :
-			StateSpace<Pose2D<>, 3>({ { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } }) { }
+		StateSpaceSE2(std::array<std::array<double, 2>, 3> bounds = { { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } }) :
+			StateSpace<Pose2D<>, 3>(bounds) { }
 		~StateSpaceSE2() = default;
-
-		virtual State Interpolate(const State& from, const State& to, float ratio) override
-		{
-			State delta = to - from;
-			State interp = {
-				from.x + ratio * delta.x,
-				from.y + ratio * delta.y,
-				from.theta + ratio * delta.theta,
-			};
-			return interp;
-		}
 
 		virtual double ComputeDistance(const State& from, const State& to) override
 		{

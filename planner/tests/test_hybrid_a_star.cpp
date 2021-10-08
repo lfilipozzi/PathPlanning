@@ -7,8 +7,9 @@
 namespace Planner {
 	void TestHybridAStar()
 	{
+		Ref<StateSpaceReedsShepp> reedsSheppStateSpace = makeRef<StateSpaceReedsShepp>();
 		Ref<StateValidator<Pose2D<>>> stateValidator = makeRef<StateValidatorFree<Pose2D<>>>();
-		HybridAStar hybridAStar(stateValidator);
+		HybridAStar hybridAStar(reedsSheppStateSpace, stateValidator);
 		auto stateSpace = hybridAStar.GetStateSpace();
 
 		Pose2D<> start = { 0.0, 0.0, 0.0 };
@@ -22,6 +23,16 @@ namespace Planner {
 		assert(!path.empty());
 		assert(stateSpace->DiscretizePose(start) == stateSpace->DiscretizePose(path.front()));
 		assert(stateSpace->DiscretizePose(goal) == stateSpace->DiscretizePose(path.back()));
+
+		// Check we can change parameters
+		hybridAStar.GetStateSpace()->spatialResolution = 1.0;
+		hybridAStar.GetStateSpace()->angularResolution = 0.0872;
+		hybridAStar.GetStateSpace()->numGeneratedMotion = 5;
+		hybridAStar.GetReedsSheppStateSpace()->minTurningRadius = 1.0;
+		hybridAStar.GetReedsSheppStateSpace()->forwardCostMultiplier = 1.0;
+		hybridAStar.GetReedsSheppStateSpace()->reverseCostMultiplier = 1.0;
+		hybridAStar.GetReedsSheppStateSpace()->directionSwitchingCost = 0.0;
+		hybridAStar.GetReedsSheppStateSpace()->SetBounds({ { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } });
 	}
 }
 
