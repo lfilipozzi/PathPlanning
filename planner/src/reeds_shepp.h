@@ -240,22 +240,24 @@ namespace Planner {
 
 			/**
 			 * @brief Inverse the direction of motion.
-			 * @details After this operation the PathSegment is moved.
-			 * @return The time flipped path segment.
+			 * @return A pointer to @this.
 			 */
-			PathSegment&& TimeflipTransform()
+			PathSegment* TimeflipTransform()
 			{
-				for (auto& motion : m_motions)
-					motion.direction = motion.direction == Direction::Backward ? Direction::Forward : Direction::Backward;
-				return std::move(*this);
+				for (auto& motion : m_motions) {
+					if (motion.direction == Direction::Backward)
+						motion.direction = Direction::Forward;
+					else if (motion.direction == Direction::Forward)
+						motion.direction = Direction::Backward;
+				}
+				return this;
 			}
 
 			/**
 			 * @brief Inverse the lateral direction of motion.
-			 * @details After this operation the PathSegment set is moved.
-			 * @return The reflected path segment.
+			 * @return A pointer to @this.
 			 */
-			PathSegment&& ReflectTransform()
+			PathSegment* ReflectTransform()
 			{
 				for (auto& motion : m_motions) {
 					if (motion.steer == Steer::Left)
@@ -263,7 +265,7 @@ namespace Planner {
 					else if (motion.steer == Steer::Right)
 						motion.steer = Steer::Left;
 				}
-				return std::move(*this);
+				return this;
 			}
 
 		private:
@@ -454,13 +456,13 @@ namespace Planner {
 
 				switch (w % 4) {
 				case 1:
-					path = path.TimeflipTransform();
+					path.TimeflipTransform();
 					break;
 				case 2:
-					path = path.ReflectTransform();
+					path.ReflectTransform();
 					break;
 				case 3:
-					path = path.TimeflipTransform().ReflectTransform();
+					path.TimeflipTransform()->ReflectTransform();
 					break;
 				default:
 					break;
@@ -1047,7 +1049,7 @@ namespace Planner {
 			return ComputeCost(path);
 		}
 		/// @brief Compute the optimal path between two poses
-		Ref<PathReedsShepp> ComputeOptimalPath(const Pose& from, const Pose& to)
+		Ref<PathReedsShepp> ComputeOptimalPath(const Pose& from, const Pose& to) const
 		{
 			auto pathSegment = ReedsShepp::Solver::GetOptimalPath(from, to, minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
 			return makeRef<PathReedsShepp>(from, pathSegment, minTurningRadius);

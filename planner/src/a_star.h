@@ -29,11 +29,55 @@ namespace Planner {
 		* transition cost.
 		*/
 		virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) = 0;
+	};
+
+	/**
+	 * @brief Interface for an A* heuristic function.
+	 */
+	template <typename State>
+	class AStarHeuristic {
+	public:
+		AStarHeuristic() = default;
+		virtual ~AStarHeuristic() = default;
 
 		/**
 		 * @brief Heuristic function.
 		 */
-		virtual double Heuristic(const State& from, const State& to) = 0;
+		virtual double GetHeuristicValue(const State& from, const State& to) = 0;
+	};
+
+	/**
+	 * @brief Combine several admissible heuristics into an improved admissible 
+	 * one.
+	 */
+	template <typename State>
+	class AStarCombinedHeuristic : public AStarHeuristic<State> {
+	public:
+		AStarCombinedHeuristic() = default;
+
+		void Add(const Ref<AStarHeuristic<State>>& heuristic)
+		{
+			m_heuristics.push_back(heuristic);
+		}
+
+		template <typename... Args>
+		void Add(const Ref<AStarHeuristic<State>>& heuristic, Args&&... args)
+		{
+			m_heuristics.push_back(heuristic);
+			Add(std::forward<Args>(args)...);
+		}
+
+		virtual double GetHeuristicValue(const State& from, const State& to) override
+		{
+			double value = -std::numeric_limits<double>::infinity();
+			for (auto& h : m_heuristics) {
+				value = std::max(value, h->GetHeuristicValue(from, to));
+			}
+			return value;
+		}
+
+	private:
+		std::vector<Ref<AStarHeuristic<State>>> m_heuristics;
 	};
 
 	/**
@@ -200,8 +244,8 @@ namespace Planner {
 		 * @brief Constructor.
 		 * @param stateSpace The configuration space.
 		 */
-		AStar(const Ref<AStarStateSpace<State>>& stateSpace) :
-			m_stateSpace(stateSpace) {};
+		AStar(const Ref<AStarStateSpace<State>>& stateSpace, const Ref<AStarHeuristic<State>>& heuristic) :
+			m_stateSpace(stateSpace), m_heuristic(heuristic) {};
 		virtual ~AStar() = default;
 
 		virtual Status SearchPath() override
@@ -236,7 +280,7 @@ namespace Planner {
 					Scope<Node> childScope = makeScope<Node>(childState);
 					Node* child = childScope.get();
 					child->meta.pathCost = node->meta.pathCost + transitionCost;
-					child->meta.totalCost = child->meta.pathCost + m_stateSpace->Heuristic(child->GetState(), this->m_goal);
+					child->meta.totalCost = child->meta.pathCost + m_heuristic->GetHeuristicValue(child->GetState(), this->m_goal);
 
 					// Check if the child node is in the frontier or explored set
 					Node* const* inFrontier = frontier.Find(child->GetState());
@@ -286,6 +330,7 @@ namespace Planner {
 
 	private:
 		Ref<AStarStateSpace<State>> m_stateSpace;
+		Ref<AStarHeuristic<State>> m_heuristic;
 
 		Scope<Node> m_rootNode;
 		Node* m_solutionNode = nullptr;

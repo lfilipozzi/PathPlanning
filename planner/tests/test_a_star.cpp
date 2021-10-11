@@ -5,9 +5,9 @@
 #include "state_space/a_star_state_space_2d.h"
 
 namespace Planner {
-	class AStarStateSpace2DTest : public AStarStateSpace2D {
+	class Test2DHeuristic : public AStarHeuristic<Point2DInt> {
 	public:
-		virtual double Heuristic(const Point2DInt& from, const Point2DInt& to) override
+		virtual double GetHeuristicValue(const Point2DInt& from, const Point2DInt& to) override
 		{
 			Point2DInt delta = from - to;
 			return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
@@ -16,9 +16,10 @@ namespace Planner {
 
 	void TestAStar()
 	{
-		auto stateSpace = Planner::makeRef<AStarStateSpace2DTest>();
+		auto stateSpace = Planner::makeRef<AStarStateSpace2D>();
+		auto heuristic = Planner::makeRef<Test2DHeuristic>();
 
-		Planner::AStar<Point2DInt> aStar(stateSpace);
+		Planner::AStar<Point2DInt> aStar(stateSpace, heuristic);
 
 		Point2DInt start = { 0.0, 0.0 };
 		Point2DInt goal = { 10.0, 5.0 };

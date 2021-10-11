@@ -38,6 +38,11 @@ namespace Planner {
 				return path->GetFinalState();
 			}
 
+			const Ref<Path<Pose2D<>>>& GetPath() const
+			{
+				return path;
+			}
+
 			bool operator==(const State& rhs) const
 			{
 				return discrete == rhs.discrete;
@@ -67,7 +72,8 @@ namespace Planner {
 			friend HybridAStar;
 
 		public:
-			StateSpace() = default;
+			StateSpace(double spatialResolution = 1.0, double angularResolution = 0.0872) :
+				spatialResolution(spatialResolution), angularResolution(angularResolution) { }
 
 			/**
 			 * @brief Discretize a state.
@@ -128,7 +134,7 @@ namespace Planner {
 
 				// Randomly add a child using a Reeds-Shepp path with a
 				// probability which is function of the heuristic to the goal
-				double cost = Heuristic(state, m_goalState);
+				double cost = m_heuristic->GetHeuristicValue(state, m_goalState);
 				if (cost < 10.0 || Random<double>::SampleUniform(0.0, 1.0) < 10.0 / (cost * cost)) {
 					State reedsShepp;
 					if (GetReedsSheppChild(state, reedsShepp, cost))
@@ -136,21 +142,6 @@ namespace Planner {
 				}
 
 				return neighbors;
-			}
-
-			/**
-			* @brief Heuristic used by the A* algorithm.
-			* @details Use the maximum of two heuristic:
-			*   - Heuristic with constraints without obstacles
-			*   - Heuristic with obstacles without constraints
-			* The heuristic with obstacles but without constraints is implemented 
-			* by running a 2D flow fields algorithm.
-			*/
-			virtual double Heuristic(const State& from, const State& to) override
-			{
-				return std::max(
-					HeuristicNonHolonomicConstraintsWithoutObstacles(from, to),
-					HeuristicObstaclesWithoutNonHolonomicConstraints(from, to));
 			}
 
 		private:
@@ -207,7 +198,7 @@ namespace Planner {
 			 * @param[out] cost The transition cost.
 			 * @return Boolean to indicate if the transition is valid.
 			 */
-			[[nodiscard]] bool GetReedsSheppChild(const State& state, State& reedsShepp, double& cost)
+			[[nodiscard]] bool GetReedsSheppChild(const State& state, State& reedsShepp, double& cost) const
 			{
 				auto path = ComputeOptimalPath(state.GetPose(), m_goalState.GetPose());
 				reedsShepp = CreateStateFromPath(path);
@@ -219,11 +210,33 @@ namespace Planner {
 				return true;
 			}
 
-			double HeuristicNonHolonomicConstraintsWithoutObstacles(const State& from, const State& to)
+			State& SetGoalState(const Pose2D<>& goal)
+			{
+				m_goalState = CreateStateFromPose(goal);
+				return m_goalState;
+			}
+
+		public:
+			const double spatialResolution = 1.0;
+			const double angularResolution = 0.0872;
+			unsigned int numGeneratedMotion = 5;
+
+		private:
+			StateValidator<Pose2D<>>* m_validator;
+			AStarHeuristic<State>* m_heuristic;
+			State m_goalState;
+		};
+
+		class NonHolonomicHeuristic : public AStarHeuristic<State> {
+		public:
+			NonHolonomicHeuristic(const Ref<StateSpace>& stateSpace) :
+				m_stateSpace(stateSpace) { }
+
+			virtual double GetHeuristicValue(const State& from, const State& to) override
 			{
 				// TODO this heuristic could be pre-computed offline by setting the goal at the origin
 #if 0 // Heuristic estimates only length
-				double distanceMultiplier = std::min(reverseCostMultiplier, forwardCostMultiplier);
+				double distanceMultiplier = std::min(m_stateSpace->reverseCostMultiplier, m_stateSpace->forwardCostMultiplier);
 				if (distanceMultiplier == 0.0)
 					return 0.0;
 
@@ -232,61 +245,61 @@ namespace Planner {
 				double euclideanDistance = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
 
 				// Distance with Reeds-Shepp path
-				double reedsSheppDistance = ComputeDistance(from.GetPose(), to.GetPose());
+				double reedsSheppDistance = m_stateSpace->ComputeDistance(from.GetPose(), to.GetPose());
 
 				double distance = std::max(euclideanDistance, reedsSheppDistance);
 				return distanceMultiplier * distance;
 #else // Heuristic estimate cost
-				double distanceMultiplier = std::min(reverseCostMultiplier, forwardCostMultiplier);
+				double distanceMultiplier = std::min(m_stateSpace->reverseCostMultiplier, m_stateSpace->forwardCostMultiplier);
 
 				// Euclidean distance
 				auto delta = to.GetPose() - from.GetPose();
 				double euclideanDistance = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
 
 				// Distance with Reeds-Shepp path
-				double reedsSheppCost = ComputeCost(from.GetPose(), to.GetPose());
+				double reedsSheppCost = m_stateSpace->ComputeCost(from.GetPose(), to.GetPose());
 
 				double heuristic = std::max(distanceMultiplier * euclideanDistance, reedsSheppCost);
 				return heuristic;
 #endif
 			}
 
-			double HeuristicObstaclesWithoutNonHolonomicConstraints(const State& /*from*/, const State& /*to*/)
+		private:
+			Ref<StateSpace> m_stateSpace;
+		};
+
+		class ObstaclesHeuristic : public AStarHeuristic<State> {
+		public:
+			ObstaclesHeuristic() = default;
+
+			virtual double GetHeuristicValue(const State& /*from*/, const State& /*to*/) override
 			{
 				// TODO use flow-fields algorithm
 				return 0.0;
 			}
 
-			State& SetGoalState(const Pose2D<>& goal)
-			{
-				m_goalState = CreateStateFromPose(goal);
-				return m_goalState;
-			}
-
-		public:
-			double spatialResolution = 1.0;
-			double angularResolution = 0.0872;
-			unsigned int numGeneratedMotion = 5;
-
 		private:
-			StateValidator<Pose2D<>>* m_validator;
-			State m_goalState;
 		};
 
 	public:
 		HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidator<Pose2D<>>>& stateValidator) :
 			m_stateSpace(stateSpace), m_stateValidator(stateValidator)
 		{
-			m_aStarSearch = makeScope<AStar<State, State::Hash>>(m_stateSpace);
+			m_heuristic = makeRef<AStarCombinedHeuristic<State>>();
+			m_nonHoloHeuristic = makeRef<NonHolonomicHeuristic>(m_stateSpace);
+			m_obstacleHeuristic = makeRef<ObstaclesHeuristic>();
+			m_heuristic->Add(m_nonHoloHeuristic, m_obstacleHeuristic);
+			m_aStarSearch = makeScope<AStar<State, State::Hash>>(m_stateSpace, m_heuristic);
 		}
 		virtual ~HybridAStar() = default;
 
 		virtual Status SearchPath() override
 		{
 			// Set the validator of the state-space
-			if (!m_stateValidator)
+			if (!m_stateValidator || !m_heuristic)
 				return Status::Failure;
 			m_stateSpace->m_validator = m_stateValidator.get();
+			m_stateSpace->m_heuristic = m_heuristic.get();
 
 			// Run A* on 2D pose
 			State initState = m_stateSpace->CreateStateFromPose(this->m_init);
@@ -318,6 +331,9 @@ namespace Planner {
 	private:
 		Ref<StateSpace> m_stateSpace;
 		Ref<StateValidator<Pose2D<>>> m_stateValidator;
+		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
+		Ref<ObstaclesHeuristic> m_obstacleHeuristic;
+		Ref<AStarCombinedHeuristic<State>> m_heuristic;
 		Scope<AStar<State, State::Hash>> m_aStarSearch;
 		std::vector<Pose2D<>> m_path;
 	};

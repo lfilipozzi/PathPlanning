@@ -24,8 +24,6 @@ namespace Planner {
 		assert(stateSpace->DiscretizePose(goal) == stateSpace->DiscretizePose(path.back()));
 
 		// Check we can change parameters
-		hybridAStar.GetStateSpace()->spatialResolution = 1.0;
-		hybridAStar.GetStateSpace()->angularResolution = 0.0872;
 		hybridAStar.GetStateSpace()->numGeneratedMotion = 5;
 		hybridAStar.GetStateSpace()->minTurningRadius = 1.0;
 		hybridAStar.GetStateSpace()->forwardCostMultiplier = 1.0;
