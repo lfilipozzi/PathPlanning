@@ -4,9 +4,7 @@
 
 namespace Planner {
 
-	/**
-	 * @brief Validate states and paths.
-	 */
+	/// @brief Validate states and paths.
 	template <typename State>
 	class StateValidator {
 	public:

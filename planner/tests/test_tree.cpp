@@ -1,6 +1,6 @@
 #include "utils/tree.h"
+#include "core/base.h"
 #include "geometry/2dplane.h"
-#include "core/log.h"
 
 namespace Planner {
 	using Vertex = Point2D;

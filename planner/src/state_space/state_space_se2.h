@@ -1,16 +1,12 @@
 #pragma once
 
 #include "core/base.h"
-#include "geometry/pose.h"
+#include "geometry/2dplane.h"
 #include "state_space.h"
-
-#include <random>
 
 namespace Planner {
 
-	/**
-	 * @brief Configuration space in the special Euclidean group SE(2).
-	 */
+	/// @brief Configuration space in the special Euclidean group SE(2).
 	class StateSpaceSE2 : public StateSpace<Pose2D<>, 3> {
 		using State = Pose2D<>;
 

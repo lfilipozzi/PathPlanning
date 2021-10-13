@@ -3,9 +3,7 @@
 
 namespace Planner {
 
-	/**
-	* @brief Singleton template.
-	*/
+	/// @brief Singleton template.
 	template <class T>
 	class Singleton {
 	public:
@@ -51,9 +49,7 @@ namespace Planner {
 	template <class T>
 	T* Singleton<T>::m_instance_ptr = nullptr;
 
-	/**
-	* @brief Singleton template for classes whose constructor have arguments.
-	*/
+	/// @brief Singleton template for classes whose constructor have arguments.
 	template <class T>
 	class SingletonInit {
 	public:
@@ -99,9 +95,7 @@ namespace Planner {
 	template <class T>
 	T* SingletonInit<T>::m_instance_ptr = nullptr;
 
-	/**
-	* @brief Thread safe singleton template.
-	*/
+	/// @brief Thread safe singleton template.
 	template <class T>
 	class SingletonThreadSafe {
 	public:

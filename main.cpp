@@ -1,6 +1,4 @@
 #include "core/base.h"
-#include "core/assert.h"
-#include "core/log.h"
 #include "core/timer.h"
 
 #define MODE 1
@@ -10,11 +8,12 @@
 	#include "algo/a_star.h"
 	#include "geometry/2dplane.h"
 	#include "planner/tests/state_space/a_star_state_space_2d.h"
+	#include <iostream>
 
-class Heuristic2D : public Planner::AStarHeuristic<Point2DInt> {
-	virtual double GetHeuristicValue(const Point2DInt& from, const Point2DInt& to) override
+class Heuristic2D : public Planner::AStarHeuristic<Planner::Point2DInt> {
+	virtual double GetHeuristicValue(const Planner::Point2DInt& from, const Planner::Point2DInt& to) override
 	{
-		Point2DInt delta = from - to;
+		auto delta = from - to;
 		return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
 	}
 };
@@ -23,19 +22,19 @@ int main(int /*argc*/, char** /*argv*/)
 {
 	PP_INIT_LOGGER;
 
-	Planner::AStar<Point2DInt> search(
-		Planner::makeRef<Planner::AStarStateSpace2D>(), 
+	Planner::AStar<Planner::Point2DInt> search(
+		Planner::makeRef<Planner::AStarStateSpace2D>(),
 		Planner::makeRef<Heuristic2D>());
 
-	Point2DInt start = { 0.0, 0.0 };
-	Point2DInt goal = { 5.0, 1.0 };
+	Planner::Point2DInt start = { 0.0, 0.0 };
+	Planner::Point2DInt goal = { 5.0, 1.0 };
 	search.SetInitState(start);
 	search.SetGoalState(goal);
 
 	Planner::Timer timer;
 	search.SearchPath();
 	PP_INFO(timer.ElapsedMillis());
-	std::vector<Point2DInt> path = search.GetPath();
+	std::vector<Planner::Point2DInt> path = search.GetPath();
 	PP_INFO(timer.ElapsedMillis());
 
 	std::cout << "Path: " << std::endl;
@@ -49,11 +48,12 @@ int main(int /*argc*/, char** /*argv*/)
 #elif MODE == 1
 
 	#include "algo/hybrid_a_star.h"
-	#include "geometry/pose.h"
+	#include "geometry/2dplane.h"
 	#include "state_validator/state_validator_free.h"
 
 	#define _USE_MATH_DEFINES
 	#include <cmath>
+	#include <iostream>
 
 int main()
 {
@@ -83,7 +83,6 @@ int main()
 
 #elif MODE == 2
 
-	#include "core/log.h"
 	#include "geometry/reeds_shepp.h"
 
 int main(int argc, char** argv)

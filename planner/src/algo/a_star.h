@@ -2,7 +2,7 @@
 
 #include "algo/path_planner.h"
 #include "state_space/state_space.h"
-#include "utils/tree.h"
+#include "utils/node.h"
 #include "core/hash.h"
 
 #include <queue>
@@ -11,45 +11,35 @@
 
 namespace Planner {
 
-	/**
-	 * @brief Interface to sample the configuration space as required by A* 
-	 * algorithms.
-	 */
+	/// @brief Interface to sample the configuration space as required by A*
+	/// algorithms.
 	template <typename State>
 	class AStarStateSpace {
 	public:
 		AStarStateSpace() = default;
 		virtual ~AStarStateSpace() = default;
 
-		/**
-		* @brief Returns a list of all neighbor positions and the transition 
-		* cost. The transition from the current state to the neighbor state must
-		* be valid.
-		* @return A list of tuple all neighboring positions and their associated
-		* transition cost.
-		*/
+		/// @brief Returns a list of all neighbor positions and the transition
+		/// cost. The transition from the current state to the neighbor state must
+		/// be valid.
+		/// @return A list of tuple all neighboring positions and their associated
+		/// transition cost.
 		virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) = 0;
 	};
 
-	/**
-	 * @brief Interface for an A* heuristic function.
-	 */
+	/// @brief Interface for an A* heuristic function.
 	template <typename State>
 	class AStarHeuristic {
 	public:
 		AStarHeuristic() = default;
 		virtual ~AStarHeuristic() = default;
 
-		/**
-		 * @brief Heuristic function.
-		 */
+		/// @brief Heuristic function.
 		virtual double GetHeuristicValue(const State& from, const State& to) = 0;
 	};
 
-	/**
-	 * @brief Combine several admissible heuristics into an improved admissible 
-	 * one.
-	 */
+	/// @brief Combine several admissible heuristics into an improved admissible
+	/// one.
 	template <typename State>
 	class AStarCombinedHeuristic : public AStarHeuristic<State> {
 	public:
@@ -80,32 +70,26 @@ namespace Planner {
 		std::vector<Ref<AStarHeuristic<State>>> m_heuristics;
 	};
 
-	/**
-	 * @brief Implementation of the A* algorithm.
-	 */
+	/// @brief Implementation of the A* algorithm.
 	template <typename State, typename Hash = std::hash<State>>
 	class AStar : public PathPlanner<State> {
 		static_assert(std::is_copy_constructible<State>::value);
 
 	private:
-		/**
-		 * @brief Node metadata used by A* star.
-		 */
+		/// @brief Node metadata used by A* star.
 		struct NodeMetadata {
 			double pathCost = 0;
 			double totalCost = 0;
 		};
 		using Node = GenericNode<State, NodeMetadata>;
 
-		/**
-		 * @brief Implementation of a priority queue storing Node* ranked 
-		 * according to their totalPath cost. Two nodes are considered equal if 
-		 * they refer to the same state.
-		 * @details The implementation combines a std::vector (for cache-
-		 * friendliness) that is continuously sorted and a 
-		 * std::unordered_set for efficient access. The std::vector is sorted in
-		 * descending order of path-cost.
-		 */
+		/// @brief Implementation of a priority queue storing Node* ranked
+		/// according to their totalPath cost. Two nodes are considered equal if
+		/// they refer to the same state.
+		/// @details The implementation combines a std::vector (for cache-
+		/// friendliness) that is continuously sorted and a
+		/// std::unordered_set for efficient access. The std::vector is sorted in
+		/// descending order of path-cost.
 		class PriorityQueue {
 			using T = Node*;
 
@@ -166,12 +150,10 @@ namespace Planner {
 			}
 
 		private:
-			/**
-			 * @brief Return an iterator to the first element in the vector that
-			 * is strictly smaller than @value.
-			 * @details Implemented using a binary search.
-			 * @return An iterator to the element.
-			 */
+			/// @brief Return an iterator to the first element in the vector that
+			/// is strictly smaller than @value.
+			/// @details Implemented using a binary search.
+			/// @return An iterator to the element.
 			typename std::vector<T>::iterator FindFirstElementStrictlySmallerThan(const T& value)
 			{
 				unsigned int index = 0;
@@ -200,12 +182,10 @@ namespace Planner {
 				return it;
 			}
 
-			/**
-			 * @brief Return an iterator to the first element in the vector that
-			 * is bigger than or equal to @value.
-			 * @details Implemented using a binary search.
-			 * @return An iterator to the element.
-			 */
+			/// @brief Return an iterator to the first element in the vector that
+			/// is bigger than or equal to @value.
+			/// @details Implemented using a binary search.
+			/// @return An iterator to the element.
 			typename std::vector<T>::iterator FindLastElementBiggerThan(const T& value)
 			{
 				unsigned int index = 0;
@@ -240,10 +220,8 @@ namespace Planner {
 		};
 
 	public:
-		/**
-		 * @brief Constructor.
-		 * @param stateSpace The configuration space.
-		 */
+		/// @brief Constructor.
+		/// @param stateSpace The configuration space.
 		AStar(const Ref<AStarStateSpace<State>>& stateSpace, const Ref<AStarHeuristic<State>>& heuristic) :
 			m_stateSpace(stateSpace), m_heuristic(heuristic) {};
 		virtual ~AStar() = default;

@@ -9,27 +9,21 @@ namespace Planner {
 		Failure,
 	};
 
-	/**
-	 * @brief Solve path planning problems.
-	 * @details Templated class where Vertex is the type of the vertices. Its 
-	 * data must be arranged contiguously in memory. Vertex must be copy 
-	 * assignable and copy constructible. A specialized template of std::hash 
-	 * for Vertex must be defined.
-	 */
+	/// @brief Solve path planning problems.
+	/// @details Templated class where Vertex is the type of the vertices. Its
+	/// data must be arranged contiguously in memory. Vertex must be copy
+	/// assignable and copy constructible. A specialized template of std::hash
+	/// for Vertex must be defined.
 	template <typename Vertex>
 	class PathPlanner {
 	public:
 		PathPlanner() { }
 		virtual ~PathPlanner() = default;
 
-		/**
-		 * @brief Search for the optimal collision-free path.
-		 */
+		/// @brief Search for the optimal collision-free path.
 		virtual Status SearchPath() = 0;
 
-		/**
-		 * @brief Return the optimal collision-free path.
-		 */
+		/// @brief Return the optimal collision-free path.
 		virtual std::vector<Vertex> GetPath() = 0;
 
 		void SetInitState(const Vertex& init) { m_init = init; }

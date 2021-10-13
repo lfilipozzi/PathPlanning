@@ -7,11 +7,9 @@
 
 namespace Planner {
 
-	/**
-	 * @brief Interface to define the configuration space.
-	 * @details The data stored in the template type State must be continuous in
-	 * memory without offset and of type T.
-	 */
+	/// @brief Interface to define the configuration space.
+	/// @details The data stored in the template type State must be continuous in
+	/// memory without offset and of type T.
 	template <typename State, int Dimension, typename T = double>
 	class StateSpace {
 		static_assert(sizeof(State) == Dimension * sizeof(T));

@@ -1,7 +1,6 @@
 #include "core/base.h"
 #include "algo/hybrid_a_star.h"
-#include "core/log.h"
-#include "geometry/pose.h"
+#include "geometry/2dplane.h"
 #include "state_validator/state_validator_free.h"
 
 namespace Planner {

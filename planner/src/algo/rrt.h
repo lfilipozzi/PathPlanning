@@ -6,65 +6,49 @@
 
 namespace Planner {
 
-	/**
-	 * @brief Interface to sample the configuration space as required by RRT 
-	 * algorithms.
-	 */
+	/// @brief Interface to sample the configuration space as required by RRT
+	/// algorithms.
 	template <typename Vertex>
 	class RRTStateSpace {
 	public:
 		// TODO FIXME Use StateSpace and StateValidator to implement those functions in RRT and delete RRTStateSpace
-		/**
-		* @brief Calculate the distance between two states
-		* @param from The start state.
-		* @param to The end state.
-		* @return The distance between the states
-		*/
+		/// @brief Calculate the distance between two states
+		/// @param from The start state.
+		/// @param to The end state.
+		/// @return The distance between the states
 		virtual double ComputeDistance(const Vertex& from, const Vertex& to) const = 0;
 
-		/**
-		 * @brief Check if there exist a valid transition between two states.
-		 * @param from The initial state.
-		 * @param to The destination state.
-		 * @return True if the transition is valid, false otherwise.
-		 */
+		/// @brief Check if there exist a valid transition between two states.
+		/// @param from The initial state.
+		/// @param to The destination state.
+		/// @return True if the transition is valid, false otherwise.
 		virtual bool IsTransitionCollisionFree(const Vertex& from, const Vertex& to) = 0;
 
-		/**
-		 * @brief Generate a random state within the configuration space.
-		 * @details The sample must not be inside an obstacle.
-		 * @return A random state.
-		 */
+		/// @brief Generate a random state within the configuration space.
+		/// @details The sample must not be inside an obstacle.
+		/// @return A random state.
 		virtual Vertex Sample() = 0;
 
-		/**
-		 * @brief Construct a new state by moving an incremental distance 
-		 * from @source towards @target.
-		 * @details The path is not assumed to bring exactly to target but it 
-		 * must evolve towards it.
-		 * @return The new state.
-		 */
+		/// @brief Construct a new state by moving an incremental distance
+		/// from @source towards @target.
+		/// @details The path is not assumed to bring exactly to target but it
+		/// must evolve towards it.
+		/// @return The new state.
 		virtual Vertex SteerTowards(const Vertex& source, const Vertex& target) = 0;
 	};
 
-	/**
-	 * @brief Tunable parameters of the RRT algorithm.
-	 */
+	/// @brief Tunable parameters of the RRT algorithm.
 	struct RRTParameters {
 		unsigned int maxIteration = 100;
 		double optimalSolutionTolerance = 1;
 	};
 
-	/**
-	 * @brief Implementation of the Rapidly-exploring Random Trees (RRT).
-	 */
+	/// @brief Implementation of the Rapidly-exploring Random Trees (RRT).
 	template <typename Vertex, unsigned int Dimensions, class Hash = std::hash<Vertex>, typename VertexType = double>
 	class RRT : public PathPlanner<Vertex> {
 	public:
-		/**
-		 * @brief Constructor.
-		 * @param stateSpace
-		 */
+		/// @brief Constructor.
+		/// @param stateSpace
 		RRT(const Ref<RRTStateSpace<Vertex>>& stateSpace) :
 			m_stateSpace(stateSpace) {};
 		virtual ~RRT() = default;
@@ -117,9 +101,6 @@ namespace Planner {
 			return path;
 		}
 
-		/**
-		 * @brief Clear the tree.
-		 */
 		void Clear()
 		{
 			m_tree.Clear();

@@ -14,9 +14,7 @@ namespace Planner {
 		NoMotion
 	};
 
-	/**
-	 * @brief Interface to define a path
-	 */
+	/// @brief Interface to define a path
 	template <typename State>
 	class Path {
 	public:

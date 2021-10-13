@@ -1,15 +1,13 @@
 #pragma once
 
 #include "state_space/state_space.h"
-#include "geometry/reeds_shepp.h"
+#include "paths/path_reeds_shepp.h"
 
 namespace Planner {
 	class StateSpaceReedsShepp : public StateSpace<Pose2D<>, 3> {
-		using Pose = Pose2D<>;
-
 	public:
 		StateSpaceReedsShepp(std::array<std::array<double, 2>, 3> bounds = { { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } }) :
-			StateSpace<Pose, 3>(bounds) { }
+			StateSpace<Pose2D<>, 3>(bounds) { }
 		~StateSpaceReedsShepp() = default;
 
 		/// @brief Compute the distance of a Reeds-Shepp path.
@@ -19,12 +17,12 @@ namespace Planner {
 		}
 		/// @brief Compute the shortest distance from the pose @from to @to
 		/// when driving Reeds-Shepp paths.
-		virtual double ComputeDistance(const Pose& from, const Pose& to) override
+		virtual double ComputeDistance(const Pose2D<>& from, const Pose2D<>& to) override
 		{
 			return ReedsShepp::Solver::GetShortestDistance(from, to, minTurningRadius);
 		}
 		/// @brief Compute the shortest path between two poses
-		Ref<PathReedsShepp> ComputeShortestPath(const Pose& from, const Pose& to)
+		Ref<PathReedsShepp> ComputeShortestPath(const Pose2D<>& from, const Pose2D<>& to)
 		{
 			auto pathSegment = ReedsShepp::Solver::GetShortestPath(from, to, minTurningRadius);
 			return makeRef<PathReedsShepp>(from, pathSegment, minTurningRadius);
@@ -43,7 +41,7 @@ namespace Planner {
 			return ComputeCost(path);
 		}
 		/// @brief Compute the optimal path between two poses
-		Ref<PathReedsShepp> ComputeOptimalPath(const Pose& from, const Pose& to) const
+		Ref<PathReedsShepp> ComputeOptimalPath(const Pose2D<>& from, const Pose2D<>& to) const
 		{
 			auto pathSegment = ReedsShepp::Solver::GetOptimalPath(from, to, minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
 			return makeRef<PathReedsShepp>(from, pathSegment, minTurningRadius);

@@ -7,9 +7,7 @@
 
 namespace Planner {
 
-	/** 
-	 * @brief Logging system
-	 */
+	///@brief Logging system
 	class Log {
 	public:
 		static void Init();

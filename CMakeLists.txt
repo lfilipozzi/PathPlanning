@@ -36,10 +36,18 @@ else()
 	#... # read on
 endif()
 
-add_executable(pathPlanning
-	main.cpp
+add_library(pathPlanning
+	${CMAKE_SOURCE_DIR}/planner/src/algo/hybrid_a_star.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/algo/hybrid_a_star_heuristics.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/geometry/2dplane.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/geometry/reeds_shepp.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/paths/path_constant_steer.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/paths/path_reeds_shepp.cpp
 )
-target_link_libraries(${PROJECT_NAME} flann ${logger_LIB})
+target_link_libraries(pathPlanning flann ${logger_LIB})
+
+add_executable(mainPathPlanning main.cpp)
+target_link_libraries(mainPathPlanning pathPlanning)
 
 enable_testing()
 add_subdirectory(planner/tests)
