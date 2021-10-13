@@ -1,5 +1,5 @@
 #include "core/base.h"
-#include "a_star.h"
+#include "algo/a_star.h"
 #include "geometry/2dplane.h"
 #include "core/log.h"
 #include "state_space/a_star_state_space_2d.h"

@@ -1,8 +1,8 @@
 #include "core/base.h"
-#include "hybrid_a_star.h"
+#include "algo/hybrid_a_star.h"
 #include "core/log.h"
 #include "geometry/pose.h"
-#include "state_validator_free.h"
+#include "state_validator/state_validator_free.h"
 
 namespace Planner {
 	void TestHybridAStar()

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "path_planner.h"
-#include "state_space.h"
-#include "tree.h"
+#include "algo/path_planner.h"
+#include "state_space/state_space.h"
+#include "utils/tree.h"
 
 namespace Planner {
 
@@ -11,9 +11,9 @@ namespace Planner {
 	 * algorithms.
 	 */
 	template <typename Vertex>
-	class RRTStateSpace {
+	class RRTStarStateSpace {
 	public:
-		// TODO FIXME Use StateSpace and StateValidator to implement those functions in RRT and delete RRTStateSpace
+		// TODO FIXME Use StateSpace and StateValidator to implement those functions in RRTStar and delete RRTStarStateSpace
 		/**
 		* @brief Calculate the distance between two states
 		* @param from The start state.
@@ -45,33 +45,46 @@ namespace Planner {
 		 * @return The new state.
 		 */
 		virtual Vertex SteerTowards(const Vertex& source, const Vertex& target) = 0;
+
+		/**
+		 * @brief Construct a path that connects the node @source to the node 
+		 * @target.
+		 * @return A tuple containing the cost to go from the source to the 
+		 * target and a boolean indicating if the path is collision-free.
+		 */
+		virtual std::tuple<double, bool> SteerExactly(const Vertex& source, const Vertex& target) = 0;
 	};
 
 	/**
-	 * @brief Tunable parameters of the RRT algorithm.
-	 */
-	struct RRTParameters {
+	* @brief Tunable parameters of the RRT algorithm.
+	*/
+	struct RRTStarParameters {
 		unsigned int maxIteration = 100;
 		double optimalSolutionTolerance = 1;
 	};
 
-	/**
-	 * @brief Implementation of the Rapidly-exploring Random Trees (RRT).
-	 */
 	template <typename Vertex, unsigned int Dimensions, class Hash = std::hash<Vertex>, typename VertexType = double>
-	class RRT : public PathPlanner<Vertex> {
+	class RRTStar : public PathPlanner<Vertex> {
+	private:
+		/**
+		 * @brief Node metadata used by RRT star.
+		 */
+		struct NodeMetadata {
+			double costFromGoal = 0;
+		};
+
 	public:
 		/**
 		 * @brief Constructor.
 		 * @param stateSpace
 		 */
-		RRT(const Ref<RRTStateSpace<Vertex>>& stateSpace) :
+		RRTStar(const Ref<RRTStarStateSpace<Vertex>>& stateSpace) :
 			m_stateSpace(stateSpace) {};
-		virtual ~RRT() = default;
+		virtual ~RRTStar() = default;
 
-		RRTParameters& GetParameters() { return m_parameters; }
-		const RRTParameters& GetParameters() const { return m_parameters; }
-		void SetParameters(const RRTParameters& params) { m_parameters = params; }
+		RRTStarParameters& GetParameters() { return m_parameters; }
+		const RRTStarParameters& GetParameters() const { return m_parameters; }
+		void SetParameters(const RRTStarParameters& params) { m_parameters = params; }
 
 		virtual Status SearchPath() override
 		{
@@ -84,11 +97,38 @@ namespace Planner {
 				auto nearestNode = m_tree.GetNearestNode(randomState);
 				if (!nearestNode)
 					continue;
-				// Extend the tree toward randomState by creating a valid new node with obstacle-free path
+				// Find a new vertex from nearestNode towards randomState and check if the transition is collision-free
 				auto newState = m_stateSpace->SteerTowards(nearestNode->GetState(), randomState);
 				if (!m_stateSpace->IsTransitionCollisionFree(nearestNode->GetState(), newState))
 					continue;
-				auto newNode = m_tree.Extend(newState, nearestNode);
+
+				// Find k nearest neighbor of newState where k is logarithmic in the size of the tree
+				unsigned int nn = log(m_tree.GetSize());
+				auto nearNodes = m_tree.GetNearestNodes(newState, nn);
+				// Find the best parent for newNode
+				auto bestParentNode = nearestNode;
+				[[maybe_unused]] auto [transitionCost, transitionCollisionFree] = m_stateSpace->SteerExactly(nearestNode->GetState(), newState);
+				double bestCost = nearestNode->meta.costFromGoal + transitionCost;
+				for (auto node : nearNodes) {
+					auto [transitionCost, transitionCollisionFree] = m_stateSpace->SteerExactly(node->GetState(), newState);
+					double cost = node->meta.costFromGoal + transitionCost;
+					if (cost < bestCost && transitionCollisionFree) {
+						bestParentNode = node;
+						bestCost = cost;
+					}
+				}
+				auto newNode = m_tree.Extend(newState, bestParentNode);
+				newNode->meta.costFromGoal = bestCost;
+
+				// Reparent the nearest neighbor if necessary
+				for (auto node : nearNodes) {
+					auto [transitionCost, transitionCollisionFree] = m_stateSpace->SteerExactly(newNode->GetState(), node->GetState());
+					double cost = newNode->meta.costFromGoal + transitionCost;
+					if (cost < node->meta.costFromGoal && transitionCollisionFree) {
+						m_tree.Reparent(node, newNode);
+						node->meta.costFromGoal = cost;
+					}
+				}
 
 				// Check solution
 				if (m_stateSpace->ComputeDistance(newState, this->m_goal) < m_parameters.optimalSolutionTolerance) {
@@ -127,10 +167,10 @@ namespace Planner {
 		}
 
 	private:
-		RRTParameters m_parameters;
-		Ref<RRTStateSpace<Vertex>> m_stateSpace;
+		RRTStarParameters m_parameters;
+		Ref<RRTStarStateSpace<Vertex>> m_stateSpace;
 
-		Tree<Vertex, Dimensions, VoidClass, Hash, VertexType> m_tree;
-		typename Tree<Vertex, Dimensions, VoidClass, Hash, VertexType>::Node* m_solutionNode = nullptr;
+		Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType> m_tree;
+		typename Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType>::Node* m_solutionNode = nullptr;
 	};
 }

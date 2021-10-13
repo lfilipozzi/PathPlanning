@@ -3,12 +3,13 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 
-#include "path_planner.h"
-#include "a_star.h"
+#include "algo/path_planner.h"
+#include "algo/a_star.h"
 #include "geometry/pose.h"
-#include "reeds_shepp.h"
-#include "state_validator.h"
-#include "path_constant_steer.h"
+#include "paths/path_reeds_shepp.h"
+#include "paths/path_constant_steer.h"
+#include "state_space/state_space_reeds_shepp.h"
+#include "state_validator/state_validator.h"
 
 namespace Planner {
 

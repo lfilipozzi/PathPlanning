@@ -1,7 +1,7 @@
 #pragma once
 
 #include "geometry/2dplane.h"
-#include "rrt.h"
+#include "algo/rrt.h"
 
 namespace Planner {
 	class RRTStateSpace2D : public RRTStateSpace<Point2D> {

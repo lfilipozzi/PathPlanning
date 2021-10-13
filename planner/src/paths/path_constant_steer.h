@@ -1,6 +1,6 @@
 #pragma once
 
-#include "path.h"
+#include "paths/path.h"
 #include "geometry/pose.h"
 
 namespace Planner {

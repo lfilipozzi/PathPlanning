@@ -1,8 +1,8 @@
 #pragma once
 
-#include "path_planner.h"
-#include "state_space.h"
-#include "tree.h"
+#include "algo/path_planner.h"
+#include "state_space/state_space.h"
+#include "utils/tree.h"
 #include "core/hash.h"
 
 #include <queue>

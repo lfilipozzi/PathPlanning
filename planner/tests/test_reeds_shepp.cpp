@@ -1,5 +1,5 @@
 #include "core/log.h"
-#include "reeds_shepp.h"
+#include "paths/path_reeds_shepp.h"
 
 #include <unordered_set>
 

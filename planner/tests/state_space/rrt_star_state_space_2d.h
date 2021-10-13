@@ -1,7 +1,7 @@
 #pragma once
 
 #include "geometry/2dplane.h"
-#include "rrt_star.h"
+#include "algo/rrt_star.h"
 
 namespace Planner {
 	class RRTStarStateSpace2D : public RRTStarStateSpace<Point2D> {

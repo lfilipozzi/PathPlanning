@@ -1,6 +1,6 @@
 #pragma once
 
-#include "path.h"
+#include "paths/path.h"
 
 namespace Planner {
 
@@ -11,7 +11,7 @@ namespace Planner {
 	class StateValidator {
 	public:
 		StateValidator() = default;
-		~StateValidator() = default;
+		virtual ~StateValidator() = default;
 
 		/// @brief Check if a state is valid.
 		virtual bool IsStateValid(const State& state) = 0;

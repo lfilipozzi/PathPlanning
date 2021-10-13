@@ -7,24 +7,25 @@
 
 #if MODE == 0
 
-	#include "a_star.h"
+	#include "algo/a_star.h"
 	#include "geometry/2dplane.h"
 	#include "planner/tests/state_space/a_star_state_space_2d.h"
 
-double Heuristic(const Point2DInt& from, const Point2DInt& to)
-{
-	Point2DInt delta = from - to;
-	return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
-}
+class Heuristic2D : public Planner::AStarHeuristic<Point2DInt> {
+	virtual double GetHeuristicValue(const Point2DInt& from, const Point2DInt& to) override
+	{
+		Point2DInt delta = from - to;
+		return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
+	}
+};
 
 int main(int /*argc*/, char** /*argv*/)
 {
 	PP_INIT_LOGGER;
 
-	Planner::AStar<Point2DInt> search(Planner::makeRef<Planner::AStarStateSpace2D>(), Heuristic);
-
-	Planner::AStarParameters parameters;
-	search.SetParameters(parameters);
+	Planner::AStar<Point2DInt> search(
+		Planner::makeRef<Planner::AStarStateSpace2D>(), 
+		Planner::makeRef<Heuristic2D>());
 
 	Point2DInt start = { 0.0, 0.0 };
 	Point2DInt goal = { 5.0, 1.0 };
@@ -47,9 +48,9 @@ int main(int /*argc*/, char** /*argv*/)
 
 #elif MODE == 1
 
-	#include "hybrid_a_star.h"
+	#include "algo/hybrid_a_star.h"
 	#include "geometry/pose.h"
-	#include "state_validator_free.h"
+	#include "state_validator/state_validator_free.h"
 
 	#define _USE_MATH_DEFINES
 	#include <cmath>
@@ -83,7 +84,7 @@ int main()
 #elif MODE == 2
 
 	#include "core/log.h"
-	#include "reeds_shepp.h"
+	#include "geometry/reeds_shepp.h"
 
 int main(int argc, char** argv)
 {
@@ -108,7 +109,7 @@ int main(int argc, char** argv)
 
 #elif MODE == 3
 
-	#include "state_space_se2.h"
+	#include "state_space/state_space_se2.h"
 
 int main()
 {

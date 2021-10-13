@@ -1,5 +1,5 @@
 #include "core/base.h"
-#include "rrt.h"
+#include "algo/rrt.h"
 #include "geometry/2dplane.h"
 #include "core/log.h"
 #include "state_space/rrt_state_space_2d.h"
