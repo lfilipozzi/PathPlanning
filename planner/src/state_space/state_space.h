@@ -23,7 +23,8 @@ namespace Planner {
 		virtual ~StateSpace() = default;
 
 		void SetBounds(std::array<std::array<double, 2>, Dimension> bounds) { m_bounds = bounds; }
-		std::array<std::array<double, 2>, Dimension> GetBounds() const { return m_bounds; };
+		const std::array<std::array<double, 2>, Dimension>& GetBounds() const { return m_bounds; }
+		std::array<std::array<double, 2>, Dimension>& GetBounds() { return m_bounds; }
 
 		/// @brief Modify the state if necessary to enforce state bounds
 		/// @param[in,out] state The state to enforce bound.

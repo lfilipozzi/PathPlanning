@@ -6,22 +6,23 @@
 namespace Planner {
 	class NonHolonomicHeuristic : public AStarHeuristic<HybridAStar::State> {
 	public:
-		// FIXME Should not be public, look at https://stackoverflow.com/questions/8147027/how-do-i-call-stdmake-shared-on-a-class-with-only-protected-or-private-const
-		NonHolonomicHeuristic(double spatialResolution, double angularResolution, double minTurningRadius,
-			double reverseCostMultiplier, double forwardCostMultiplier, double directionSwitchingCost,
-			unsigned int numSpatial);
 		~NonHolonomicHeuristic();
 
 		/// @brief Generate the NonHolonomicHeuristic heuristic.
-		static Ref<NonHolonomicHeuristic> Build(const Ref<HybridAStar::StateSpace>& stateSpace, double spatialSize);
+		static Ref<NonHolonomicHeuristic> Build(const Ref<HybridAStar::StateSpace>& stateSpace);
 
 		virtual double GetHeuristicValue(const HybridAStar::State& from, const HybridAStar::State& to) override;
+
+	protected:
+		NonHolonomicHeuristic(double spatialResolution, double angularResolution, double minTurningRadius,
+			double reverseCostMultiplier, double forwardCostMultiplier, double directionSwitchingCost,
+			unsigned int numSpatialX, unsigned int numSpatialY);
 
 	public:
 		const double spatialResolution, angularResolution, minTurningRadius;
 		const double reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost;
-		const unsigned int numSpatial, numAngular;
-		const double offset;
+		const unsigned int numSpatialX, numSpatialY, numAngular;
+		const double offsetX, offsetY;
 
 	private:
 		double*** m_values;

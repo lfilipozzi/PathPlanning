@@ -8,6 +8,8 @@ namespace Planner {
 	{
 		Ref<HybridAStar::StateSpace> stateSpace = makeRef<HybridAStar::StateSpace>();
 		Ref<StateValidator<Pose2D<>>> stateValidator = makeRef<StateValidatorFree<Pose2D<>>>();
+		stateSpace->SetBounds({ { { -50, 50 }, { -50, 50 }, { -M_PI, M_PI } } });
+
 		HybridAStar hybridAStar(stateSpace, stateValidator);
 
 		Pose2D<> start = { 0.0, 0.0, 0.0 };

@@ -61,6 +61,8 @@ int main()
 
 	Planner::Ref<Planner::HybridAStar::StateSpace> stateSpace = Planner::makeRef<Planner::HybridAStar::StateSpace>();
 	Planner::Ref<Planner::StateValidator<Planner::Pose2D<>>> stateValidator = Planner::makeRef<Planner::StateValidatorFree<Planner::Pose2D<>>>();
+	stateSpace->SetBounds({ { { -50, 50 }, { -50, 50 }, { -M_PI, M_PI } } });
+
 	Planner::HybridAStar hybridAStar(stateSpace, stateValidator);
 
 	Planner::Pose2D<> start = { 0.0, 0.0, 0.0 };
