@@ -3,8 +3,29 @@
 #include "paths/path_constant_steer.h"
 #include "state_validator/state_validator.h"
 #include "algo/hybrid_a_star_heuristics.h"
+#include "models/kinematic_bicycle_model.h"
 
 namespace Planner {
+	HybridAStar::StateSpace::StateSpace(double spatialResolution, double angularResolution,
+		unsigned int numGeneratedMotion,
+		double minTurningRadius, double directionSwitchingCost,
+		double reverseCostMultiplier, double forwardCostMultiplier,
+		std::array<std::array<double, 2>, 3> bounds) :
+		StateSpaceReedsShepp(minTurningRadius, directionSwitchingCost, reverseCostMultiplier, forwardCostMultiplier, bounds),
+		spatialResolution(spatialResolution), angularResolution(angularResolution), numGeneratedMotion(numGeneratedMotion)
+	{
+		m_model = makeRef<KinematicBicycleModel>();
+
+		m_deltas.reserve(numGeneratedMotion);
+		const double deltaMax = m_model->GetSteeringAngleFromTurningRadius(minTurningRadius);
+		m_deltas.push_back(0.0);
+		for (unsigned int i = 0; i < numGeneratedMotion / 2; i++) {
+			double delta = (i + 1) / 2.0 * deltaMax;
+			m_deltas.push_back(delta);
+			m_deltas.push_back(-delta);
+		}
+	}
+
 	Pose2D<int> HybridAStar::StateSpace::DiscretizePose(const Pose2D<>& pose) const
 	{
 		return {
@@ -26,18 +47,15 @@ namespace Planner {
 	{
 		State state;
 		state.discrete = DiscretizePose(pose);
-		state.path = makeRef<PathConstantSteer>(pose);
+		state.path = makeRef<PathConstantSteer>(m_model.get(), pose);
 		return state;
 	}
 
 	std::vector<std::tuple<HybridAStar::State, double>> HybridAStar::StateSpace::GetNeighborStates(const State& state)
 	{
-		// TODO compute delta from minTurning radius and numMotion
-		std::vector<double> deltas = { -10, -7.5, -5, -2.5, -0, 2.5, 5, 7.5, 10 };
-
 		std::vector<std::tuple<State, double>> neighbors;
-		neighbors.reserve(2 * deltas.size());
-		for (double delta : deltas) {
+		neighbors.reserve(2 * m_deltas.size());
+		for (double delta : m_deltas) {
 			State newState;
 			double cost;
 
@@ -75,7 +93,7 @@ namespace Planner {
 
 	bool HybridAStar::StateSpace::ConstantSteer(const State& state, double delta, Direction direction, State& next, double& cost) const
 	{
-		auto path = makeRef<PathConstantSteer>(state.GetPose(), delta, spatialResolution * 1.5, direction);
+		auto path = makeRef<PathConstantSteer>(m_model.get(), state.GetPose(), delta, spatialResolution * 1.5, direction);
 		next = CreateStateFromPath(path);
 
 		// Validate transition

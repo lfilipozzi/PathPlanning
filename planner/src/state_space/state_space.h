@@ -22,6 +22,9 @@ namespace Planner {
 		}
 		virtual ~StateSpace() = default;
 
+		/// @brief Compute the distance between two states.
+		virtual double ComputeDistance(const State& from, const State& to) = 0;
+
 		void SetBounds(std::array<std::array<double, 2>, Dimension> bounds) { m_bounds = bounds; }
 		const std::array<std::array<double, 2>, Dimension>& GetBounds() const { return m_bounds; }
 		std::array<std::array<double, 2>, Dimension>& GetBounds() { return m_bounds; }
@@ -57,9 +60,6 @@ namespace Planner {
 
 			return validate;
 		}
-
-		/// @brief Compute the distance between two states.
-		virtual double ComputeDistance(const State& from, const State& to) = 0;
 
 		/// @brief Sample the configuration space using a uniform distribution.
 		State SampleUniform()

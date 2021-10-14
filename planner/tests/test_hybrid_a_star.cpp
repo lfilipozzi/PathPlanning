@@ -23,14 +23,6 @@ namespace Planner {
 		assert(!path.empty());
 		assert(stateSpace->DiscretizePose(start) == stateSpace->DiscretizePose(path.front()));
 		assert(stateSpace->DiscretizePose(goal) == stateSpace->DiscretizePose(path.back()));
-
-		// Check we can change parameters
-		hybridAStar.GetStateSpace()->numGeneratedMotion = 5;
-		hybridAStar.GetStateSpace()->minTurningRadius = 1.0;
-		hybridAStar.GetStateSpace()->forwardCostMultiplier = 1.0;
-		hybridAStar.GetStateSpace()->reverseCostMultiplier = 1.0;
-		hybridAStar.GetStateSpace()->directionSwitchingCost = 0.0;
-		hybridAStar.GetStateSpace()->SetBounds({ { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } });
 	}
 }
 

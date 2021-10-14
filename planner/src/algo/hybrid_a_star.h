@@ -14,6 +14,7 @@ namespace Planner {
 	class ObstaclesHeuristic;
 	template <typename T>
 	class StateValidator;
+	class KinematicBicycleModel;
 
 	/// @brief Conduct a Hybrid A* search to find the optimal path.
 	/// @details The continuous state-space is discretized to perform a A*
@@ -56,8 +57,11 @@ namespace Planner {
 			friend HybridAStar;
 
 		public:
-			StateSpace(double spatialResolution = 1.0, double angularResolution = 0.0872) :
-				spatialResolution(spatialResolution), angularResolution(angularResolution) { }
+			StateSpace(double spatialResolution = 1.0, double angularResolution = 0.0872,
+				unsigned int numGeneratedMotion = 5,
+				double minTurningRadius = 1.0, double directionSwitchingCost = 0.0,
+				double reverseCostMultiplier = 1.0, double forwardCostMultiplier = 1.0,
+				std::array<std::array<double, 2>, 3> bounds = { { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } });
 
 			/// @brief Discretize a state.
 			Pose2D<int> DiscretizePose(const Pose2D<>& pose) const;
@@ -99,13 +103,15 @@ namespace Planner {
 			}
 
 		public:
-			const double spatialResolution = 1.0;
-			const double angularResolution = 0.0872;
-			unsigned int numGeneratedMotion = 5;
+			const double spatialResolution;
+			const double angularResolution;
+			const unsigned int numGeneratedMotion;
 
 		private:
 			StateValidator<Pose2D<>>* m_validator;
 			AStarHeuristic<State>* m_heuristic;
+			Ref<KinematicBicycleModel> m_model;
+			std::vector<double> m_deltas;
 			State m_goalState;
 		};
 
