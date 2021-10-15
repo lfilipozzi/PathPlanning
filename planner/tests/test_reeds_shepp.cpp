@@ -4,7 +4,7 @@
 #include <unordered_set>
 
 namespace Planner {
-	void Test(const Pose2D<>& start, const Pose2D<>& goal, const std::unordered_set<ReedsShepp::PathWords>& optimalWords)
+	void Test(const Pose2d& start, const Pose2d& goal, const std::unordered_set<ReedsShepp::PathWords>& optimalWords)
 	{
 		ReedsShepp::PathWords word = ReedsShepp::PathWords::NoPath;
 		double unit = 1.0;
@@ -17,8 +17,8 @@ namespace Planner {
 		// Check the constructed path leads to the final state
 		PathReedsShepp path = { start, pathSegment, unit };
 		double tol = 1e-6;
-		assert(std::abs(path.GetFinalState().x - goal.x) < tol);
-		assert(std::abs(path.GetFinalState().y - goal.y) < tol);
+		assert(std::abs(path.GetFinalState().x() - goal.x()) < tol);
+		assert(std::abs(path.GetFinalState().y() - goal.y()) < tol);
 		assert(std::abs(path.GetFinalState().theta - goal.theta) < tol * M_PI / 180.0);
 
 		// Check solver finds optimal path (when cost correspond to distance traveled)
@@ -32,8 +32,8 @@ int main()
 	PP_INIT_LOGGER;
 
 	Planner::ReedsShepp::PathWords optimalWord;
-	Planner::Pose2D<> start;
-	Planner::Pose2D<> goal;
+	Planner::Pose2d start;
+	Planner::Pose2d goal;
 
 	// CSC, same turn
 	// 0: LfSfLf

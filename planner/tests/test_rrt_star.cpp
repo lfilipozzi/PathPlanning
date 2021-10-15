@@ -4,7 +4,7 @@
 #include "state_space/rrt_star_state_space_2d.h"
 
 namespace Planner {
-	using Vertex = Point2D;
+	using Vertex = Point2d;
 
 	void TestRRTStarPath()
 	{

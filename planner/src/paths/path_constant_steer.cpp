@@ -2,13 +2,13 @@
 #include "models/kinematic_bicycle_model.h"
 
 namespace Planner {
-	PathConstantSteer::PathConstantSteer(KinematicBicycleModel* model, const Pose2D<>& init, double steering, double length, Direction direction) :
-		Path<Pose2D<>>(init, length), m_model(model), m_steering(steering), m_direction(direction)
+	PathConstantSteer::PathConstantSteer(KinematicBicycleModel* model, const Pose2d& init, double steering, double length, Direction direction) :
+		Path<Pose2d>(init, length), m_model(model), m_steering(steering), m_direction(direction)
 	{
 		m_final = Interpolate(1.0);
 	}
 
-	Pose2D<> PathConstantSteer::Interpolate(double ratio) const
+	Pose2d PathConstantSteer::Interpolate(double ratio) const
 	{
 		return m_model->ConstantSteer(m_init, m_steering, m_length * ratio, m_direction);
 	}

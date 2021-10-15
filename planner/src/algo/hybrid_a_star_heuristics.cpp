@@ -48,8 +48,8 @@ namespace Planner {
 		const double& reverseCostMultiplier = stateSpace->reverseCostMultiplier;
 		const double& forwardCostMultiplier = stateSpace->forwardCostMultiplier;
 		const double& directionSwitchingCost = stateSpace->directionSwitchingCost;
-		const double spatialSizeX = bounds[0][1] - bounds[0][0];
-		const double spatialSizeY = bounds[1][1] - bounds[1][0];
+		const double spatialSizeX = bounds[1].x() - bounds[0].x();
+		const double spatialSizeY = bounds[1].y() - bounds[0].y();
 
 		unsigned int numSpatialGuessX = ceil(spatialSizeX / spatialResolution);
 		if (numSpatialGuessX % 2 == 0)
@@ -69,11 +69,11 @@ namespace Planner {
 		const unsigned int& numSpatialY = heuristic->numSpatialY;
 		const unsigned int& numAngular = heuristic->numAngular;
 
-		const Pose2D<> goal(0.0, 0.0, 0.0);
+		const Pose2d goal(0.0, 0.0, 0.0);
 		for (int i = 0; i < numSpatialX; i++) {
 			for (int j = 0; j < numSpatialY; j++) {
 				for (int k = 0; k < numAngular; k++) {
-					Pose2D<> pose(i * spatialResolution - offsetX, j * spatialResolution - offsetY, k * angularResolution);
+					Pose2d pose(i * spatialResolution - offsetX, j * spatialResolution - offsetY, k * angularResolution);
 					auto path = ReedsShepp::Solver::GetOptimalPath(pose, goal, minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
 					values[i][j][k] = path.ComputeCost(minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
 				}
@@ -89,14 +89,14 @@ namespace Planner {
 		auto delta = to.GetPose() - from.GetPose();
 		delta.theta = delta.WrapTheta();
 
-		int i = (int)round((delta.x + offsetX) / spatialResolution);
-		int j = (int)round((delta.y + offsetY) / spatialResolution);
+		int i = (int)round((delta.x() + offsetX) / spatialResolution);
+		int j = (int)round((delta.y() + offsetY) / spatialResolution);
 		int k = (int)round(delta.theta / angularResolution);
 		if (k == numAngular)
 			k = 0;
 
 		if (i < 0 || i >= numSpatialX || j < 0 || j >= numSpatialY) {
-			double euclideanDistance = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
+			double euclideanDistance = delta.position.norm();
 			double distanceMultiplier = std::min(reverseCostMultiplier, forwardCostMultiplier);
 			return distanceMultiplier * euclideanDistance;
 		}

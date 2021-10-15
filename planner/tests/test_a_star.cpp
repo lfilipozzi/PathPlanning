@@ -4,11 +4,11 @@
 #include "state_space/a_star_state_space_2d.h"
 
 namespace Planner {
-	class Test2DHeuristic : public AStarHeuristic<Point2DInt> {
+	class Test2DHeuristic : public AStarHeuristic<Point2i> {
 	public:
-		virtual double GetHeuristicValue(const Point2DInt& from, const Point2DInt& to) override
+		virtual double GetHeuristicValue(const Point2i& from, const Point2i& to) override
 		{
-			Point2DInt delta = from - to;
+			Point2i delta = from - to;
 			return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
 		}
 	};
@@ -18,15 +18,15 @@ namespace Planner {
 		auto stateSpace = Planner::makeRef<AStarStateSpace2D>();
 		auto heuristic = Planner::makeRef<Test2DHeuristic>();
 
-		Planner::AStar<Point2DInt> aStar(stateSpace, heuristic);
+		Planner::AStar<Point2i> aStar(stateSpace, heuristic);
 
-		Point2DInt start = { 0.0, 0.0 };
-		Point2DInt goal = { 10.0, 5.0 };
+		Point2i start = { 0.0, 0.0 };
+		Point2i goal = { 10.0, 5.0 };
 		aStar.SetInitState(start);
 		aStar.SetGoalState(goal);
 
 		aStar.SearchPath();
-		std::vector<Point2DInt> path = aStar.GetPath();
+		std::vector<Point2i> path = aStar.GetPath();
 
 		assert(!path.empty());
 		assert(start == path.front());

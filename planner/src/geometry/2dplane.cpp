@@ -2,7 +2,7 @@
 
 namespace Planner {
 	template <>
-	int Pose2D<int>::WrapTheta() const
+	int Pose2<int>::WrapTheta() const
 	{
 		return theta;
 	}

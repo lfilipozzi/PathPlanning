@@ -18,11 +18,11 @@ namespace Planner {
 				return Maths::Modulo(theta + M_PI, 2 * M_PI) - M_PI;
 			}
 
-			static double LfSfLf(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfSfLf(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.1
-				double x = goal.x - sin(goal.theta);
-				double y = goal.y - 1 + cos(goal.theta);
+				double x = goal.x() - sin(goal.theta);
+				double y = goal.y() - 1 + cos(goal.theta);
 
 				u = sqrt(x * x + y * y);
 				t = atan2(y, x);
@@ -34,11 +34,11 @@ namespace Planner {
 				return t + u + v;
 			}
 
-			static double LfSfRf(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfSfRf(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.2
-				double x = goal.x + sin(goal.theta);
-				double y = goal.y - 1 - cos(goal.theta);
+				double x = goal.x() + sin(goal.theta);
+				double y = goal.y() - 1 - cos(goal.theta);
 
 				double u1squared = x * x + y * y;
 				double t1 = std::atan2(y, x);
@@ -57,13 +57,13 @@ namespace Planner {
 				return t + u + v;
 			}
 
-			static double LfRbLf(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfRbLf(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.3
 				// Uses a modified formula adapted from the c_c_c function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				double xi = goal.x - sin(goal.theta);
-				double eta = goal.y - 1 + cos(goal.theta);
+				double xi = goal.x() - sin(goal.theta);
+				double eta = goal.y() - 1 + cos(goal.theta);
 
 				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 > 4)
@@ -81,13 +81,13 @@ namespace Planner {
 				return t + u + v;
 			}
 
-			static double LfRbLb(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfRbLb(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.4
 				// Uses a modified formula adapted from the c_cc function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				double xi = goal.x - sin(goal.theta);
-				double eta = goal.y - 1 + cos(goal.theta);
+				double xi = goal.x() - sin(goal.theta);
+				double eta = goal.y() - 1 + cos(goal.theta);
 
 				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 > 4)
@@ -102,13 +102,13 @@ namespace Planner {
 				return t + u + v;
 			}
 
-			static double LfRfLb(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfRfLb(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.4
 				// Uses a modified formula adapted from the cc_c function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				double xi = goal.x - sin(goal.theta);
-				double eta = goal.y - 1 + cos(goal.theta);
+				double xi = goal.x() - sin(goal.theta);
+				double eta = goal.y() - 1 + cos(goal.theta);
 
 				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 > 4)
@@ -124,13 +124,13 @@ namespace Planner {
 				return t + u + v;
 			}
 
-			static double LfRufLubRb(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfRufLubRb(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.7
 				// Uses a modified formula adapted from the ccu_cuc function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				double xi = goal.x + sin(goal.theta);
-				double eta = goal.y - 1 - cos(goal.theta);
+				double xi = goal.x() + sin(goal.theta);
+				double eta = goal.y() - 1 - cos(goal.theta);
 
 				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 > 4)
@@ -153,13 +153,13 @@ namespace Planner {
 				return t + u + u + v;
 			}
 
-			static double LfRubLubRf(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfRubLubRf(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.8
 				// Uses a modified formula adapted from the c_cucu_c function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				double xi = goal.x + sin(goal.theta);
-				double eta = goal.y - 1 - cos(goal.theta);
+				double xi = goal.x() + sin(goal.theta);
+				double eta = goal.y() - 1 - cos(goal.theta);
 
 				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 > 6)
@@ -179,13 +179,13 @@ namespace Planner {
 				return t + u + u + v;
 			}
 
-			static double LfRbpi2SbLb(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfRbpi2SbLb(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.9
 				// Uses a modified formula adapted from the c_c2sca function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				double xi = goal.x - sin(goal.theta);
-				double eta = goal.y - 1 + cos(goal.theta);
+				double xi = goal.x() - sin(goal.theta);
+				double eta = goal.y() - 1 + cos(goal.theta);
 
 				double u1squared = xi * xi + eta * eta;
 				if (u1squared < 4)
@@ -204,13 +204,13 @@ namespace Planner {
 				return t + M_PI_2 + u + v;
 			}
 
-			static double LfRbpi2SbRb(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfRbpi2SbRb(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.10
 				// Uses a modified formula adapted from the c_c2scb function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				double xi = goal.x + sin(goal.theta);
-				double eta = goal.y - 1 - cos(goal.theta);
+				double xi = goal.x() + sin(goal.theta);
+				double eta = goal.y() - 1 - cos(goal.theta);
 
 				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 < 2)
@@ -225,13 +225,13 @@ namespace Planner {
 				return t + M_PI_2 + u + v;
 			}
 
-			static double LfSfRfpi2Lb(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfSfRfpi2Lb(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.9 (reversed)
 				// Uses a modified formula adapted from the csc2_ca function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				double xi = goal.x - sin(goal.theta);
-				double eta = goal.y - 1 + cos(goal.theta);
+				double xi = goal.x() - sin(goal.theta);
+				double eta = goal.y() - 1 + cos(goal.theta);
 
 				double u1squared = xi * xi + eta * eta;
 				if (u1squared < 4)
@@ -250,13 +250,13 @@ namespace Planner {
 				return t + u + M_PI_2 + v;
 			}
 
-			static double LfSfLfpi2Rb(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfSfLfpi2Rb(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.10 (reversed)
 				// Uses a modified formula adapted from the csc2_cb function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				double xi = goal.x + sin(goal.theta);
-				double eta = goal.y - 1 - cos(goal.theta);
+				double xi = goal.x() + sin(goal.theta);
+				double eta = goal.y() - 1 - cos(goal.theta);
 
 				double u1 = sqrt(xi * xi + eta * eta);
 				if (u1 < 2)
@@ -271,13 +271,13 @@ namespace Planner {
 				return t + u + M_PI_2 + v;
 			}
 
-			static double LfRbpi2SbLbpi2Rf(const Pose2D<>& goal, double& t, double& u, double& v)
+			static double LfRbpi2SbLbpi2Rf(const Pose2d& goal, double& t, double& u, double& v)
 			{
 				// Reeds-Shepp 8.11
 				// Uses a modified formula adapted from the c_c2sc2_c function
 				// from http://msl.cs.uiuc.edu/~lavalle/cs326a/rs.c
-				double xi = goal.x + sin(goal.theta);
-				double eta = goal.y - 1 - cos(goal.theta);
+				double xi = goal.x() + sin(goal.theta);
+				double eta = goal.y() - 1 - cos(goal.theta);
 
 				double u1squared = xi * xi + eta * eta;
 				if (u1squared < 16)
@@ -515,27 +515,27 @@ namespace Planner {
 			return this;
 		}
 
-		static std::array<Pose2D<>, 4> GetGoalArray(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius)
+		static std::array<Pose2d, 4> GetGoalArray(const Pose2d& start, const Pose2d& goal, double minTurningRadius)
 		{
 			// Translate the goal so that the start position is at the origin with orientation 0
-			Pose2D<> newGoal = goal - start;
-			newGoal.x = newGoal.x / minTurningRadius;
-			newGoal.y = newGoal.y / minTurningRadius;
+			Pose2d newGoal = goal - start;
+			newGoal.x() = newGoal.x() / minTurningRadius;
+			newGoal.y() = newGoal.y() / minTurningRadius;
 			newGoal.theta = newGoal.WrapTheta();
 
 			// clang-format off
-			std::array<Pose2D<>, 4> goals = {
-				Pose2D<>( newGoal.x,  newGoal.y,  newGoal.theta),
-				Pose2D<>(-newGoal.x,  newGoal.y, -newGoal.theta),
-				Pose2D<>( newGoal.x, -newGoal.y, -newGoal.theta),
-				Pose2D<>(-newGoal.x, -newGoal.y,  newGoal.theta),
+			std::array<Pose2d, 4> goals = {
+				Pose2d( newGoal.x(),  newGoal.y(),  newGoal.theta),
+				Pose2d(-newGoal.x(),  newGoal.y(), -newGoal.theta),
+				Pose2d( newGoal.x(), -newGoal.y(), -newGoal.theta),
+				Pose2d(-newGoal.x(), -newGoal.y(),  newGoal.theta),
 			};
 			// clang-format on
 
 			return goals;
 		}
 
-		[[nodiscard]] static double GetMotionLengths(PathWords word, const std::array<Pose2D<>, 4> goals, double& t, double& u, double& v)
+		[[nodiscard]] static double GetMotionLengths(PathWords word, const std::array<Pose2d, 4> goals, double& t, double& u, double& v)
 		{
 			int w = static_cast<int>(word);
 
@@ -606,9 +606,9 @@ namespace Planner {
 			return path;
 		}
 
-		double Solver::GetShortestDistance(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, PathWords* word, std::tuple<double, double, double>* out)
+		double Solver::GetShortestDistance(const Pose2d& start, const Pose2d& goal, double minTurningRadius, PathWords* word, std::tuple<double, double, double>* out)
 		{
-			const std::array<Pose2D<>, 4> goals = GetGoalArray(start, goal, minTurningRadius);
+			const std::array<Pose2d, 4> goals = GetGoalArray(start, goal, minTurningRadius);
 
 			// Iterate over pathwords to find the shortest path
 			double smallestLength = std::numeric_limits<double>::infinity();
@@ -637,7 +637,7 @@ namespace Planner {
 			return smallestLength;
 		}
 
-		PathSegment Solver::GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, PathWords* word)
+		PathSegment Solver::GetShortestPath(const Pose2d& start, const Pose2d& goal, double minTurningRadius, PathWords* word)
 		{
 			std::tuple<double, double, double> params;
 			PathWords smallestWord = PathWords::NoPath;
@@ -652,9 +652,9 @@ namespace Planner {
 			return GetPath(smallestWord, t, u, v);
 		}
 
-		PathSegment Solver::GetOptimalPath(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, float reverseCostMultiplier, float forwardCostMultiplier, float directionSwitchingCost, PathWords* word)
+		PathSegment Solver::GetOptimalPath(const Pose2d& start, const Pose2d& goal, double minTurningRadius, float reverseCostMultiplier, float forwardCostMultiplier, float directionSwitchingCost, PathWords* word)
 		{
-			const std::array<Pose2D<>, 4> goals = GetGoalArray(start, goal, minTurningRadius);
+			const std::array<Pose2d, 4> goals = GetGoalArray(start, goal, minTurningRadius);
 
 			// Iterate over pathwords to find the shortest path
 			float optimalCost = std::numeric_limits<float>::infinity();

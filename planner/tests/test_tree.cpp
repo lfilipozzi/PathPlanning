@@ -3,7 +3,7 @@
 #include "geometry/2dplane.h"
 
 namespace Planner {
-	using Vertex = Point2D;
+	using Vertex = Point2d;
 
 	void TestNodeGetDepth()
 	{

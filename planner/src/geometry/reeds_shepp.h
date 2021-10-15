@@ -112,14 +112,14 @@ namespace Planner {
 			/// @param[in] minTurningRadius Minimum turning radius.
 			/// @param[out] word The word representing the optimal path.
 			/// @param[out] out Parameters to reconstruct the path.
-			static double GetShortestDistance(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, PathWords* word = nullptr, std::tuple<double, double, double>* out = nullptr);
+			static double GetShortestDistance(const Pose2d& start, const Pose2d& goal, double minTurningRadius, PathWords* word = nullptr, std::tuple<double, double, double>* out = nullptr);
 
 			/// @brief Return the shortest path from the start to the goal.
 			/// @param[in] start The initial pose.
 			/// @param[in] goal The goal pose.
 			/// @param[in] minTurningRadius Minimum turning radius.
 			/// @param[out] word The word representing the optimal path.
-			static PathSegment GetShortestPath(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, PathWords* word = nullptr);
+			static PathSegment GetShortestPath(const Pose2d& start, const Pose2d& goal, double minTurningRadius, PathWords* word = nullptr);
 
 			/// @brief Return the optimal path from the start to the goal.
 			/// @param[in] start The initial pose.
@@ -129,7 +129,7 @@ namespace Planner {
 			/// @param[in] forwardCostMultiplier
 			/// @param[in] directionSwitchingCost
 			/// @param[out] word The word representing the optimal path.
-			static PathSegment GetOptimalPath(const Pose2D<>& start, const Pose2D<>& goal, double minTurningRadius, float reverseCostMultiplier, float forwardCostMultiplier, float directionSwitchingCost, PathWords* word = nullptr);
+			static PathSegment GetOptimalPath(const Pose2d& start, const Pose2d& goal, double minTurningRadius, float reverseCostMultiplier, float forwardCostMultiplier, float directionSwitchingCost, PathWords* word = nullptr);
 		};
 	}
 }
