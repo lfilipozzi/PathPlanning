@@ -8,6 +8,7 @@
 namespace Planner {
 
 	/// @brief Generalized Voronoi Diagram
+	/// http://www2.informatik.uni-freiburg.de/~lau/dynamicvoronoi/
 	class GVD {
 	private:
 		struct VoronoiDistanceMap;

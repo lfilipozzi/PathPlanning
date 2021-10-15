@@ -79,10 +79,13 @@ namespace Planner {
 		}
 	}
 
-	GridCellPosition ObstacleGrid::PointToCellPosition(double x, double y)
+	GridCellPosition ObstacleGrid::PointToCellPosition(const Point2d& point, bool bounded) const
 	{
-		int row = static_cast<int>(x - lowerX / resolution);
-		int col = static_cast<int>(y - lowerY / resolution);
+		int row = static_cast<int>(point.x() - lowerX / resolution);
+		int col = static_cast<int>(point.y() - lowerY / resolution);
+
+		if (!bounded)
+			return GridCellPosition(row, col);
 
 		if (row >= 0 && row < rows && col >= 0 && col < columns)
 			return GridCellPosition(row, col);
@@ -90,10 +93,15 @@ namespace Planner {
 			return GridCellPosition(-1, -1);
 	}
 
-	std::tuple<double, double> ObstacleGrid::CellPositionToPoint(const GridCellPosition& position)
+	GridCellPosition ObstacleGrid::PointToCellPosition(double x, double y, bool bounded) const
+	{
+		return PointToCellPosition(Point2d(x, y));
+	}
+
+	Point2d ObstacleGrid::CellPositionToPoint(const GridCellPosition& position)
 	{
 		double x = lowerX + position.row * resolution;
 		double y = lowerY + position.col * resolution;
-		return std::make_tuple(x, y);
+		return { x, y };
 	}
 }

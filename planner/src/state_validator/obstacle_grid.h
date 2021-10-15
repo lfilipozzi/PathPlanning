@@ -4,7 +4,6 @@
 #include "core/hash.h"
 #include "state_validator/obstacle.h"
 
-#include <tuple>
 #include <vector>
 #include <unordered_set>
 #include <cmath>
@@ -87,10 +86,12 @@ namespace Planner {
 		void RemoveObstacle(const Ref<Obstacle>& obstacle);
 
 		/// @brief Return the cell position associated to the position.
-		GridCellPosition PointToCellPosition(double x, double y);
+		GridCellPosition PointToCellPosition(const Point2d& point, bool bounded = true) const;
+		/// @overload
+		GridCellPosition PointToCellPosition(double x, double y, bool bounded = true) const;
 
 		/// @brief Return the position associated to the center of the cell position.
-		std::tuple<double, double> CellPositionToPoint(const GridCellPosition& position);
+		Point2d CellPositionToPoint(const GridCellPosition& position);
 
 	public:
 		const float resolution;
