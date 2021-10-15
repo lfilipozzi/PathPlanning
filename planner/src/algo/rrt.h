@@ -11,6 +11,8 @@ namespace Planner {
 	template <typename Vertex>
 	class RRTStateSpace {
 	public:
+		virtual ~RRTStateSpace() = default;
+
 		// TODO FIXME Use StateSpace and StateValidator to implement those functions in RRT and delete RRTStateSpace
 		/// @brief Calculate the distance between two states
 		/// @param from The start state.

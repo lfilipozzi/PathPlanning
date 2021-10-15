@@ -22,18 +22,18 @@ namespace Planner {
 	/// the configuration space.
 	/// The A* search provides an optimal solution that is then smoothed by a
 	/// nonlinear optimization.
-	class HybridAStar : public PathPlanner<Pose2D<>> {
+	class HybridAStar : public PathPlanner<Pose2d> {
 	public:
 		/// @brief Augmented state used for the A* search in the hybrid A*
 		/// algorithm.
 		struct State {
 			/// @brief Path connecting the previous state to the current state.
-			Ref<Path<Pose2D<>>> path;
+			Ref<Path<Pose2d>> path;
 			/// @brief Discretized state.
-			Pose2D<int> discrete;
+			Pose2i discrete;
 
 			/// @brief Return the real (continuous) pose associated to the state.
-			const Pose2D<>& GetPose() const { return path->GetFinalState(); }
+			const Pose2d& GetPose() const { return path->GetFinalState(); }
 
 			bool operator==(const State& rhs) const { return discrete == rhs.discrete; }
 
@@ -46,7 +46,7 @@ namespace Planner {
 				std::size_t operator()(const State& state) const
 				{
 					auto pose = state.discrete;
-					std::hash<Pose2D<int>> hasher;
+					std::hash<Pose2i> hasher;
 					return hasher(pose);
 				}
 			};
@@ -61,22 +61,22 @@ namespace Planner {
 				unsigned int numGeneratedMotion = 5,
 				double minTurningRadius = 1.0, double directionSwitchingCost = 0.0,
 				double reverseCostMultiplier = 1.0, double forwardCostMultiplier = 1.0,
-				std::array<std::array<double, 2>, 3> bounds = { { { -100, 100 }, { -100, 100 }, { -M_PI, M_PI } } });
+				const std::array<Pose2d, 2>& bounds = { Pose2d(-100, -100, -M_PI), Pose2d(100, 100, M_PI) });
 
 			/// @brief Discretize a state.
-			Pose2D<int> DiscretizePose(const Pose2D<>& pose) const;
+			Pose2i DiscretizePose(const Pose2d& pose) const;
 
 			/// @brief Create an augmented state from a path.
-			State CreateStateFromPath(const Ref<Path<Pose2D<>>>& path) const;
+			State CreateStateFromPath(const Ref<Path<Pose2d>>& path) const;
 
 			/// @brief Create an augmented state from a pose.
-			State CreateStateFromPose(Pose2D<> pose) const;
+			State CreateStateFromPose(Pose2d pose) const;
 
 			/// @copydoc Planner::AStarStateSpace::GetNeighborStates()
 			virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) override;
 
 		private:
-			double GetTransitionCost(const Ref<Path<Pose2D<>>>& path) const;
+			double GetTransitionCost(const Ref<Path<Pose2d>>& path) const;
 
 			/// @brief Update state assuming constant steer angle and bicycle
 			/// kinematic model.
@@ -96,7 +96,7 @@ namespace Planner {
 			/// @return Boolean to indicate if the transition is valid.
 			[[nodiscard]] bool GetReedsSheppChild(const State& state, State& reedsShepp, double& cost) const;
 
-			State& SetGoalState(const Pose2D<>& goal)
+			State& SetGoalState(const Pose2d& goal)
 			{
 				m_goalState = CreateStateFromPose(goal);
 				return m_goalState;
@@ -108,7 +108,7 @@ namespace Planner {
 			const unsigned int numGeneratedMotion;
 
 		private:
-			StateValidator<Pose2D<>>* m_validator;
+			StateValidator<Pose2d>* m_validator;
 			AStarHeuristic<State>* m_heuristic;
 			Ref<KinematicBicycleModel> m_model;
 			std::vector<double> m_deltas;
@@ -116,23 +116,23 @@ namespace Planner {
 		};
 
 	public:
-		HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidator<Pose2D<>>>& stateValidator);
+		HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidator<Pose2d>>& stateValidator);
 		virtual ~HybridAStar() = default;
 
 		virtual Status SearchPath() override;
 
-		virtual std::vector<Pose2D<>> GetPath() override { return m_path; }
+		virtual std::vector<Pose2d> GetPath() override { return m_path; }
 
 		Ref<StateSpace>& GetStateSpace() { return m_stateSpace; }
-		Ref<StateValidator<Pose2D<>>>& GetStateValidator() { return m_stateValidator; }
+		Ref<StateValidator<Pose2d>>& GetStateValidator() { return m_stateValidator; }
 
 	private:
 		Ref<StateSpace> m_stateSpace;
-		Ref<StateValidator<Pose2D<>>> m_stateValidator;
+		Ref<StateValidator<Pose2d>> m_stateValidator;
 		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
 		Ref<ObstaclesHeuristic> m_obstacleHeuristic;
 		Ref<AStarCombinedHeuristic<State>> m_heuristic;
 		Scope<AStar<State, State::Hash>> m_aStarSearch;
-		std::vector<Pose2D<>> m_path;
+		std::vector<Pose2d> m_path;
 	};
 }

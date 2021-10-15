@@ -9,12 +9,12 @@ namespace Planner {
 
 	/// @brief Represent a planar path of constant steering angle using a
 	/// kinematic bicycle model.
-	class PathConstantSteer : public Path<Pose2D<>> {
+	class PathConstantSteer : public Path<Pose2d> {
 	public:
-		PathConstantSteer(KinematicBicycleModel* model, const Pose2D<>& init, double steering = 0.0, double length = 0.0, Direction direction = Direction::Forward);
+		PathConstantSteer(KinematicBicycleModel* model, const Pose2d& init, double steering = 0.0, double length = 0.0, Direction direction = Direction::Forward);
 
 		/// @copydoc Planer::Path::Interpolate
-		virtual Pose2D<> Interpolate(double ratio) const override;
+		virtual Pose2d Interpolate(double ratio) const override;
 		/// @copydoc Planner::Path::Truncate
 		virtual void Truncate(double ratio) override;
 

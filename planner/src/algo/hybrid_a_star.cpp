@@ -10,7 +10,7 @@ namespace Planner {
 		unsigned int numGeneratedMotion,
 		double minTurningRadius, double directionSwitchingCost,
 		double reverseCostMultiplier, double forwardCostMultiplier,
-		std::array<std::array<double, 2>, 3> bounds) :
+		const std::array<Pose2d, 2>& bounds) :
 		StateSpaceReedsShepp(minTurningRadius, directionSwitchingCost, reverseCostMultiplier, forwardCostMultiplier, bounds),
 		spatialResolution(spatialResolution), angularResolution(angularResolution), numGeneratedMotion(numGeneratedMotion)
 	{
@@ -26,16 +26,16 @@ namespace Planner {
 		}
 	}
 
-	Pose2D<int> HybridAStar::StateSpace::DiscretizePose(const Pose2D<>& pose) const
+	Pose2i HybridAStar::StateSpace::DiscretizePose(const Pose2d& pose) const
 	{
 		return {
-			static_cast<int>(pose.x / spatialResolution),
-			static_cast<int>(pose.y / spatialResolution),
+			static_cast<int>(pose.x() / spatialResolution),
+			static_cast<int>(pose.y() / spatialResolution),
 			static_cast<int>(pose.WrapTheta() / angularResolution),
 		};
 	}
 
-	HybridAStar::State HybridAStar::StateSpace::CreateStateFromPath(const Ref<Path<Pose2D<>>>& path) const
+	HybridAStar::State HybridAStar::StateSpace::CreateStateFromPath(const Ref<Path<Pose2d>>& path) const
 	{
 		State state;
 		state.discrete = DiscretizePose(path->GetFinalState());
@@ -43,7 +43,7 @@ namespace Planner {
 		return state;
 	}
 
-	HybridAStar::State HybridAStar::StateSpace::CreateStateFromPose(Pose2D<> pose) const
+	HybridAStar::State HybridAStar::StateSpace::CreateStateFromPose(Pose2d pose) const
 	{
 		State state;
 		state.discrete = DiscretizePose(pose);
@@ -80,14 +80,14 @@ namespace Planner {
 		return neighbors;
 	}
 
-	double HybridAStar::StateSpace::GetTransitionCost(const Ref<Path<Pose2D<>>>& path) const
+	double HybridAStar::StateSpace::GetTransitionCost(const Ref<Path<Pose2d>>& path) const
 	{
 		if (!path)
 			return 0.0;
 
 		// TODO use real cost, not euclidean distance
 		auto delta = path->GetFinalState() - path->GetInitialState();
-		double cost = sqrtf(powf(delta.x, 2) + powf(delta.y, 2));
+		double cost = delta.position.norm();
 		return cost;
 	}
 
@@ -124,7 +124,7 @@ namespace Planner {
 		return true;
 	}
 
-	HybridAStar::HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidator<Pose2D<>>>& stateValidator) :
+	HybridAStar::HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidator<Pose2d>>& stateValidator) :
 		m_stateSpace(stateSpace), m_stateValidator(stateValidator)
 	{
 		m_nonHoloHeuristic = NonHolonomicHeuristic::Build(m_stateSpace);
@@ -153,7 +153,7 @@ namespace Planner {
 		auto solutionStates = m_aStarSearch->GetPath();
 		m_path.reserve(solutionStates.size());
 		for (auto& state : solutionStates) {
-			m_path.push_back(state.GetPose()); // TODO need to change type of m_path to std::vector<Path<Pose2D<>>>
+			m_path.push_back(state.GetPose()); // TODO need to change type of m_path to std::vector<Path<Pose2d>>
 		}
 
 		// Smooth the path

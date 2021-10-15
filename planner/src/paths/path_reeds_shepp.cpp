@@ -2,14 +2,14 @@
 #include "core/base.h"
 
 namespace Planner {
-	PathReedsShepp::PathReedsShepp(const Pose2D<>& init, const ReedsShepp::PathSegment& pathSegment, double minTurningRadius) :
-		Path<Pose2D<>>(init, pathSegment.GetLength(minTurningRadius)),
+	PathReedsShepp::PathReedsShepp(const Pose2d& init, const ReedsShepp::PathSegment& pathSegment, double minTurningRadius) :
+		Path<Pose2d>(init, pathSegment.GetLength(minTurningRadius)),
 		m_pathSegment(pathSegment), m_minTurningRadius(minTurningRadius)
 	{
 		m_final = Interpolate(1.0);
 	}
 
-	Pose2D<> PathReedsShepp::Interpolate(double ratio) const
+	Pose2d PathReedsShepp::Interpolate(double ratio) const
 	{
 		PP_ASSERT(ratio >= 0 && ratio <= 1, "Ratio should be between 0 and 1.");
 
@@ -17,7 +17,7 @@ namespace Planner {
 		if (totalLength == 0)
 			return m_init;
 
-		Pose2D<> interp = m_init;
+		Pose2d interp = m_init;
 		double length = 0;
 		for (const auto& motion : m_pathSegment.m_motions) {
 			if (!motion.IsValid())
@@ -55,7 +55,7 @@ namespace Planner {
 		if (totalLength == 0)
 			m_final = m_init;
 		else {
-			Pose2D<> interp = m_init;
+			Pose2d interp = m_init;
 			double length = 0;
 			for (int i = 0; i < ReedsShepp::PathSegment::numMotion; i++) {
 				const auto& motion = m_pathSegment.m_motions[i];
@@ -93,21 +93,21 @@ namespace Planner {
 		m_length *= ratio;
 	}
 
-	Pose2D<> PathReedsShepp::Straight(const Pose2D<>& start, Direction direction, double length) const
+	Pose2d PathReedsShepp::Straight(const Pose2d& start, Direction direction, double length) const
 	{
 		if (direction == Direction::Backward)
 			length = -length;
 
 		length *= m_minTurningRadius;
 
-		Pose2D<> end(
-			start.x + length * cos(start.theta),
-			start.y + length * sin(start.theta),
+		Pose2d end(
+			start.x() + length * cos(start.theta),
+			start.y() + length * sin(start.theta),
 			start.theta);
 		return end;
 	}
 
-	Pose2D<> PathReedsShepp::Turn(const Pose2D<>& start, Direction direction, Steer steer, double turnAngle) const
+	Pose2d PathReedsShepp::Turn(const Pose2d& start, Direction direction, Steer steer, double turnAngle) const
 	{
 		if (direction == Direction::Backward)
 			turnAngle = -turnAngle;
@@ -122,6 +122,6 @@ namespace Planner {
 			turnAngle *= -1;
 		}
 
-		return start + Pose2D<>(x, y, turnAngle);
+		return start + Pose2d(x, y, turnAngle);
 	}
 }

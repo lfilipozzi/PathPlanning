@@ -44,6 +44,7 @@ add_library(pathPlanning
 	${CMAKE_SOURCE_DIR}/planner/src/models/kinematic_bicycle_model.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/paths/path_constant_steer.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/paths/path_reeds_shepp.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/state_space/state_space.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/gvd.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/obstacle_grid.cpp
 )

@@ -7,7 +7,7 @@ namespace Planner {
 	public:
 		KinematicBicycleModel() = default;
 
-		Pose2D<> ConstantSteer(const Pose2D<>& from, double steering, double dist, Direction direction = Direction::Forward);
+		Pose2d ConstantSteer(const Pose2d& from, double steering, double dist, Direction direction = Direction::Forward);
 
 		double GetSteeringAngleFromTurningRadius(double radius);
 
