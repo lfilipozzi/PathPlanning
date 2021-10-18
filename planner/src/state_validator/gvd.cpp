@@ -345,4 +345,38 @@ namespace Planner {
 
 		return map;
 	}
+
+	void GVD::Visualize(const std::string& filename) const
+	{
+		FILE* F = fopen(filename.c_str(), "w");
+		if (!F) {
+			PP_ERROR("Could not open {}!", filename);
+			return;
+		}
+
+		const auto& sizeX = rows;
+		const auto& sizeY = columns;
+		fprintf(F, "P6\n#\n");
+		fprintf(F, "%d %d\n255\n", sizeX, sizeY);
+		for(int y = sizeY - 1; y >= 0; y--){      
+			for(int x = 0; x < sizeX; x++){	
+				unsigned char c = 0;
+				if (m_obstacleMap.comp[x][y] >= 0) {
+					// Obstacle
+					fputc( 0, F );
+					fputc( 0, F );
+					fputc( 0, F );
+				} else {
+					// Path cost map
+					float f = (50 + (1.0 - GetPathCost(x, y)) * 150);
+					f = std::max(0.0f, std::min(f, 255.0f));
+					c = (unsigned char)f;
+					fputc( c, F );
+					fputc( c, F );
+					fputc( c, F );
+				}
+			}
+		}
+		fclose(F);
+	}
 }

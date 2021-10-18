@@ -1,8 +1,19 @@
 #include "core/base.h"
+#include "state_validator/obstacle.h"
 #include "state_validator/obstacle_grid.h"
 #include "state_validator/gvd.h"
 
 namespace Planner {
+	bool operator==(const GridCellPosition& lhs, const GridCellPosition& rhs)
+	{
+		return lhs.row == rhs.row && lhs.col == rhs.col;
+	}
+
+	bool operator!=(const GridCellPosition& lhs, const GridCellPosition& rhs)
+	{
+		return !(lhs == rhs);
+	}
+
 	std::vector<GridCellPosition> GridCellPosition::GetNeighbors(int rows, int columns) const
 	{
 		std::vector<GridCellPosition> neighbors;
@@ -81,8 +92,8 @@ namespace Planner {
 
 	GridCellPosition ObstacleGrid::PointToCellPosition(const Point2d& point, bool bounded) const
 	{
-		int row = static_cast<int>(point.x() - lowerX / resolution);
-		int col = static_cast<int>(point.y() - lowerY / resolution);
+		int row = static_cast<int>((point.x() - lowerX) / resolution);
+		int col = static_cast<int>((point.y() - lowerY) / resolution);
 
 		if (!bounded)
 			return GridCellPosition(row, col);
@@ -95,7 +106,7 @@ namespace Planner {
 
 	GridCellPosition ObstacleGrid::PointToCellPosition(double x, double y, bool bounded) const
 	{
-		return PointToCellPosition(Point2d(x, y));
+		return PointToCellPosition(Point2d(x, y), bounded);
 	}
 
 	Point2d ObstacleGrid::CellPositionToPoint(const GridCellPosition& position)
@@ -104,4 +115,12 @@ namespace Planner {
 		double y = lowerY + position.col * resolution;
 		return { x, y };
 	}
+
+	void ObstacleGrid::Update()
+	{
+		m_gvd->Update();
+	}
+	
+	GVD& ObstacleGrid::GetGVD() { return *m_gvd; }
+	const GVD& ObstacleGrid::GetGVD() const { return *m_gvd; }
 }

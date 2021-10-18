@@ -5,8 +5,6 @@
 namespace Planner {
 	void Shape::RasterizeLine(const ObstacleGrid& grid, const Point2d& p0, const Point2d& p1, std::vector<GridCellPosition>& line) const
 	{
-		
-		
 		// Find cells of the endpoints
 		auto p0Cell = grid.PointToCellPosition(p0, false);
 		auto p1Cell = grid.PointToCellPosition(p1, false);
@@ -46,6 +44,7 @@ namespace Planner {
 		int ystep = y0 < y1 ? 1 : -1;
 		int y = y0;
 
+		line.reserve(line.size() + (x1 - x0));
 		for (int x = x0; x <= x1; x++) {
 			GridCellPosition c = steep ? GridCellPosition(y, x) : GridCellPosition(x, y);
 
@@ -66,19 +65,44 @@ namespace Planner {
 			child->GetGridCellPositions(grid, pose, cells);
 		}
 	}
-	
-	RectangleShape::RectangleShape(double width, double length)
+
+	void PolygonShape::GetGridCellPositions(const ObstacleGrid& grid, const Pose2d pose, std::vector<GridCellPosition>& cells)
 	{
-		
+		std::vector<Point2d> vertices;
+		vertices.reserve(m_vertices.size());
+		for (int i = 0; i < m_vertices.size(); i++) {
+			vertices[i] = Eigen::Rotation2D(pose.theta) * m_vertices[i] + pose.position;
+		}
+
+		for (int i = 0; i < m_vertices.size(); i++)
+			RasterizeLine(grid, vertices[i % m_vertices.size()], vertices[(i + 1) % m_vertices.size()], cells);
 	}
 
-	void RectangleShape::GetGridCellPositions(const ObstacleGrid& grid, const Pose2d pose, std::vector<GridCellPosition>& cells)
+	RectangleShape::RectangleShape(double dx, double dy)
 	{
-		for (int i = 0; i < 4; i++) {
-			Eigen::Translation2d
-			auto p0 = m_vertices[i % 4];
-			auto p1 = m_vertices[(i + 1) % 4];
-			RasterizeLine(grid, p0, p1, cells);
+		double dx2 = dx / 2.0;
+		double dy2 = dy / 2.0;
+		m_vertices = { Point2d(dx2, dy2), Point2d(-dx2, dy2), Point2d(-dx2, -dy2), Point2d(dx2, -dy2) };
+	}
+
+	CircleShape::CircleShape(double radius, int count)
+	{
+		// Inflate radius so that the polygon contains the circle
+		radius *= 1.0 / cos(M_PI / count);
+
+		m_vertices.reserve(count);
+		for (int i = 0; i < count; i++) {
+			m_vertices.push_back({
+				radius * cos(2 * M_PI * i / (float)count),
+				radius * sin(2 * M_PI * i / (float)count)
+			});
 		}
+	}
+
+	std::vector<GridCellPosition> Obstacle::GetGridCellPositions(const ObstacleGrid& grid)
+	{
+		std::vector<GridCellPosition> cells;
+		m_shape->GetGridCellPositions(grid, m_pose, cells);
+		return cells;
 	}
 }

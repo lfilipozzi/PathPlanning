@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/base.h"
 #include "geometry/2dplane.h"
 
 #include <vector>
@@ -27,23 +28,33 @@ namespace Planner {
 	public:
 		CompositeShape() = default;
 		
-		/// @copydoc Planner::Shape::GetGridCellPositions
 		void Add(const Ref<Shape>& shape) { m_children.push_back(shape); }
+		/// @copydoc Planner::Shape::GetGridCellPositions
 		virtual void GetGridCellPositions(const ObstacleGrid& grid, const Pose2d pose, std::vector<GridCellPosition>& cells) override;
 
 	private:
 		std::vector<Ref<Shape>> m_children;
 	};
 
-	class RectangleShape : public Shape {
+	class PolygonShape : public Shape {
 	public:
-		RectangleShape(double width, double length);
+		PolygonShape() = default;
 
 		/// @copydoc Planner::Shape::GetGridCellPositions
-		virtual void GetGridCellPositions(const ObstacleGrid& grid, const Pose2d pose, std::vector<GridCellPosition>& cells) override;
+		virtual void GetGridCellPositions(const ObstacleGrid& grid, const Pose2d pose, std::vector<GridCellPosition>& cells) override final;
 
-	private:
-		std::array<Point2d, 4> m_vertices;
+	protected:
+		std::vector<Point2d> m_vertices;
+	};
+
+	class RectangleShape : public PolygonShape {
+	public:
+		RectangleShape(double dx, double dy);
+};
+
+	class CircleShape : public PolygonShape {
+	public:
+		CircleShape(double radius, int count);
 	};
 
 	class Obstacle {
@@ -51,10 +62,12 @@ namespace Planner {
 		Obstacle() = default;
 		~Obstacle() = default;
 
+		void SetShape(const Ref<Shape>& shape) { m_shape = shape; }
+		void SetPose(const Pose2d& pose) { m_pose = pose; }
 		std::vector<GridCellPosition> GetGridCellPositions(const ObstacleGrid& grid);
 
 	private:
 		Ref<Shape> m_shape;
-		Pose2d m_position;
+		Pose2d m_pose;
 	};
 }

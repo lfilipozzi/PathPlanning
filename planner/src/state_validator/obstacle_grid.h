@@ -26,14 +26,8 @@ namespace Planner {
 		bool IsAdjacentTo(const GridCellPosition& rhs) const;
 	};
 
-	bool operator==(const GridCellPosition& lhs, const GridCellPosition& rhs)
-	{
-		return lhs.row == rhs.row && lhs.col == rhs.col;
-	}
-	bool operator!=(const GridCellPosition& lhs, const GridCellPosition& rhs)
-	{
-		return !(lhs == rhs);
-	}
+	bool operator==(const GridCellPosition& lhs, const GridCellPosition& rhs);
+	bool operator!=(const GridCellPosition& lhs, const GridCellPosition& rhs);
 }
 
 namespace std {
@@ -92,6 +86,10 @@ namespace Planner {
 
 		/// @brief Return the position associated to the center of the cell position.
 		Point2d CellPositionToPoint(const GridCellPosition& position);
+
+		void Update();
+		GVD& GetGVD();
+		const GVD& GetGVD() const;
 
 	public:
 		const float resolution;

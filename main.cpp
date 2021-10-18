@@ -1,7 +1,7 @@
 #include "core/base.h"
 #include "core/timer.h"
 
-#define MODE 1
+#define MODE 4
 
 #if MODE == 0
 
@@ -125,6 +125,51 @@ int main()
 	Planner::Pose2d stdDev(10.0, 10.0, 10.0 * M_PI / 180.0);
 	sample = stateSpace.SampleGaussian(mean, stdDev);
 	PP_INFO("x: {}; y: {}; theta: {}", sample.x(), sample.y(), sample.theta * 180.0 * M_1_PI);
+}
+
+#elif MODE == 4
+
+#include "state_validator/obstacle_grid.h"
+#include "state_validator/obstacle.h"
+#include "state_validator/gvd.h"
+
+using namespace Planner;
+
+int main()
+{
+	PP_INIT_LOGGER;
+
+	float width = 5;
+	float height = 5;
+	float resolution = width / 300;
+	ObstacleGrid grid(resolution, -width/2, -height/2, width, height);
+
+// 	Ref<Obstacle> circleObstacle = makeRef<Obstacle>();
+// 	{
+// 		Ref<CircleShape> circle = makeRef<CircleShape>(2.0, 10);
+// 		circleObstacle->SetShape(circle);
+// 		circleObstacle->SetPose({ 1.0, 1.0, 0.0 });
+// 	}
+// 	grid.AddObstacle(circleObstacle);
+	
+	Ref<Obstacle> circleObstacle = makeRef<Obstacle>();
+	{
+		Ref<CircleShape> circle = makeRef<CircleShape>(1.0, 10);
+		circleObstacle->SetShape(circle);
+		circleObstacle->SetPose({ 1.0, -1.0, 0.0 });
+	}
+	grid.AddObstacle(circleObstacle);
+
+	Ref<Obstacle> rectangleObstacle = makeRef<Obstacle>();
+	{
+		Ref<RectangleShape> rectangle = makeRef<RectangleShape>(2.0, 1.0);
+		rectangleObstacle->SetShape(rectangle);
+		rectangleObstacle->SetPose({ -1.0, 1.0, M_PI_4 });
+	}
+	grid.AddObstacle(rectangleObstacle);
+	
+	grid.Update();
+	grid.GetGVD().Visualize("results.ppm");
 }
 
 #endif

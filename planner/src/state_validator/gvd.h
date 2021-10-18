@@ -130,6 +130,8 @@ namespace Planner {
 		/// @brief Create a map of the Voronoi potential field.
 		Ref<PathCostMap> GeneratePathCostMap() const;
 
+		void Visualize(const std::string& filename) const;
+
 	private:
 		const int rows, columns;
 		const float resolution;
