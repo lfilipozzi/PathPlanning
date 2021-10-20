@@ -8,7 +8,7 @@ namespace Planner {
 	public:
 		StateSpaceReedsShepp(double minTurningRadius = 1.0, double directionSwitchingCost = 0.0,
 			double reverseCostMultiplier = 1.0, double forwardCostMultiplier = 1.0,
-			std::array<Pose2d, 2> bounds = { Pose2d(-100, -100, -M_PI ), Pose2d(100, 100, M_PI) }) :
+			std::array<Pose2d, 2> bounds = { Pose2d(-100, -100, -M_PI), Pose2d(100, 100, M_PI) }) :
 			PlanarStateSpace(bounds),
 			minTurningRadius(minTurningRadius), directionSwitchingCost(directionSwitchingCost),
 			reverseCostMultiplier(reverseCostMultiplier), forwardCostMultiplier(forwardCostMultiplier) { }

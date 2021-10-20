@@ -46,8 +46,11 @@ add_library(pathPlanning
 	${CMAKE_SOURCE_DIR}/planner/src/paths/path_reeds_shepp.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_space/state_space.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/gvd.cpp
-	${CMAKE_SOURCE_DIR}/planner/src/state_validator/obstacle_grid.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/state_validator/grid.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/obstacle.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/state_validator/binary_occupancy_map.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/state_validator/occupancy_map.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/state_validator/state_validator_occupancy_map.cpp
 )
 target_link_libraries(pathPlanning flann ${logger_LIB})
 

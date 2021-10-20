@@ -13,7 +13,7 @@ namespace Planner {
 	}
 
 	/// @copydoc StateSpace::ValidateBounds
-	 bool PlanarStateSpace::ValidateBounds(const Pose2d& state)
+	bool PlanarStateSpace::ValidateBounds(const Pose2d& state)
 	{
 		auto lb = m_bounds[0];
 		auto ub = m_bounds[1];
@@ -26,7 +26,7 @@ namespace Planner {
 	}
 
 	/// @copydoc StateSpace::SampleUniform
-	 Pose2d PlanarStateSpace::SampleUniform()
+	Pose2d PlanarStateSpace::SampleUniform()
 	{
 		Pose2d state;
 		auto lb = m_bounds[0];

@@ -61,7 +61,7 @@ int main()
 
 	Planner::Ref<Planner::HybridAStar::StateSpace> stateSpace = Planner::makeRef<Planner::HybridAStar::StateSpace>();
 	Planner::Ref<Planner::StateValidator<Planner::Pose2d>> stateValidator = Planner::makeRef<Planner::StateValidatorFree<Planner::Pose2d>>();
-	stateSpace->SetBounds({ Planner::Pose2d(-100, -100, -M_PI ), Planner::Pose2d(100, 100, M_PI) });
+	stateSpace->SetBounds({ Planner::Pose2d(-100, -100, -M_PI), Planner::Pose2d(100, 100, M_PI) });
 
 	Planner::HybridAStar hybridAStar(stateSpace, stateValidator);
 
@@ -129,9 +129,9 @@ int main()
 
 #elif MODE == 4
 
-#include "state_validator/obstacle_grid.h"
-#include "state_validator/obstacle.h"
-#include "state_validator/gvd.h"
+	#include "state_validator/binary_occupancy_map.h"
+	#include "state_validator/obstacle.h"
+	#include "state_validator/gvd.h"
 
 using namespace Planner;
 
@@ -142,34 +142,36 @@ int main()
 	float width = 5;
 	float height = 5;
 	float resolution = width / 300;
-	ObstacleGrid grid(resolution, -width/2, -height/2, width, height);
+	BinaryOccupancyMap map(width, height, resolution);
+	map.SetOriginPosition({ -width / 2, -height / 2 });
 
-// 	Ref<Obstacle> circleObstacle = makeRef<Obstacle>();
-// 	{
-// 		Ref<CircleShape> circle = makeRef<CircleShape>(2.0, 10);
-// 		circleObstacle->SetShape(circle);
-// 		circleObstacle->SetPose({ 1.0, 1.0, 0.0 });
-// 	}
-// 	grid.AddObstacle(circleObstacle);
-	
-	Ref<Obstacle> circleObstacle = makeRef<Obstacle>();
-	{
-		Ref<CircleShape> circle = makeRef<CircleShape>(1.0, 10);
-		circleObstacle->SetShape(circle);
-		circleObstacle->SetPose({ 1.0, -1.0, 0.0 });
-	}
-	grid.AddObstacle(circleObstacle);
+	// 	{
+	// 		Ref<Obstacle> obstacle = makeRef<Obstacle>();
+	// 		auto circle = makeRef<CircleShape>(2.0, 10);
+	// 		obstacle->SetShape(circle);
+	// 		obstacle->SetPose({ 1.0, 1.0, 0.0 });
+	// 		grid.AddObstacle(obstacle);
+	// 	}
 
-	Ref<Obstacle> rectangleObstacle = makeRef<Obstacle>();
 	{
-		Ref<RectangleShape> rectangle = makeRef<RectangleShape>(2.0, 1.0);
-		rectangleObstacle->SetShape(rectangle);
-		rectangleObstacle->SetPose({ -1.0, 1.0, M_PI_4 });
+		Ref<Obstacle> obstacle = makeRef<Obstacle>();
+		auto circle = makeRef<CircleShape>(1.0, 10);
+		obstacle->SetShape(circle);
+		obstacle->SetPose({ 1.0, -1.0, 0.0 });
+		map.AddObstacle(obstacle);
 	}
-	grid.AddObstacle(rectangleObstacle);
-	
-	grid.Update();
-	grid.GetGVD().Visualize("results.ppm");
+
+	{
+		Ref<Obstacle> obstacle = makeRef<Obstacle>();
+		auto rectangle = makeRef<RectangleShape>(2.0, 1.0);
+		obstacle->SetShape(rectangle);
+		obstacle->SetPose({ -1.0, 1.0, M_PI_4 });
+		map.AddObstacle(obstacle);
+	}
+
+	GVD gvd(map);
+	gvd.Update();
+	gvd.Visualize("results.ppm");
 }
 
 #endif

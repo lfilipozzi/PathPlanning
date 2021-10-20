@@ -1,13 +1,14 @@
 #include "state_validator/obstacle.h"
 #include "core/base.h"
-#include "state_validator/obstacle_grid.h"
+#include "state_validator/grid.h"
+#include "state_validator/occupancy_map.h"
 
 namespace Planner {
-	void Shape::RasterizeLine(const ObstacleGrid& grid, const Point2d& p0, const Point2d& p1, std::vector<GridCellPosition>& line) const
+	void Shape::RasterizeLine(const OccupancyMap& map, const Point2d& p0, const Point2d& p1, std::vector<GridCellPosition>& line) const
 	{
 		// Find cells of the endpoints
-		auto p0Cell = grid.PointToCellPosition(p0, false);
-		auto p1Cell = grid.PointToCellPosition(p1, false);
+		auto p0Cell = map.WorldToGridPosition(p0, false);
+		auto p1Cell = map.WorldToGridPosition(p1, false);
 
 		int x0 = p0Cell.row;
 		int y0 = p0Cell.col;
@@ -48,7 +49,7 @@ namespace Planner {
 		for (int x = x0; x <= x1; x++) {
 			GridCellPosition c = steep ? GridCellPosition(y, x) : GridCellPosition(x, y);
 
-			if (c.row >= 0 && c.row < grid.rows && c.col >= 0 && c.col < grid.columns)
+			if (c.row >= 0 && c.row < map.rows && c.col >= 0 && c.col < map.columns)
 				line.push_back(c);
 
 			err = err - dy;
@@ -59,15 +60,16 @@ namespace Planner {
 		}
 	}
 
-	void CompositeShape::GetGridCellPositions(const ObstacleGrid& grid, const Pose2d pose, std::vector<GridCellPosition>& cells)
+	void CompositeShape::GetGridCellPositions(const OccupancyMap& map, const Pose2d pose, std::vector<GridCellPosition>& cells)
 	{
 		for (auto& child : m_children) {
-			child->GetGridCellPositions(grid, pose, cells);
+			child->GetGridCellPositions(map, pose, cells);
 		}
 	}
 
-	void PolygonShape::GetGridCellPositions(const ObstacleGrid& grid, const Pose2d pose, std::vector<GridCellPosition>& cells)
+	void PolygonShape::GetGridCellPositions(const OccupancyMap& map, const Pose2d pose, std::vector<GridCellPosition>& cells)
 	{
+		// Compute world position of vertices
 		std::vector<Point2d> vertices;
 		vertices.reserve(m_vertices.size());
 		for (int i = 0; i < m_vertices.size(); i++) {
@@ -75,7 +77,16 @@ namespace Planner {
 		}
 
 		for (int i = 0; i < m_vertices.size(); i++)
-			RasterizeLine(grid, vertices[i % m_vertices.size()], vertices[(i + 1) % m_vertices.size()], cells);
+			RasterizeLine(map, vertices[i % m_vertices.size()], vertices[(i + 1) % m_vertices.size()], cells);
+	}
+
+	RegularPolygonShape::RegularPolygonShape(double radius, int count)
+	{
+		m_vertices.reserve(count);
+		for (int i = 0; i < count; i++) {
+			m_vertices.push_back({ radius * cos(2 * M_PI * i / (float)count),
+				radius * sin(2 * M_PI * i / (float)count) });
+		}
 	}
 
 	RectangleShape::RectangleShape(double dx, double dy)
@@ -92,17 +103,15 @@ namespace Planner {
 
 		m_vertices.reserve(count);
 		for (int i = 0; i < count; i++) {
-			m_vertices.push_back({
-				radius * cos(2 * M_PI * i / (float)count),
-				radius * sin(2 * M_PI * i / (float)count)
-			});
+			m_vertices.push_back({ radius * cos(2 * M_PI * i / (float)count),
+				radius * sin(2 * M_PI * i / (float)count) });
 		}
 	}
 
-	std::vector<GridCellPosition> Obstacle::GetGridCellPositions(const ObstacleGrid& grid)
+	std::vector<GridCellPosition> Obstacle::GetGridCellPositions(const OccupancyMap& map)
 	{
 		std::vector<GridCellPosition> cells;
-		m_shape->GetGridCellPositions(grid, m_pose, cells);
+		m_shape->GetGridCellPositions(map, m_pose, cells);
 		return cells;
 	}
 }

@@ -1,31 +1,11 @@
 #include "core/base.h"
 #include "state_validator/gvd.h"
+#include "state_validator/occupancy_map.h"
 
 #include <limits>
+#include <cmath>
 
 namespace Planner {
-
-	template <typename T>
-	T** NewArray(int rows, int columns, const T& val)
-	{
-		T** values = new T*[rows];
-		for (unsigned int i = 0; i < rows; ++i) {
-			values[i] = new T[columns];
-			for (unsigned int j = 0; j < rows; ++j) {
-				values[i][j] = val;
-			}
-		}
-		return values;
-	}
-
-	template <typename T>
-	void DeleteArray(int rows, T** values)
-	{
-		for (unsigned int i = 0; i < rows; i++) {
-			delete[] values[i];
-		}
-		delete[] values;
-	}
 
 	int SquaredDistance(const GridCellPosition& a, const GridCellPosition& b)
 	{
@@ -34,30 +14,18 @@ namespace Planner {
 		return dr * dr + dc * dc;
 	}
 
-	GVD::ObstacleDistanceMap::ObstacleDistanceMap(unsigned int rows, unsigned int columns, float resolution) :
-		rows(rows), columns(columns), resolution(resolution)
+	GVD::ObstacleDistanceMap::ObstacleDistanceMap(const Grid<int>& occupancy, float resolution) :
+		rows(occupancy.rows), columns(occupancy.columns), resolution(resolution),
+		distance(occupancy.rows, occupancy.columns, std::numeric_limits<int>::max()),
+		obstacle(occupancy.rows, occupancy.columns, GridCellPosition(-1, -1)),
+		toRaise(occupancy.rows, occupancy.columns, false),
+		toProcess(occupancy.rows, occupancy.columns, false),
+		voro(occupancy.rows, occupancy.columns, true),
+		occupancy(occupancy)
 	{
-		// clang-format off
-		distance  = NewArray(rows, columns, std::numeric_limits<int>::max());
-		obstacle  = NewArray(rows, columns, GridCellPosition(-1, -1));
-		toRaise   = NewArray(rows, columns, false);
-		toProcess = NewArray(rows, columns, false);
-		voro      = NewArray(rows, columns, true);
-		comp      = NewArray(rows, columns, -1);
-		// clang-format on
 	}
 
-	GVD::ObstacleDistanceMap::~ObstacleDistanceMap()
-	{
-		DeleteArray(rows, distance);
-		DeleteArray(rows, obstacle);
-		DeleteArray(rows, toRaise);
-		DeleteArray(rows, toProcess);
-		DeleteArray(rows, voro);
-		DeleteArray(rows, comp);
-	}
-
-	void GVD::ObstacleDistanceMap::Update(VoronoiDistanceMap& voronoiMap)
+	void GVD::ObstacleDistanceMap::Update()
 	{
 		while (!open.empty()) {
 			const auto s = open.top().position;
@@ -79,7 +47,8 @@ namespace Planner {
 				toRaise[s.row][s.col] = false;
 			} else if (IsOccupied(obstacle[s.row][s.col])) {
 				voro[s.row][s.col] = false;
-				voronoiMap.Unset(s);
+				if (m_voronoiMap)
+					m_voronoiMap->UnsetEdge(s);
 				toProcess[s.row][s.col] = false;
 				for (auto& n : s.GetNeighbors(rows, columns)) {
 					if (!toRaise[n.row][n.col]) {
@@ -89,8 +58,8 @@ namespace Planner {
 							obstacle[n.row][n.col] = obstacle[s.row][s.col];
 							open.push({ n, d });
 							toProcess[n.row][n.col] = true;
-						} else {
-							CheckVoro(voronoiMap, s, n);
+						} else if (m_voronoiMap) {
+							CheckVoro(s, n);
 						}
 					}
 				}
@@ -98,10 +67,9 @@ namespace Planner {
 		}
 	}
 
-	void GVD::ObstacleDistanceMap::SetObstacle(const GridCellPosition& s, int obstacleID)
+	void GVD::ObstacleDistanceMap::SetObstacle(const GridCellPosition& s)
 	{
 		obstacle[s.row][s.col] = s;
-		comp[s.row][s.col] = obstacleID;
 		distance[s.row][s.col] = 0.0f;
 		open.push({ s, 0 });
 		toProcess[s.row][s.col] = true;
@@ -111,7 +79,6 @@ namespace Planner {
 	{
 		distance[s.row][s.col] = std::numeric_limits<int>::max();
 		obstacle[s.row][s.col] = GridCellPosition(-1, -1);
-		comp[s.row][s.col] = -1;
 		toRaise[s.row][s.col] = true;
 		open.push({ s, std::numeric_limits<int>::max() });
 		toProcess[s.row][s.col] = true;
@@ -122,17 +89,31 @@ namespace Planner {
 		return std::sqrt(distance[row][col]) * resolution;
 	}
 
+	float GVD::ObstacleDistanceMap::GetDistanceToNearestObstacle(const GridCellPosition& s) const
+	{
+		return GetDistanceToNearestObstacle(s.row, s.col);
+	}
+
+	Ref<GVD::VoronoiDistanceMap> GVD::ObstacleDistanceMap::GetVoronoiDistanceMap()
+	{
+		if (m_voronoiMap)
+			return m_voronoiMap;
+
+		m_voronoiMap = makeRef<VoronoiDistanceMap>(rows, columns, resolution);
+		return m_voronoiMap;
+	}
+
 	bool GVD::ObstacleDistanceMap::CheckVoroConditions(const GridCellPosition& s, const GridCellPosition& n, const GridCellPosition& obstS, const GridCellPosition& obstN)
 	{
 		return (distance[s.row][s.col] > 1 || distance[n.row][n.col] > 1) && obstN.IsValid() && obstN != obstS && !obstS.IsAdjacentTo(obstN);
 	}
 
-	void GVD::ObstacleDistanceMap::CheckVoro(VoronoiDistanceMap& voronoiMap, const GridCellPosition& s, const GridCellPosition& n)
+	void GVD::ObstacleDistanceMap::CheckVoro(const GridCellPosition& s, const GridCellPosition& n)
 	{
 		auto obstS = obstacle[s.row][s.col];
 		auto obstN = obstacle[n.row][n.col];
 
-		if (comp[obstS.row][obstS.col] == comp[obstN.row][obstN.col])
+		if (occupancy[obstS.row][obstS.col] == occupancy[obstN.row][obstN.col])
 			return;
 
 		if ((distance[s.row][s.col] > 1 || distance[n.row][n.col] > 1) && obstacle[n.row][n.col].IsValid()) {
@@ -145,11 +126,11 @@ namespace Planner {
 					return;
 				if (sStability <= nStability) {
 					voro[s.row][s.col] = true;
-					voronoiMap.Set(s);
+					m_voronoiMap->SetEdge(s);
 				}
 				if (nStability <= sStability) {
 					voro[n.row][n.col] = true;
-					voronoiMap.Set(n);
+					m_voronoiMap->SetEdge(n);
 				}
 			}
 		}
@@ -169,7 +150,7 @@ namespace Planner {
 			auto neighbors = s.GetNeighbors(rows, columns);
 			for (auto& n : neighbors) {
 				auto obstN = obstacle[n.row][n.col];
-				if (CheckVoroConditions(s, n, obstS, obstN) && comp[obstS.row][obstS.col] != comp[obstN.row][obstN.col]) {
+				if (CheckVoroConditions(s, n, obstS, obstN) && occupancy[obstS.row][obstS.col] != occupancy[obstN.row][obstN.col]) {
 					stop = true;
 					break;
 				}
@@ -214,22 +195,12 @@ namespace Planner {
 	}
 
 	GVD::VoronoiDistanceMap::VoronoiDistanceMap(unsigned int rows, unsigned int columns, float resolution) :
-		rows(rows), columns(columns), resolution(resolution)
+		rows(rows), columns(columns), resolution(resolution),
+		distance(rows, columns, std::numeric_limits<int>::max()),
+		edge(rows, columns, GridCellPosition(-1, -1)),
+		toRaise(rows, columns, false),
+		toProcess(rows, columns, false)
 	{
-		// clang-format off
-		distance  = NewArray(rows, columns, std::numeric_limits<int>::max());
-		nearest   = NewArray(rows, columns, GridCellPosition(-1, -1));
-		toRaise   = NewArray(rows, columns, false);
-		toProcess = NewArray(rows, columns, false);
-		// clang-format on
-	}
-
-	GVD::VoronoiDistanceMap::~VoronoiDistanceMap()
-	{
-		DeleteArray(rows, distance);
-		DeleteArray(rows, nearest);
-		DeleteArray(rows, toRaise);
-		DeleteArray(rows, toProcess);
 	}
 
 	void GVD::VoronoiDistanceMap::Update()
@@ -237,31 +208,31 @@ namespace Planner {
 		while (!open.empty()) {
 			const auto s = open.top().position;
 			open.pop();
-			if (toProcess[s.row][s.col]) {
-				if (toRaise[s.row][s.col]) {
-					for (auto& n : s.GetNeighbors(rows, columns)) {
-						if (nearest[n.row][n.col].IsValid() && !toRaise[n.row][n.col]) {
-							if (!IsOccupied(nearest[n.row][n.col])) {
-								distance[n.row][n.col] = std::numeric_limits<int>::max();
-								nearest[n.row][n.col] = GridCellPosition(-1, -1);
-								toRaise[n.row][n.col] = true;
-							}
-							open.push({ n, distance[n.row][n.col] });
-							toProcess[n.row][n.col] = true;
+			if (!toProcess[s.row][s.col])
+				continue;
+			if (toRaise[s.row][s.col]) {
+				for (auto& n : s.GetNeighbors(rows, columns)) {
+					if (edge[n.row][n.col].IsValid() && !toRaise[n.row][n.col]) {
+						if (!IsOccupied(edge[n.row][n.col])) {
+							distance[n.row][n.col] = std::numeric_limits<int>::max();
+							edge[n.row][n.col] = GridCellPosition(-1, -1);
+							toRaise[n.row][n.col] = true;
 						}
+						open.push({ n, distance[n.row][n.col] });
+						toProcess[n.row][n.col] = true;
 					}
-					toRaise[s.row][s.col] = false;
-				} else if (IsOccupied(nearest[s.row][s.col])) {
-					toProcess[s.row][s.col] = false;
-					for (auto& n : s.GetNeighbors(rows, columns)) {
-						if (!toRaise[n.row][n.col]) {
-							auto d = SquaredDistance(nearest[s.row][s.col], n);
-							if (d < distance[n.row][n.col]) {
-								distance[n.row][n.col] = d;
-								nearest[n.row][n.col] = nearest[s.row][s.col];
-								open.push({ n, d });
-								toProcess[n.row][n.col] = true;
-							}
+				}
+				toRaise[s.row][s.col] = false;
+			} else if (IsOccupied(edge[s.row][s.col])) {
+				toProcess[s.row][s.col] = false;
+				for (auto& n : s.GetNeighbors(rows, columns)) {
+					if (!toRaise[n.row][n.col]) {
+						auto d = SquaredDistance(edge[s.row][s.col], n);
+						if (d < distance[n.row][n.col]) {
+							distance[n.row][n.col] = d;
+							edge[n.row][n.col] = edge[s.row][s.col];
+							open.push({ n, d });
+							toProcess[n.row][n.col] = true;
 						}
 					}
 				}
@@ -269,18 +240,18 @@ namespace Planner {
 		}
 	}
 
-	void GVD::VoronoiDistanceMap::Set(const GridCellPosition& s)
+	void GVD::VoronoiDistanceMap::SetEdge(const GridCellPosition& s)
 	{
-		nearest[s.row][s.col] = s;
+		edge[s.row][s.col] = s;
 		distance[s.row][s.col] = 0;
 		open.push({ s, 0 });
 		toProcess[s.row][s.col] = true;
 	}
 
-	void GVD::VoronoiDistanceMap::Unset(const GridCellPosition& s)
+	void GVD::VoronoiDistanceMap::UnsetEdge(const GridCellPosition& s)
 	{
 		distance[s.row][s.col] = std::numeric_limits<int>::max();
-		nearest[s.row][s.col] = GridCellPosition(-1, -1);
+		edge[s.row][s.col] = GridCellPosition(-1, -1);
 		toRaise[s.row][s.col] = true;
 		open.push({ s, std::numeric_limits<int>::max() });
 		toProcess[s.row][s.col] = true;
@@ -291,39 +262,38 @@ namespace Planner {
 		return std::sqrt(distance[row][col]) * resolution;
 	}
 
+	float GVD::VoronoiDistanceMap::GetDistanceToNearestVoronoiEdge(const GridCellPosition& s) const
+	{
+		return GetDistanceToNearestVoronoiEdge(s.row, s.col);
+	}
+
 	bool GVD::VoronoiDistanceMap::IsOccupied(const GridCellPosition& s)
 	{
-		return s.IsValid() && nearest[s.row][s.col] == s;
+		return s.IsValid() && edge[s.row][s.col] == s;
 	}
 
 	GVD::PathCostMap::PathCostMap(unsigned int rows, unsigned int columns, float alpha, float dMax) :
-		rows(rows), columns(columns), alpha(alpha), dMax(dMax)
+		Grid<float>(rows, columns, 0.0f), alpha(alpha), dMax(dMax)
 	{
-		data = NewArray(rows, columns, 0.0f);
 	}
 
-	GVD::PathCostMap::~PathCostMap()
+	GVD::GVD(const OccupancyMap& map) :
+		rows(map.rows), columns(map.columns), resolution(map.resolution)
 	{
-		DeleteArray(rows, data);
-	}
-
-	GVD::GVD(const ObstacleGrid& grid) :
-		rows(grid.rows), columns(grid.columns), resolution(grid.resolution),
-		m_obstacleMap(grid.rows, grid.columns, grid.resolution),
-		m_voronoiMap(grid.rows, grid.columns, grid.resolution)
-	{
+		m_obstacleMap = map.GetObstacleDistanceMap();
+		m_voronoiMap = m_obstacleMap->GetVoronoiDistanceMap();
 	}
 
 	void GVD::Update()
 	{
-		m_obstacleMap.Update(m_voronoiMap);
-		m_voronoiMap.Update();
+		m_obstacleMap->Update();
+		m_voronoiMap->Update();
 	}
 
 	float GVD::GetPathCost(int row, int col) const
 	{
-		auto obstDist = m_obstacleMap.GetDistanceToNearestObstacle(row, col);
-		auto voroDist = m_voronoiMap.GetDistanceToNearestVoronoiEdge(row, col);
+		auto obstDist = m_obstacleMap->GetDistanceToNearestObstacle(row, col);
+		auto voroDist = m_voronoiMap->GetDistanceToNearestVoronoiEdge(row, col);
 		if (obstDist >= m_dMax || voroDist == std::numeric_limits<float>::infinity()) {
 			return 0.0f;
 		} else {
@@ -339,7 +309,7 @@ namespace Planner {
 
 		for (int r = 0; r < rows; r++) {
 			for (int c = 0; c < columns; c++) {
-				map->data[r][c] = GetPathCost(r, c);
+				(*map)[r][c] = GetPathCost(r, c);
 			}
 		}
 
@@ -358,22 +328,22 @@ namespace Planner {
 		const auto& sizeY = columns;
 		fprintf(F, "P6\n#\n");
 		fprintf(F, "%d %d\n255\n", sizeX, sizeY);
-		for(int y = sizeY - 1; y >= 0; y--){      
-			for(int x = 0; x < sizeX; x++){	
+		for (int y = sizeY - 1; y >= 0; y--) {
+			for (int x = 0; x < sizeX; x++) {
 				unsigned char c = 0;
-				if (m_obstacleMap.comp[x][y] >= 0) {
+				if (m_obstacleMap->occupancy[x][y] >= 0) {
 					// Obstacle
-					fputc( 0, F );
-					fputc( 0, F );
-					fputc( 0, F );
+					fputc(0, F);
+					fputc(0, F);
+					fputc(0, F);
 				} else {
 					// Path cost map
 					float f = (50 + (1.0 - GetPathCost(x, y)) * 150);
 					f = std::max(0.0f, std::min(f, 255.0f));
 					c = (unsigned char)f;
-					fputc( c, F );
-					fputc( c, F );
-					fputc( c, F );
+					fputc(c, F);
+					fputc(c, F);
+					fputc(c, F);
 				}
 			}
 		}

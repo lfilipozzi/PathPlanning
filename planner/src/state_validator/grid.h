@@ -1,12 +1,6 @@
 #pragma once
 
-#include "core/base.h"
 #include "core/hash.h"
-#include "state_validator/obstacle.h"
-
-#include <vector>
-#include <unordered_set>
-#include <cmath>
 
 namespace Planner {
 
@@ -66,40 +60,81 @@ namespace Planner {
 		return lhs.value > rhs.value;
 	}
 
-	class GVD;
+	/// @brief Template grid
+	/// @details Reference-counted
+	template <typename T>
+	struct Grid {
+		Grid(int rows, int columns, const T& val) :
+			rows(rows), columns(columns)
+		{
+			m_count = new int;
+			*m_count = 1;
 
-	/// @brief
-	class ObstacleGrid {
-	public:
-		ObstacleGrid(float resolution, float lowerX, float lowerY, float width, float height);
+			m_data = new T*[rows];
+			for (unsigned int i = 0; i < rows; ++i) {
+				m_data[i] = new T[columns];
+				for (unsigned int j = 0; j < rows; ++j) {
+					m_data[i][j] = val;
+				}
+			}
+		}
 
-		/// @brief Add the obstacle to the grid.
-		void AddObstacle(const Ref<Obstacle>& obstacle);
+		virtual ~Grid()
+		{
+			DecreaseCount();
+		}
 
-		/// @brief Remove the obstacle from the grid.
-		void RemoveObstacle(const Ref<Obstacle>& obstacle);
+		Grid(const Grid& other) :
+			rows(other.rows), columns(other.columns)
+		{
+			IncreaseCount(other);
+		}
 
-		/// @brief Return the cell position associated to the position.
-		GridCellPosition PointToCellPosition(const Point2d& point, bool bounded = true) const;
-		/// @overload
-		GridCellPosition PointToCellPosition(double x, double y, bool bounded = true) const;
+		Grid& operator=(const Grid&) = delete;
 
-		/// @brief Return the position associated to the center of the cell position.
-		Point2d CellPositionToPoint(const GridCellPosition& position);
+		T*& operator[](int i) { return m_data[i]; }
+		T* const& operator[](int i) const { return m_data[i]; }
 
-		void Update();
-		GVD& GetGVD();
-		const GVD& GetGVD() const;
+		operator bool()
+		{
+			if (!m_count || !m_data)
+				return false;
+			return true;
+		}
 
-	public:
-		const float resolution;
-		const int rows, columns;
-		const float width, height;
-		const float lowerX, lowerY;
-		const float upperX, upperY;
+		/// @brief Return the count.
+		int GetCount() const { return m_count ? *m_count : 0; }
 
 	private:
-		Scope<GVD> m_gvd;
-		std::unordered_set<Ref<Obstacle>> m_obstacles;
+		void IncreaseCount(const Grid& other)
+		{
+			m_data = other.m_data;
+			m_count = other.m_count;
+			if (m_count)
+				(*m_count)++;
+		}
+
+		void DecreaseCount()
+		{
+			if (!m_count)
+				return;
+
+			if (*m_count <= 1) {
+				for (unsigned int i = 0; i < rows; i++) {
+					delete[] m_data[i];
+				}
+				delete[] m_data;
+				delete m_count;
+			} else {
+				(*m_count)--;
+			}
+		}
+
+	public:
+		const int rows, columns;
+
+	protected:
+		T** m_data = nullptr;
+		int* m_count = nullptr;
 	};
 }
