@@ -132,7 +132,7 @@ namespace Planner {
 		m_heuristic = makeRef<AStarCombinedHeuristic<State>>();
 		m_heuristic->Add(m_nonHoloHeuristic, m_obstacleHeuristic);
 
-		m_aStarSearch = makeScope<AStar<State, State::Hash>>(m_stateSpace, m_heuristic);
+		m_aStarSearch = makeScope<AStar<State, State::Hash, State::Equal>>(m_stateSpace, m_heuristic);
 	}
 
 	Status HybridAStar::SearchPath()

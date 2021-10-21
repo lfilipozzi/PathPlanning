@@ -10,6 +10,10 @@ add_executable(testTree test_tree.cpp)
 target_link_libraries(testTree pathPlanning)
 add_test(testTree testTree)
 
+add_executable(testFrontier test_frontier.cpp)
+target_link_libraries(testFrontier pathPlanning)
+add_test(testFrontier testFrontier)
+
 add_executable(testRRT test_rrt.cpp)
 target_link_libraries(testRRT pathPlanning)
 add_test(testRRT testRRT)

@@ -50,6 +50,13 @@ namespace Planner {
 					return hasher(pose);
 				}
 			};
+			
+			struct Equal {
+				bool operator()(const State& lhs, const State& rhs) const
+				{
+					return lhs.discrete == rhs.discrete;
+				}
+			};
 		};
 
 		/// @brief Define the state-space used for the A* search.
@@ -132,7 +139,7 @@ namespace Planner {
 		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
 		Ref<ObstaclesHeuristic> m_obstacleHeuristic;
 		Ref<AStarCombinedHeuristic<State>> m_heuristic;
-		Scope<AStar<State, State::Hash>> m_aStarSearch;
+		Scope<AStar<State, State::Hash, State::Equal>> m_aStarSearch;
 		std::vector<Pose2d> m_path;
 	};
 }
