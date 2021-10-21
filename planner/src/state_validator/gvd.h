@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/base.h"
-#include "state_validator/grid.h"
+#include "utils/grid.h"
 
 #include <queue>
 

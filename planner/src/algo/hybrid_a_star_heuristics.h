@@ -1,7 +1,10 @@
 #pragma once
 
+#include "core/base.h"
 #include "algo/a_star.h"
 #include "algo/hybrid_a_star.h"
+#include "geometry/2dplane.h"
+#include "utils/grid.h"
 
 namespace Planner {
 	class NonHolonomicHeuristic : public AStarHeuristic<HybridAStar::State> {
@@ -28,12 +31,43 @@ namespace Planner {
 		double*** m_values;
 	};
 
+	class OccupancyMap;
+
 	class ObstaclesHeuristic : public AStarHeuristic<HybridAStar::State> {
+	private:
+		struct CompareCell {
+			bool operator()(const GridCell<float>& lhs, const GridCell<float>& rhs) const
+			{
+				return lhs > rhs;
+			}
+		};
+
+		struct HashCell {
+			std::size_t operator()(const GridCell<float>& cell) const
+			{
+				return std::hash<Planner::GridCellPosition>()(cell.position);
+			}
+		};
+
+		struct EqualCell {
+			bool operator()(const GridCell<float>& lhs, const GridCell<float>& rhs) const
+			{
+				return lhs.position == rhs.position;
+			}
+		};
+
 	public:
-		ObstaclesHeuristic() = default;
+		ObstaclesHeuristic(const Ref<OccupancyMap>& map);
+
+		void Update(const Pose2d& goal);
 
 		virtual double GetHeuristicValue(const HybridAStar::State& from, const HybridAStar::State& to) override;
+		
+		void Visualize(const std::string& filename) const;
 
 	private:
+		Ref<OccupancyMap> m_map;
+		Grid<float> m_cost;
+		Grid<bool> m_explored;
 	};
 }

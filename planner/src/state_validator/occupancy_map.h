@@ -1,6 +1,6 @@
 #pragma once
 
-#include "state_validator/grid.h"
+#include "utils/grid.h"
 #include "state_validator/gvd.h"
 #include "geometry/2dplane.h"
 
@@ -15,6 +15,12 @@ namespace Planner {
 		OccupancyMap(float width, float height, float resolution);
 		virtual ~OccupancyMap() = default;
 
+		/// @brief Set the position of the bottom left corner of the map.
+		void SetOriginPosition(const Point2d& position) { m_origin = position; }
+		const Point2d& GetOriginPosition() const { return m_origin; }
+
+		void Update();
+
 		/// @brief Add the obstacle to the grid.
 		virtual bool AddObstacle(const Ref<Obstacle>& obstacle) = 0;
 		/// @brief Remove the obstacle from the grid.
@@ -22,19 +28,13 @@ namespace Planner {
 		/// @Brief Return the list of obstacle
 		std::unordered_set<Ref<Obstacle>>& GetObstacles() { return m_obstacles; }
 
-		/// @brief Return the occupancy matrix mapping cell position to obstacle ID.
-		Grid<int>& GetOccupancyMatrix() { return m_occupancyMatrix; }
-		/// @brief Return the occupancy matrix mapping cell position to obstacle ID.
-		const Grid<int>& GetOccupancyMatrix() const { return m_occupancyMatrix; }
+		/// @brief Check if a cell is occupied
+		virtual bool IsOccupied(const GridCellPosition& cell) = 0;
 
 		/// @brief Return the map of distance to obstacle
 		Ref<GVD::ObstacleDistanceMap> GetObstacleDistanceMap() { return m_obstacleDistanceMap; }
 		/// @brief Return the map of distance to obstacle
 		const Ref<GVD::ObstacleDistanceMap> GetObstacleDistanceMap() const { return m_obstacleDistanceMap; }
-
-		/// @brief Set the position of the bottom left corner of the map.
-		void SetOriginPosition(const Point2d& position) { m_origin = position; }
-		const Point2d& GetOriginPosition() const { return m_origin; }
 
 		/// @brief Convert grid coordinate to local position
 		Point2d GridToLocalPosition(const GridCellPosition& position) const;

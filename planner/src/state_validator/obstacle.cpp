@@ -1,6 +1,6 @@
 #include "state_validator/obstacle.h"
 #include "core/base.h"
-#include "state_validator/grid.h"
+#include "utils/grid.h"
 #include "state_validator/occupancy_map.h"
 
 namespace Planner {

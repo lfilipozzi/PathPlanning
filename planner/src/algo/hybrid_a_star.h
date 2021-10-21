@@ -12,8 +12,7 @@ namespace Planner {
 
 	class NonHolonomicHeuristic;
 	class ObstaclesHeuristic;
-	template <typename T>
-	class StateValidator;
+	class StateValidatorOccupancyMap;
 	class KinematicBicycleModel;
 
 	/// @brief Conduct a Hybrid A* search to find the optimal path.
@@ -115,7 +114,7 @@ namespace Planner {
 			const unsigned int numGeneratedMotion;
 
 		private:
-			StateValidator<Pose2d>* m_validator;
+			StateValidatorOccupancyMap* m_validator;
 			AStarHeuristic<State>* m_heuristic;
 			Ref<KinematicBicycleModel> m_model;
 			std::vector<double> m_deltas;
@@ -123,7 +122,7 @@ namespace Planner {
 		};
 
 	public:
-		HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidator<Pose2d>>& stateValidator);
+		HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidatorOccupancyMap>& stateValidator);
 		virtual ~HybridAStar() = default;
 
 		virtual Status SearchPath() override;
@@ -131,11 +130,11 @@ namespace Planner {
 		virtual std::vector<Pose2d> GetPath() override { return m_path; }
 
 		Ref<StateSpace>& GetStateSpace() { return m_stateSpace; }
-		Ref<StateValidator<Pose2d>>& GetStateValidator() { return m_stateValidator; }
+		Ref<StateValidatorOccupancyMap>& GetStateValidator() { return m_stateValidator; }
 
 	private:
 		Ref<StateSpace> m_stateSpace;
-		Ref<StateValidator<Pose2d>> m_stateValidator;
+		Ref<StateValidatorOccupancyMap> m_stateValidator;
 		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
 		Ref<ObstaclesHeuristic> m_obstacleHeuristic;
 		Ref<AStarCombinedHeuristic<State>> m_heuristic;

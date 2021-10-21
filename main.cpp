@@ -1,7 +1,7 @@
 #include "core/base.h"
 #include "core/timer.h"
 
-#define MODE 4
+#define MODE 1
 
 #if MODE == 0
 
@@ -49,31 +49,35 @@ int main(int /*argc*/, char** /*argv*/)
 
 	#include "algo/hybrid_a_star.h"
 	#include "geometry/2dplane.h"
-	#include "state_validator/state_validator_free.h"
+	#include "state_validator/state_validator_occupancy_map.h"
+	#include "state_validator/binary_occupancy_map.h"
 
 	#define _USE_MATH_DEFINES
 	#include <cmath>
 	#include <iostream>
 
+using namespace Planner;
+
 int main()
 {
 	PP_INIT_LOGGER;
 
-	Planner::Ref<Planner::HybridAStar::StateSpace> stateSpace = Planner::makeRef<Planner::HybridAStar::StateSpace>();
-	Planner::Ref<Planner::StateValidator<Planner::Pose2d>> stateValidator = Planner::makeRef<Planner::StateValidatorFree<Planner::Pose2d>>();
-	stateSpace->SetBounds({ Planner::Pose2d(-100, -100, -M_PI), Planner::Pose2d(100, 100, M_PI) });
+	Ref<HybridAStar::StateSpace> stateSpace = makeRef<HybridAStar::StateSpace>();
+	Ref<BinaryOccupancyMap> map = makeRef<BinaryOccupancyMap>(50, 50, 0.1);
+	Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(map);
+	stateSpace->SetBounds({ Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) });
 
-	Planner::HybridAStar hybridAStar(stateSpace, stateValidator);
+	HybridAStar hybridAStar(stateSpace, stateValidator);
 
-	Planner::Pose2d start = { 0.0, 0.0, 0.0 };
-	Planner::Pose2d goal = { 10.0, 10.0, 0.78 };
+	Pose2d start = { 0.0, 0.0, 0.0 };
+	Pose2d goal = { 10.0, 10.0, 0.78 };
 	hybridAStar.SetInitState(start);
 	hybridAStar.SetGoalState(goal);
 
-	Planner::Timer timer;
+	Timer timer;
 	hybridAStar.SearchPath();
 	PP_INFO(timer.ElapsedMillis());
-	std::vector<Planner::Pose2d> path = hybridAStar.GetPath();
+	std::vector<Pose2d> path = hybridAStar.GetPath();
 	PP_INFO(timer.ElapsedMillis());
 	std::cout << "Path: " << std::endl;
 	for (auto point : path) {
@@ -132,6 +136,7 @@ int main()
 	#include "state_validator/binary_occupancy_map.h"
 	#include "state_validator/obstacle.h"
 	#include "state_validator/gvd.h"
+	#include "algo/hybrid_a_star_heuristics.h"
 
 using namespace Planner;
 
@@ -142,15 +147,15 @@ int main()
 	float width = 5;
 	float height = 5;
 	float resolution = width / 300;
-	BinaryOccupancyMap map(width, height, resolution);
-	map.SetOriginPosition({ -width / 2, -height / 2 });
+	auto map = makeRef<BinaryOccupancyMap>(width, height, resolution);
+	map->SetOriginPosition({ -width / 2, -height / 2 });
 
 	// 	{
 	// 		Ref<Obstacle> obstacle = makeRef<Obstacle>();
 	// 		auto circle = makeRef<CircleShape>(2.0, 10);
 	// 		obstacle->SetShape(circle);
 	// 		obstacle->SetPose({ 1.0, 1.0, 0.0 });
-	// 		grid.AddObstacle(obstacle);
+	// 		map->AddObstacle(obstacle);
 	// 	}
 
 	{
@@ -158,7 +163,7 @@ int main()
 		auto circle = makeRef<CircleShape>(1.0, 10);
 		obstacle->SetShape(circle);
 		obstacle->SetPose({ 1.0, -1.0, 0.0 });
-		map.AddObstacle(obstacle);
+		map->AddObstacle(obstacle);
 	}
 
 	{
@@ -166,12 +171,17 @@ int main()
 		auto rectangle = makeRef<RectangleShape>(2.0, 1.0);
 		obstacle->SetShape(rectangle);
 		obstacle->SetPose({ -1.0, 1.0, M_PI_4 });
-		map.AddObstacle(obstacle);
+		map->AddObstacle(obstacle);
 	}
 
-	GVD gvd(map);
+	GVD gvd(*map);
 	gvd.Update();
 	gvd.Visualize("results.ppm");
+	
+	Pose2d goal = { -0.5*width, 0.5*height, 0.0 };
+	ObstaclesHeuristic heuristic(map);
+	heuristic.Update(goal);
+	heuristic.Visualize("heuristic.ppm");
 }
 
 #endif

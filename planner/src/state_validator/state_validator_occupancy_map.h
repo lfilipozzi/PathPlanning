@@ -20,6 +20,8 @@ namespace Planner {
 		/// @copydoc Planner::StateValidator::IsPathValid
 		virtual bool IsPathValid(const Path<Pose2d>& path, float* last = nullptr) override;
 
+		Ref<OccupancyMap>& GetOccupancyMap() { return m_map; }
+
 	public:
 		double minPathInterpolationDistance = 0.1;
 		double minSafeRadius = 1.0;

@@ -18,6 +18,8 @@ namespace Planner {
 		std::vector<GridCellPosition> GetNeighbors(int rows, int columns) const;
 
 		bool IsAdjacentTo(const GridCellPosition& rhs) const;
+
+		bool IsDiagonalTo(const GridCellPosition& rhs) const;
 	};
 
 	bool operator==(const GridCellPosition& lhs, const GridCellPosition& rhs);
@@ -95,7 +97,7 @@ namespace Planner {
 		T*& operator[](int i) { return m_data[i]; }
 		T* const& operator[](int i) const { return m_data[i]; }
 
-		operator bool()
+		operator bool() const
 		{
 			if (!m_count || !m_data)
 				return false;
@@ -104,6 +106,11 @@ namespace Planner {
 
 		/// @brief Return the count.
 		int GetCount() const { return m_count ? *m_count : 0; }
+
+		std::vector<GridCellPosition> GetNeighbors(const GridCellPosition& cell) const
+		{
+			return cell.GetNeighbors(rows, columns);
+		}
 
 	private:
 		void IncreaseCount(const Grid& other)

@@ -1,4 +1,5 @@
 #include "algo/hybrid_a_star_heuristics.h"
+#include "state_validator/occupancy_map.h"
 
 namespace Planner {
 	NonHolonomicHeuristic::NonHolonomicHeuristic(double spatialResolution, double angularResolution, double minTurningRadius,
@@ -103,10 +104,114 @@ namespace Planner {
 
 		return m_values[i][j][k];
 	}
-
-	double ObstaclesHeuristic::GetHeuristicValue(const HybridAStar::State& /*from*/, const HybridAStar::State& /*to*/)
+	
+	ObstaclesHeuristic::ObstaclesHeuristic(const Ref<OccupancyMap>& map) :
+		m_map(map),
+		m_cost(map->rows, map->columns, std::numeric_limits<float>::infinity()),
+		m_explored(map->rows, map->columns, false)
 	{
-		// TODO use flow-fields algorithm
-		return 0.0;
+	}
+
+	void ObstaclesHeuristic::Update(const Pose2d& goal)
+	{
+		for (int r = 0; r < m_map->rows; r++) {
+			for (int c = 0; c < m_map->columns; c++) {
+				m_cost[r][c] = std::numeric_limits<float>::infinity();
+				m_explored[r][c] = false;
+			}
+		}
+
+		GridCellPosition start = m_map->WorldToGridPosition(goal.position);
+		if (!start.IsValid())
+			return;
+
+		Frontier<GridCell<float>, CompareCell, HashCell, EqualCell> frontier;
+		frontier.Push({ start, 0.0f });
+		m_cost[start.row][start.col] = 0.0f;
+
+		while (!frontier.Empty()) {
+			const auto cell = frontier.Pop().position;
+			m_explored[cell.row][cell.col] = true;
+
+			for (auto& n : cell.GetNeighbors(m_map->rows, m_map->columns)) {
+				if (m_map->IsOccupied(n))
+					continue;
+				if (n.IsDiagonalTo(cell))
+					if (m_map->IsOccupied({ n.row, cell.col }) && m_map->IsOccupied({ cell.row, n.col }))
+						continue;
+
+				float transitionCost = cell.row == n.row || cell.col == n.col ? 1.0f : std::sqrt(2.0f);
+				// TODO add cost from Voronoi field too
+				float pathCost = transitionCost + m_cost[cell.row][cell.col];
+
+				GridCell<float> const* inFrontier = frontier.Find({ n, 0.0f });
+				bool inExplored = m_explored[n.row][n.col];
+				if (!inFrontier && !inExplored) {
+					frontier.Push({ n, pathCost });
+					m_cost[n.row][n.col] = pathCost;
+				} else if (inFrontier) {
+					// Check if the node in frontier has a higher cost than the
+					// current path, and if so replace it by child
+					if (inFrontier->value > m_cost[n.row][n.col]) {
+						frontier.Remove({ n, 0.0f });
+						frontier.Push({ n, pathCost });
+						m_cost[n.row][n.col] = pathCost;
+					}
+				}
+			}
+		}
+	}
+
+	double ObstaclesHeuristic::GetHeuristicValue(const HybridAStar::State& from, const HybridAStar::State& to)
+	{
+		auto euclidean = (to.GetPose().position - from.GetPose().position).norm();
+		auto cell = m_map->WorldToGridPosition(from.GetPose().position);
+		if (!cell.IsValid())
+			return euclidean;
+		if (!m_explored[cell.row][cell.col])
+			return euclidean;
+		double heuristic = m_cost[cell.row][cell.col] * m_map->resolution;
+		return std::max(heuristic, euclidean);
+	}
+	
+	void ObstaclesHeuristic::Visualize(const std::string& filename) const
+	{
+		FILE* F = fopen(filename.c_str(), "w");
+		if (!F) {
+			PP_ERROR("Could not open {}!", filename);
+			return;
+		}
+
+		const auto& sizeX = m_cost.rows;
+		const auto& sizeY = m_cost.columns;
+		float maxCost = -std::numeric_limits<float>::infinity();
+		for (int x = 0; x < sizeX; x++) {
+			for (int y = 0; y < sizeY; y++) {
+				if (m_cost[x][y] != std::numeric_limits<float>::infinity())
+					maxCost = std::max(maxCost, m_cost[x][y]);
+			}
+		}
+		fprintf(F, "P6\n#\n");
+		fprintf(F, "%d %d\n255\n", sizeX, sizeY);
+		for (int y = sizeY - 1; y >= 0; y--) {
+			for (int x = 0; x < sizeX; x++) {
+				unsigned char c = 0;
+				if (!m_explored[x][y]) {
+					// Obstacle
+					fputc(0, F);
+					fputc(0, F);
+					fputc(0, F);
+				} else {
+					// Path cost map
+					float f = ((maxCost - m_cost[x][y]) / maxCost * 255);
+					f = std::max(0.0f, std::min(f, 255.0f));
+					c = (unsigned char)f;
+					fputc(c, F);
+					fputc(c, F);
+					fputc(c, F);
+				}
+			}
+		}
+		fclose(F);
 	}
 }

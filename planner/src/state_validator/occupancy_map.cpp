@@ -8,7 +8,12 @@ namespace Planner {
 		width(width), height(height),
 		m_occupancyMatrix(rows, columns, -1)
 	{
-		m_obstacleDistanceMap = makeRef<GVD::ObstacleDistanceMap>(GetOccupancyMatrix(), resolution);
+		m_obstacleDistanceMap = makeRef<GVD::ObstacleDistanceMap>(m_occupancyMatrix, resolution);
+	}
+
+	void OccupancyMap::Update()
+	{
+		m_obstacleDistanceMap->Update();
 	}
 
 	Point2d OccupancyMap::GridToLocalPosition(const GridCellPosition& position) const

@@ -1,5 +1,5 @@
 #include "core/base.h"
-#include "state_validator/grid.h"
+#include "utils/grid.h"
 
 namespace Planner {
 
@@ -51,8 +51,7 @@ namespace Planner {
 
 	bool GridCellPosition::IsAdjacentTo(const GridCellPosition& rhs) const
 	{
-		if (!IsValid() || !rhs.IsValid())
-			return false;
+		PP_ASSERT(IsValid() && rhs.IsValid());
 
 		if (*this == rhs)
 			return false;
@@ -60,5 +59,12 @@ namespace Planner {
 		int deltaRow = row - rhs.row;
 		int deltaCol = col - rhs.col;
 		return (deltaRow >= -1 && deltaRow <= 1) && (deltaCol >= -1 && deltaCol <= 1);
+	}
+
+	bool GridCellPosition::IsDiagonalTo(const GridCellPosition& rhs) const
+	{
+		PP_ASSERT(IsValid() && rhs.IsValid());
+		
+		return row != rhs.row && col != rhs.col;
 	}
 }

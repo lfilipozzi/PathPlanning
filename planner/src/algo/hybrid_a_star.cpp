@@ -1,7 +1,7 @@
 #include "algo/hybrid_a_star.h"
 
 #include "paths/path_constant_steer.h"
-#include "state_validator/state_validator.h"
+#include "state_validator/state_validator_occupancy_map.h"
 #include "algo/hybrid_a_star_heuristics.h"
 #include "models/kinematic_bicycle_model.h"
 
@@ -85,9 +85,8 @@ namespace Planner {
 		if (!path)
 			return 0.0;
 
-		// TODO use real cost, not euclidean distance
-		auto delta = path->GetFinalState() - path->GetInitialState();
-		double cost = delta.position.norm();
+		// TODO use real cost, not only path length
+		double cost = path->GetLength();
 		return cost;
 	}
 
@@ -124,11 +123,11 @@ namespace Planner {
 		return true;
 	}
 
-	HybridAStar::HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidator<Pose2d>>& stateValidator) :
+	HybridAStar::HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidatorOccupancyMap>& stateValidator) :
 		m_stateSpace(stateSpace), m_stateValidator(stateValidator)
 	{
 		m_nonHoloHeuristic = NonHolonomicHeuristic::Build(m_stateSpace);
-		m_obstacleHeuristic = makeRef<ObstaclesHeuristic>();
+		m_obstacleHeuristic = makeRef<ObstaclesHeuristic>(m_stateValidator->GetOccupancyMap());
 		m_heuristic = makeRef<AStarCombinedHeuristic<State>>();
 		m_heuristic->Add(m_nonHoloHeuristic, m_obstacleHeuristic);
 
@@ -148,6 +147,7 @@ namespace Planner {
 		State goalState = m_stateSpace->SetGoalState(this->m_goal);
 		m_aStarSearch->SetInitState(initState);
 		m_aStarSearch->SetGoalState(goalState);
+		m_obstacleHeuristic->Update(this->m_goal);
 		auto status = m_aStarSearch->SearchPath();
 
 		auto solutionStates = m_aStarSearch->GetPath();

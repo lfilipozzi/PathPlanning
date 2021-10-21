@@ -17,5 +17,8 @@ namespace Planner {
 		virtual bool AddObstacle(const Ref<Obstacle>& obstacle) override;
 		/// @copydoc Planner::OccupancyMap::RemoveObstacle
 		virtual bool RemoveObstacle(const Ref<Obstacle>& obstacle) override;
+
+		/// @copydoc Planner::OccupancyMap::IsOccupied
+		virtual bool IsOccupied(const GridCellPosition& cell) override;
 	};
 }

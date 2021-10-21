@@ -1,13 +1,15 @@
 #include "core/base.h"
 #include "algo/hybrid_a_star.h"
 #include "geometry/2dplane.h"
-#include "state_validator/state_validator_free.h"
+#include "state_validator/state_validator_occupancy_map.h"
+#include "state_validator/binary_occupancy_map.h"
 
 namespace Planner {
 	void TestHybridAStar()
 	{
 		Ref<HybridAStar::StateSpace> stateSpace = makeRef<HybridAStar::StateSpace>();
-		Ref<StateValidator<Pose2d>> stateValidator = makeRef<StateValidatorFree<Pose2d>>();
+		Ref<BinaryOccupancyMap> map = makeRef<BinaryOccupancyMap>(50, 50, 0.1);
+		Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(map);
 		stateSpace->SetBounds({ Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) });
 
 		HybridAStar hybridAStar(stateSpace, stateValidator);

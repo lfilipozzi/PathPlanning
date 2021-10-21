@@ -16,21 +16,25 @@ namespace Planner {
 	bool StateValidatorOccupancyMap::IsPathValid(const Path<Pose2d>& path, float* last)
 	{
 		const double pathLength = path.GetLength();
-		Pose2d state = path.GetInitialState();
 
-		double distance = 0.0;
-		while (distance < pathLength) {
+		double length = 0.0;
+		while (length < pathLength) {
+			Pose2d state = path.Interpolate(length / pathLength);
+
 			// Check current state
 			if (!IsStateValid(state)) {
 				if (last)
-					*last = distance / pathLength;
+					*last = length / pathLength;
 				return false;
 			}
-			// Update current state
+			// Update length
 			GridCellPosition cell = m_map->WorldToGridPosition(state.position);
-			distance = m_map->GetObstacleDistanceMap()->GetDistanceToNearestObstacle(cell);
-			distance = std::max(distance - minSafeRadius, minPathInterpolationDistance);
-			state = path.Interpolate(distance / pathLength);
+			if (cell.IsValid()) {
+				float distance = m_map->GetObstacleDistanceMap()->GetDistanceToNearestObstacle(cell);
+				length += std::max(distance - minSafeRadius, minPathInterpolationDistance);
+			} else {
+				length += minPathInterpolationDistance;
+			}
 		}
 
 		if (last)

@@ -35,11 +35,8 @@ namespace Planner {
 		return false;
 	}
 
-	// 	void BinaryOccupancyMap::Update()
-	// 	{
-	// 		m_gvd->Update();
-	// 	}
-	//
-	// 	GVD& BinaryOccupancyMap::GetGVD() { return *m_gvd; }
-	// 	const GVD& BinaryOccupancyMap::GetGVD() const { return *m_gvd; }
+	bool BinaryOccupancyMap::IsOccupied(const GridCellPosition& cell)
+	{
+		return m_occupancyMatrix[cell.row][cell.col] >= 0;
+	}
 }
