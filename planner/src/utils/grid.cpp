@@ -64,7 +64,7 @@ namespace Planner {
 	bool GridCellPosition::IsDiagonalTo(const GridCellPosition& rhs) const
 	{
 		PP_ASSERT(IsValid() && rhs.IsValid());
-		
+
 		return row != rhs.row && col != rhs.col;
 	}
 }

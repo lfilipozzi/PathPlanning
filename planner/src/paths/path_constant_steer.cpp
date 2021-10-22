@@ -22,9 +22,12 @@ namespace Planner {
 	double PathConstantSteer::ComputeCost(double /*directionSwitchingCost*/, double reverseCostMultiplier, double forwardCostMultiplier) const
 	{
 		switch (m_direction) {
-			case Direction::Forward:  return forwardCostMultiplier * m_length;
-			case Direction::Backward: return reverseCostMultiplier * m_length;
-			default: return 0.0;
+		case Direction::Forward:
+			return forwardCostMultiplier * m_length;
+		case Direction::Backward:
+			return reverseCostMultiplier * m_length;
+		default:
+			return 0.0;
 		}
 	}
 }

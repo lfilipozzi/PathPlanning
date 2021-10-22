@@ -38,10 +38,10 @@ namespace Planner {
 		double GetLength() const { return m_length; }
 
 		/// @brief Compute the cost associated to the path.
-		/// @details The cost penalizes the distance traveled with a cost 
-		/// multiplier @forwardCostMultiplier for forward motion, and 
-		/// @reverseCostMultiplier for reverse motion. An additional cost is 
-		/// added when switching the direction of motionwith cost 
+		/// @details The cost penalizes the distance traveled with a cost
+		/// multiplier @forwardCostMultiplier for forward motion, and
+		/// @reverseCostMultiplier for reverse motion. An additional cost is
+		/// added when switching the direction of motionwith cost
 		/// @directionSwitchingCost.
 		virtual double ComputeCost(double directionSwitchingCost, double reverseCostMultiplier, double forwardCostMultiplier) const = 0;
 

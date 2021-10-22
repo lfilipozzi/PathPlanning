@@ -50,7 +50,7 @@ namespace Planner {
 					return hasher(pose);
 				}
 			};
-			
+
 			struct Equal {
 				bool operator()(const State& lhs, const State& rhs) const
 				{

@@ -57,15 +57,20 @@ namespace Planner {
 		};
 
 	public:
-		ObstaclesHeuristic(const Ref<OccupancyMap>& map);
+		ObstaclesHeuristic(const Ref<OccupancyMap>& map, double reverseCostMultiplier, double forwardCostMultiplier);
 
 		void Update(const Pose2d& goal);
 
 		virtual double GetHeuristicValue(const HybridAStar::State& from, const HybridAStar::State& to) override;
-		
+
 		void Visualize(const std::string& filename) const;
 
+	public:
+		const float diagonalResolution;
+		const float costMultiplier;
+
 	private:
+		static constexpr float s_discount = 0.92621f;
 		Ref<OccupancyMap> m_map;
 		Grid<float> m_cost;
 		Grid<bool> m_explored;

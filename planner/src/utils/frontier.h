@@ -5,17 +5,18 @@
 #include <unordered_set>
 
 namespace Planner {
-	/// @brief Implement a priority list which allows unique membership and 
+	/// @brief Implement a priority list which allows unique membership and
 	/// random access removal.
 	/// @details The list is sorted by increasing order. A user-provided Compare
 	/// can be supplied to change the ordering, e.g. using std::greater would
-	/// cause the smallest element to appear as the top. 
+	/// cause the smallest element to appear as the top.
 	template <typename T, typename Compare = std::less<T>, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>>
 	class Frontier {
 	public:
 		Frontier() = default;
-		Frontier(const Compare& compare) : m_compare(compare) { }
-		Frontier(const Compare& compare, size_t bucketCount, const Hash& hash, const KeyEqual& equal) : 
+		Frontier(const Compare& compare) :
+			m_compare(compare) { }
+		Frontier(const Compare& compare, size_t bucketCount, const Hash& hash, const KeyEqual& equal) :
 			m_compare(compare), m_keyEqual(equal), m_set(bucketCount, hash, equal) { }
 
 		/// @brief Return the number of elements in the container.
@@ -25,8 +26,8 @@ namespace Planner {
 		bool Empty() const { return m_vec.empty(); }
 
 		/// @brief Insert an element in the container.
-		/// @return Returns a pair consisting of a pointer to the inserted 
-		/// element (or to the element that prevented the insertion) and a bool 
+		/// @return Returns a pair consisting of a pointer to the inserted
+		/// element (or to the element that prevented the insertion) and a bool
 		/// value set to true if the insertion took place.
 		std::pair<const T*, bool> Push(const T& elmt)
 		{
@@ -58,7 +59,7 @@ namespace Planner {
 				PP_ASSERT(erased, "Element has not been erased");
 				// Erase elmt in set
 				m_set.erase(setIt);
-				
+
 				return 1;
 			} else
 				return 0;
@@ -96,7 +97,7 @@ namespace Planner {
 		auto end() const { return m_vec.end(); }
 
 	private:
-		/// @brief Return an iterator to the first element @elmt in the 
+		/// @brief Return an iterator to the first element @elmt in the
 		/// container for which Compare(@value, @elmt) is false.
 		/// @details Implemented using a binary search.
 		/// @return An iterator to the element.
@@ -127,7 +128,7 @@ namespace Planner {
 			return it;
 		}
 
-		/// @brief Return an iterator to the last element @elmt in the 
+		/// @brief Return an iterator to the last element @elmt in the
 		/// container for which Compare(@elmt, @value) is true.
 		/// @details Implemented using a binary search.
 		/// @return An iterator to the element.

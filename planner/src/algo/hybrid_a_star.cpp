@@ -162,11 +162,13 @@ namespace Planner {
 		}
 
 		// Initialize state-space
-		m_gvd = makeScope<GVD>(m_stateValidator->GetOccupancyMap());;
+		m_gvd = makeScope<GVD>(m_stateValidator->GetOccupancyMap());
 
 		// Initialize heuristic
+		const auto reverseCost = m_stateSpace->reverseCostMultiplier;
+		const auto forwardCost = m_stateSpace->forwardCostMultiplier;
 		m_nonHoloHeuristic = NonHolonomicHeuristic::Build(m_stateSpace);
-		m_obstacleHeuristic = makeRef<ObstaclesHeuristic>(m_stateValidator->GetOccupancyMap());
+		m_obstacleHeuristic = makeRef<ObstaclesHeuristic>(m_stateValidator->GetOccupancyMap(), reverseCost, forwardCost);
 		m_heuristic = makeRef<AStarCombinedHeuristic<State>>();
 		m_heuristic->Add(m_nonHoloHeuristic, m_obstacleHeuristic);
 

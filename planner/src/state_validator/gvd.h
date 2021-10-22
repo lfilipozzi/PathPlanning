@@ -23,6 +23,8 @@ namespace Planner {
 		/// @details Given a binary occupancy matrix @occupancy, the class
 		/// allows to find the distance to the closest obstacle.
 		class ObstacleDistanceMap {
+			friend class GVD;
+
 		public:
 			ObstacleDistanceMap(const Ref<Grid<int>>& occupancy, float resolution);
 			~ObstacleDistanceMap() = default;
@@ -48,15 +50,15 @@ namespace Planner {
 			const float resolution;
 
 		private:
-			Grid<int> distance;
-			Grid<GridCellPosition> obstacle;
-			Grid<bool> toRaise;
-			Grid<bool> toProcess;
-			Grid<bool> voro;
-			PriorityQueue open;
-			PriorityQueue voroQ;
+			Grid<int> m_distance;
+			Grid<GridCellPosition> m_obstacle;
+			Grid<bool> m_toRaise;
+			Grid<bool> m_toProcess;
+			Grid<bool> m_voro;
+			PriorityQueue m_open;
+			PriorityQueue m_voroQ;
 
-			Ref<Grid<int>> occupancy;
+			Ref<Grid<int>> m_occupancy;
 			Ref<VoronoiDistanceMap> m_voronoiMap;
 		};
 
@@ -84,11 +86,11 @@ namespace Planner {
 			const float resolution;
 
 		private:
-			Grid<int> distance;
-			Grid<GridCellPosition> edge;
-			Grid<bool> toRaise;
-			Grid<bool> toProcess;
-			PriorityQueue open;
+			Grid<int> m_distance;
+			Grid<GridCellPosition> m_edge;
+			Grid<bool> m_toRaise;
+			Grid<bool> m_toProcess;
+			PriorityQueue m_open;
 		};
 
 	private:

@@ -98,8 +98,10 @@ namespace Planner {
 
 		return m_values[i][j][k];
 	}
-	
-	ObstaclesHeuristic::ObstaclesHeuristic(const Ref<OccupancyMap>& map) :
+
+	ObstaclesHeuristic::ObstaclesHeuristic(const Ref<OccupancyMap>& map, double reverseCostMultiplier, double forwardCostMultiplier) :
+		diagonalResolution(std::sqrt(2) * map->resolution),
+		costMultiplier(std::min(reverseCostMultiplier, forwardCostMultiplier) * map->resolution),
 		m_map(map),
 		m_cost(map->rows, map->columns, std::numeric_limits<float>::infinity()),
 		m_explored(map->rows, map->columns, false)
@@ -135,7 +137,6 @@ namespace Planner {
 						continue;
 
 				float transitionCost = cell.row == n.row || cell.col == n.col ? 1.0f : std::sqrt(2.0f);
-				// TODO add cost from Voronoi field too
 				float pathCost = transitionCost + m_cost[cell.row][cell.col];
 
 				GridCell<float> const* inFrontier = frontier.Find({ n, 0.0f });
@@ -164,10 +165,10 @@ namespace Planner {
 			return euclidean;
 		if (!m_explored[cell.row][cell.col])
 			return euclidean;
-		double heuristic = m_cost[cell.row][cell.col] * m_map->resolution;
+		double heuristic = m_cost[cell.row][cell.col] * costMultiplier - diagonalResolution;
 		return std::max(heuristic, euclidean);
 	}
-	
+
 	void ObstaclesHeuristic::Visualize(const std::string& filename) const
 	{
 		FILE* F = fopen(filename.c_str(), "w");

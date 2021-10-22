@@ -12,8 +12,8 @@ namespace Planner {
 
 	bool BinaryOccupancyMap::AddObstacle(const Ref<Obstacle>& obstacle)
 	{
-		if (m_obstacles.insert(obstacle).second) {
-			int id = m_obstacles.hash_function()(obstacle);
+		if (OccupancyMap::AddObstacle(obstacle)) {
+			auto id = m_obstacles[obstacle];
 			for (auto& cell : obstacle->GetGridCellPositions(*this)) {
 				(*m_occupancyMatrix)[cell.row][cell.col] = id;
 				m_obstacleDistanceMap->SetObstacle(cell);
@@ -25,7 +25,7 @@ namespace Planner {
 
 	bool BinaryOccupancyMap::RemoveObstacle(const Ref<Obstacle>& obstacle)
 	{
-		if (m_obstacles.erase(obstacle) == 1) {
+		if (OccupancyMap::RemoveObstacle(obstacle)) {
 			for (auto& cell : obstacle->GetGridCellPositions(*this)) {
 				(*m_occupancyMatrix)[cell.row][cell.col] = -1;
 				m_obstacleDistanceMap->UnsetObstacle(cell);

@@ -6,6 +6,7 @@ namespace Planner {
 	template <typename T>
 	struct MakeRefEnabler : public T {
 		template <typename... Args>
-		MakeRefEnabler(Args&&... args) : T(std::forward<Args>(args)...) { }
+		MakeRefEnabler(Args&&... args) :
+			T(std::forward<Args>(args)...) { }
 	};
 };

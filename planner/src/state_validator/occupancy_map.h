@@ -4,7 +4,8 @@
 #include "state_validator/gvd.h"
 #include "geometry/2dplane.h"
 
-#include <unordered_set>
+#include <unordered_map>
+#include <set>
 
 namespace Planner {
 	class Obstacle;
@@ -15,8 +16,8 @@ namespace Planner {
 		OccupancyMap(float width, float height, float resolution);
 		virtual ~OccupancyMap() = default;
 
-		/// @brief Update the occupancy map. Call this method after 
-		/// updating (i.e. adding, removing, or modifying) the obstacles or 
+		/// @brief Update the occupancy map. Call this method after
+		/// updating (i.e. adding, removing, or modifying) the obstacles or
 		/// after moving the map.
 		void Update();
 
@@ -25,14 +26,16 @@ namespace Planner {
 		const Point2d& GetOriginPosition() const { return m_origin; }
 
 		/// @brief Add the obstacle to the grid.
-		virtual bool AddObstacle(const Ref<Obstacle>& obstacle) = 0;
+		virtual bool AddObstacle(const Ref<Obstacle>& obstacle);
 		/// @brief Remove the obstacle from the grid.
-		virtual bool RemoveObstacle(const Ref<Obstacle>& obstacle) = 0;
-		/// @Brief Return the list of obstacle
-		std::unordered_set<Ref<Obstacle>>& GetObstacles() { return m_obstacles; }
+		virtual bool RemoveObstacle(const Ref<Obstacle>& obstacle);
+		/// @brief Return the number of obstacle.
+		int GetNumObstacles() const { return m_obstacles.size(); }
 
 		/// @brief Check if a cell is occupied
 		virtual bool IsOccupied(const GridCellPosition& cell) = 0;
+		/// @brief Return the value of the occupancy matrix.
+		int GetOccupancyValue(const GridCellPosition& cell) { return (*m_occupancyMatrix)[cell.row][cell.col]; }
 
 		/// @brief Return the map of distance to obstacle
 		Ref<GVD::ObstacleDistanceMap> GetObstacleDistanceMap() { return m_obstacleDistanceMap; }
@@ -73,7 +76,8 @@ namespace Planner {
 
 	protected:
 		Point2d m_origin = { 0.0, 0.0 };
-		std::unordered_set<Ref<Obstacle>> m_obstacles;
+		std::unordered_map<Ref<Obstacle>, unsigned int> m_obstacles;
+		std::set<unsigned int> m_obstacleIDs;
 		Ref<Grid<int>> m_occupancyMatrix;
 		Ref<GVD::ObstacleDistanceMap> m_obstacleDistanceMap;
 	};

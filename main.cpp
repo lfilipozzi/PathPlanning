@@ -154,42 +154,51 @@ int main()
 	float height = 5;
 	float resolution = width / 300;
 	auto map = makeRef<BinaryOccupancyMap>(width, height, resolution);
-	map->SetOriginPosition({ -width / 2, -height / 2 });
-
-	// 	{
-	// 		Ref<Obstacle> obstacle = makeRef<Obstacle>();
-	// 		auto circle = makeRef<CircleShape>(2.0, 10);
-	// 		obstacle->SetShape(circle);
-	// 		obstacle->SetPose({ 1.0, 1.0, 0.0 });
-	// 		map->AddObstacle(obstacle);
-	// 	}
-
-	{
-		Ref<Obstacle> obstacle = makeRef<Obstacle>();
-		auto circle = makeRef<CircleShape>(1.0, 10);
-		obstacle->SetShape(circle);
-		obstacle->SetPose({ 1.0, -1.0, 0.0 });
-		map->AddObstacle(obstacle);
-	}
-
-	{
-		Ref<Obstacle> obstacle = makeRef<Obstacle>();
-		auto rectangle = makeRef<RectangleShape>(2.0, 1.0);
-		obstacle->SetShape(rectangle);
-		obstacle->SetPose({ -1.0, 1.0, M_PI_4 });
-		map->AddObstacle(obstacle);
-	}
-
-	// map->Update();
-
 	GVD gvd(map);
+	ObstaclesHeuristic heuristic(map, 1.0, 1.0);
+	map->SetOriginPosition({ -width / 2, -height / 2 });
+	Pose2d goal = { -0.5 * width, 0.5 * height, 0.0 };
+
+	Ref<Obstacle> obstacle1 = makeRef<Obstacle>();
+	{
+		auto circle = makeRef<CircleShape>(1.0, 10);
+		obstacle1->SetShape(circle);
+		obstacle1->SetPose({ 1.0, -1.0, 0.0 });
+	}
+
+	Ref<Obstacle> obstacle2 = makeRef<Obstacle>();
+	{
+		auto rectangle = makeRef<RectangleShape>(2.0, 1.0);
+		obstacle2->SetShape(rectangle);
+		obstacle2->SetPose({ -1.0, 1.0, M_PI_4 });
+	}
+
+	Ref<Obstacle> obstacle3 = makeRef<Obstacle>();
+	{
+		auto rectangle = makeRef<RectangleShape>(0.8, 0.8);
+		obstacle3->SetShape(rectangle);
+		obstacle3->SetPose({ 1.0, 1.0, M_PI_4 });
+	}
+
+	map->AddObstacle(obstacle1);
+	map->AddObstacle(obstacle2);
+	map->AddObstacle(obstacle3);
+	map->Update();
+
 	gvd.Update();
-	gvd.Visualize("results.ppm");
-	
-	Pose2d goal = { -0.5*width, 0.5*height, 0.0 };
-	ObstaclesHeuristic heuristic(map);
+	gvd.Visualize("results1.ppm");
+
 	heuristic.Update(goal);
-	heuristic.Visualize("heuristic.ppm");
+	heuristic.Visualize("heuristic1.ppm");
+
+	map->RemoveObstacle(obstacle2);
+	map->Update();
+
+	gvd.Update();
+	gvd.Visualize("results2.ppm");
+
+	heuristic.Update(goal);
+	heuristic.Visualize("heuristic2.ppm");
 }
 
 #endif
