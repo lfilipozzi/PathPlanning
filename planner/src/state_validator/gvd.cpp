@@ -297,7 +297,7 @@ namespace Planner {
 	}
 
 	GVD::GVD(const Ref<OccupancyMap>& map) :
-		rows(map->rows), columns(map->columns), resolution(map->resolution),
+		rows(map->Rows()), columns(map->Columns()), resolution(map->resolution),
 		m_pathCostMap(rows, columns, alpha, dMax)
 	{
 		m_occupancyMap = map;
@@ -314,7 +314,7 @@ namespace Planner {
 
 	bool GVD::GetDistanceToNearestObstacle(const Point2d& position, float& distance) const
 	{
-		auto cell = m_occupancyMap->WorldToGridPosition(position);
+		auto cell = m_occupancyMap->WorldPositionToGridCell(position);
 		if (!cell.IsValid())
 			return false;
 		distance = GetDistanceToNearestObstacle(cell);
@@ -323,7 +323,7 @@ namespace Planner {
 
 	bool GVD::GetDistanceToNearestVoronoiEdge(const Point2d& position, float& distance) const
 	{
-		auto cell = m_occupancyMap->WorldToGridPosition(position);
+		auto cell = m_occupancyMap->WorldPositionToGridCell(position);
 		if (!cell.IsValid())
 			return false;
 		distance = GetDistanceToNearestVoronoiEdge(cell);
@@ -332,7 +332,7 @@ namespace Planner {
 
 	bool GVD::GetPathCost(const Point2d& position, float& cost) const
 	{
-		auto cell = m_occupancyMap->WorldToGridPosition(position);
+		auto cell = m_occupancyMap->WorldPositionToGridCell(position);
 		if (!cell.IsValid())
 			return false;
 		cost = GetPathCost(cell);

@@ -11,7 +11,7 @@ namespace Planner {
 	/// gives a reference to the obstacle.
 	class BinaryOccupancyMap : public OccupancyMap {
 	public:
-		BinaryOccupancyMap(float width, float height, float resolution);
+		BinaryOccupancyMap(float resolution);
 
 		/// @copydoc Planner::OccupancyMap::AddObstacle
 		virtual bool AddObstacle(const Ref<Obstacle>& obstacle) override;

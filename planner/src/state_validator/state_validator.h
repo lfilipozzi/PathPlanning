@@ -1,14 +1,16 @@
 #pragma once
 
 #include "paths/path.h"
+#include "state_space/state_space.h"
 
 namespace Planner {
 
 	/// @brief Validate states and paths.
-	template <typename State>
+	template <typename State, int Dimension, typename T>
 	class StateValidator {
 	public:
-		StateValidator() = default;
+		StateValidator(const Ref<StateSpace<State, Dimension, T>>& stateSpace) :
+			stateSpace(stateSpace) { }
 		virtual ~StateValidator() = default;
 
 		/// @brief Check if a state is valid.
@@ -32,5 +34,8 @@ namespace Planner {
 				*last = path.Interpolate(ratio);
 			return validated;
 		}
+
+	public:
+		const Ref<StateSpace<State, Dimension, T>> stateSpace;
 	};
 }

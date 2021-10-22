@@ -62,21 +62,23 @@ int main()
 {
 	PP_INIT_LOGGER;
 
-	Ref<HybridAStar::StateSpace> stateSpace = makeRef<HybridAStar::StateSpace>();
-	Ref<BinaryOccupancyMap> map = makeRef<BinaryOccupancyMap>(50, 50, 0.1);
-	Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(map);
-	stateSpace->SetBounds({ Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) });
+	std::array<Pose2d, 2> bounds = { Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) };
+	Ref<HybridAStar::StateSpace> stateSpace = makeRef<HybridAStar::StateSpace>(bounds);
+	Ref<BinaryOccupancyMap> map = makeRef<BinaryOccupancyMap>(0.1);
+	Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace);
+	stateValidator->SetOccupancyMap(map);
 
 	HybridAStar hybridAStar(stateSpace, stateValidator);
+
+	Timer timer;
+	hybridAStar.Initialize();
+	float initTime = timer.ElapsedMillis();
 
 	Pose2d start = { 0.0, 0.0, 0.0 };
 	Pose2d goal = { 10.0, 10.0, 0.78 };
 	hybridAStar.SetInitState(start);
 	hybridAStar.SetGoalState(goal);
 
-	Timer timer;
-	hybridAStar.Initialize();
-	float initTime = timer.ElapsedMillis();
 	timer.Reset();
 	hybridAStar.SearchPath();
 	float searchTime = timer.ElapsedMillis();
@@ -153,10 +155,11 @@ int main()
 	float width = 5;
 	float height = 5;
 	float resolution = width / 300;
-	auto map = makeRef<BinaryOccupancyMap>(width, height, resolution);
+	auto map = makeRef<BinaryOccupancyMap>(resolution);
+	map->InitializeSize(width, height);
+	map->SetPosition({ 0.0, 0.0 });
 	GVD gvd(map);
 	ObstaclesHeuristic heuristic(map, 1.0, 1.0);
-	map->SetOriginPosition({ -width / 2, -height / 2 });
 	Pose2d goal = { -0.5 * width, 0.5 * height, 0.0 };
 
 	Ref<Obstacle> obstacle1 = makeRef<Obstacle>();

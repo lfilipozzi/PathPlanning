@@ -64,12 +64,12 @@ namespace Planner {
 			friend HybridAStar;
 
 		public:
-			StateSpace(double spatialResolution = 1.0, double angularResolution = 0.0872,
+			StateSpace(const std::array<Pose2d, 2>& bounds = { Pose2d(-100, -100, -M_PI), Pose2d(100, 100, M_PI) },
+				double spatialResolution = 1.0, double angularResolution = 0.0872,
 				unsigned int numGeneratedMotion = 5,
 				double minTurningRadius = 1.0, double directionSwitchingCost = 0.0,
 				double reverseCostMultiplier = 1.0, double forwardCostMultiplier = 1.0,
-				double voronoiCostMultiplier = 1.0,
-				const std::array<Pose2d, 2>& bounds = { Pose2d(-100, -100, -M_PI), Pose2d(100, 100, M_PI) });
+				double voronoiCostMultiplier = 1.0);
 
 			/// @brief Discretize a state.
 			Pose2i DiscretizePose(const Pose2d& pose) const;

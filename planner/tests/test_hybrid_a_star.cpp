@@ -7,10 +7,11 @@
 namespace Planner {
 	void TestHybridAStar()
 	{
-		Ref<HybridAStar::StateSpace> stateSpace = makeRef<HybridAStar::StateSpace>();
-		Ref<BinaryOccupancyMap> map = makeRef<BinaryOccupancyMap>(50, 50, 0.1);
-		Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(map);
-		stateSpace->SetBounds({ Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) });
+		std::array<Pose2d, 2> bounds = { Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) };
+		Ref<HybridAStar::StateSpace> stateSpace = makeRef<HybridAStar::StateSpace>(bounds);
+		Ref<BinaryOccupancyMap> map = makeRef<BinaryOccupancyMap>(0.1);
+		Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace);
+		stateValidator->SetOccupancyMap(map);
 
 		HybridAStar hybridAStar(stateSpace, stateValidator);
 		hybridAStar.Initialize();

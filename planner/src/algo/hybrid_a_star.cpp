@@ -8,12 +8,12 @@
 #include "models/kinematic_bicycle_model.h"
 
 namespace Planner {
-	HybridAStar::StateSpace::StateSpace(double spatialResolution, double angularResolution,
+	HybridAStar::StateSpace::StateSpace(const std::array<Pose2d, 2>& bounds,
+		double spatialResolution, double angularResolution,
 		unsigned int numGeneratedMotion,
 		double minTurningRadius, double directionSwitchingCost,
 		double reverseCostMultiplier, double forwardCostMultiplier,
-		double voronoiCostMultiplier,
-		const std::array<Pose2d, 2>& bounds) :
+		double voronoiCostMultiplier) :
 		StateSpaceReedsShepp(minTurningRadius, directionSwitchingCost, reverseCostMultiplier, forwardCostMultiplier, bounds),
 		voronoiCostMultiplier(voronoiCostMultiplier),
 		spatialResolution(spatialResolution), angularResolution(angularResolution), numGeneratedMotion(numGeneratedMotion)

@@ -3,11 +3,12 @@
 
 namespace Planner {
 
-	OccupancyMap::OccupancyMap(float width, float height, float resolution) :
-		resolution(resolution), rows(ceil(width / resolution)), columns(ceil(height / resolution)),
-		width(width), height(height)
+	void OccupancyMap::InitializeSize(float width, float height)
 	{
-		m_occupancyMatrix = makeRef<Grid<int>>(rows, columns, -1);
+		m_gridOrigin = { -width / 2.0, -height / 2.0 };
+		m_rows = ceil(width / resolution);
+		m_columns = ceil(height / resolution);
+		m_occupancyMatrix = makeRef<Grid<int>>(m_rows, m_columns, -1);
 		m_obstacleDistanceMap = makeRef<GVD::ObstacleDistanceMap>(m_occupancyMatrix, resolution);
 	}
 
@@ -52,83 +53,63 @@ namespace Planner {
 		return true;
 	}
 
-	Point2d OccupancyMap::GridToLocalPosition(const GridCellPosition& position) const
+	Point2d OccupancyMap::GridCellToLocalPosition(const GridCellPosition& position) const
 	{
-		double x = position.row * resolution;
-		double y = position.col * resolution;
-		return { x, y };
+		return m_gridOrigin + GridCellToGridPosition(position);
 	}
 
-	Point2d OccupancyMap::GridToLocalPosition(int row, int column) const
+	Point2d OccupancyMap::GridCellToLocalPosition(int row, int column) const
 	{
-		return GridToLocalPosition({ row, column });
+		return GridCellToLocalPosition({ row, column });
 	}
 
-	Point2d OccupancyMap::GridToWorldPosition(const GridCellPosition& position) const
+	Point2d OccupancyMap::GridCellToWorldPosition(const GridCellPosition& position) const
 	{
-		double x = m_origin.x() + position.row * resolution;
-		double y = m_origin.y() + position.col * resolution;
-		return { x, y };
+		return m_localOrigin + m_gridOrigin + GridCellToGridPosition(position);
 	}
 
-	Point2d OccupancyMap::GridToWorldPosition(int row, int column) const
+	Point2d OccupancyMap::GridCellToWorldPosition(int row, int column) const
 	{
-		return GridToWorldPosition({ row, column });
+		return GridCellToWorldPosition({ row, column });
 	}
 
-	GridCellPosition OccupancyMap::LocalToGridPosition(const Point2d& position, bool bounded) const
+	GridCellPosition OccupancyMap::LocalPositionToGridCell(const Point2d& position, bool bounded) const
 	{
-		int row = static_cast<int>(position.x() / resolution);
-		int col = static_cast<int>(position.y() / resolution);
-
-		if (!bounded || (row >= 0 && row < rows && col >= 0 && col < columns))
-			return GridCellPosition(row, col);
-		else
-			return GridCellPosition(-1, -1);
+		return GridPositionToGridCell(position - m_gridOrigin, bounded);
 	}
 
-	GridCellPosition OccupancyMap::LocalToGridPosition(double x, double y, bool bounded) const
+	GridCellPosition OccupancyMap::LocalPositionToGridCell(double x, double y, bool bounded) const
 	{
-		return LocalToGridPosition({ x, y }, bounded);
+		return LocalPositionToGridCell({ x, y }, bounded);
 	}
 
-	Point2d OccupancyMap::LocalToWorldPosition(const Point2d& position) const
+	Point2d OccupancyMap::LocalPositionToWorldPosition(const Point2d& position) const
 	{
-		double x = m_origin.x() + position.x();
-		double y = m_origin.y() + position.y();
-		return { x, y };
+		return m_localOrigin + position;
 	}
 
-	Point2d OccupancyMap::LocalToWorldPosition(double x, double y) const
+	Point2d OccupancyMap::LocalPositionToWorldPosition(double x, double y) const
 	{
-		return LocalToWorldPosition({ x, y });
+		return LocalPositionToWorldPosition({ x, y });
 	}
 
-	GridCellPosition OccupancyMap::WorldToGridPosition(const Point2d& point, bool bounded) const
+	GridCellPosition OccupancyMap::WorldPositionToGridCell(const Point2d& position, bool bounded) const
 	{
-		int row = static_cast<int>((point.x() - m_origin.x()) / resolution);
-		int col = static_cast<int>((point.y() - m_origin.y()) / resolution);
-
-		if (!bounded || (row >= 0 && row < rows && col >= 0 && col < columns))
-			return GridCellPosition(row, col);
-		else
-			return GridCellPosition(-1, -1);
+		return GridPositionToGridCell(position - m_gridOrigin - m_localOrigin, bounded);
 	}
 
-	GridCellPosition OccupancyMap::WorldToGridPosition(double x, double y, bool bounded) const
+	GridCellPosition OccupancyMap::WorldPositionToGridCell(double x, double y, bool bounded) const
 	{
-		return WorldToGridPosition({ x, y }, bounded);
+		return WorldPositionToGridCell({ x, y }, bounded);
 	}
 
-	Point2d OccupancyMap::WorldToLocalPosition(const Point2d& position) const
+	Point2d OccupancyMap::WorldPositionToLocalPosition(const Point2d& position) const
 	{
-		double x = position.x() - m_origin.x();
-		double y = position.y() - m_origin.y();
-		return { x, y };
+		return position - m_localOrigin;
 	}
 
-	Point2d OccupancyMap::WorldToLocalPosition(double x, double y) const
+	Point2d OccupancyMap::WorldPositionToLocalPosition(double x, double y) const
 	{
-		return WorldToLocalPosition({ x, y });
+		return WorldPositionToLocalPosition({ x, y });
 	}
 }

@@ -7,8 +7,8 @@ namespace Planner {
 	void Shape::RasterizeLine(const OccupancyMap& map, const Point2d& p0, const Point2d& p1, std::vector<GridCellPosition>& line) const
 	{
 		// Find cells of the endpoints
-		auto p0Cell = map.WorldToGridPosition(p0, false);
-		auto p1Cell = map.WorldToGridPosition(p1, false);
+		auto p0Cell = map.WorldPositionToGridCell(p0, false);
+		auto p1Cell = map.WorldPositionToGridCell(p1, false);
 
 		int x0 = p0Cell.row;
 		int y0 = p0Cell.col;
@@ -49,7 +49,7 @@ namespace Planner {
 		for (int x = x0; x <= x1; x++) {
 			GridCellPosition c = steep ? GridCellPosition(y, x) : GridCellPosition(x, y);
 
-			if (c.row >= 0 && c.row < map.rows && c.col >= 0 && c.col < map.columns)
+			if (c.row >= 0 && c.row < map.Rows() && c.col >= 0 && c.col < map.Columns())
 				line.push_back(c);
 
 			err = err - dy;

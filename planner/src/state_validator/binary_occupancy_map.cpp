@@ -5,13 +5,15 @@
 
 namespace Planner {
 
-	BinaryOccupancyMap::BinaryOccupancyMap(float width, float height, float resolution) :
-		OccupancyMap(width, height, resolution)
+	BinaryOccupancyMap::BinaryOccupancyMap(float resolution) :
+		OccupancyMap(resolution)
 	{
 	}
 
 	bool BinaryOccupancyMap::AddObstacle(const Ref<Obstacle>& obstacle)
 	{
+		PP_ASSERT(m_occupancyMatrix, "Matrix not initialized");
+
 		if (OccupancyMap::AddObstacle(obstacle)) {
 			auto id = m_obstacles[obstacle];
 			for (auto& cell : obstacle->GetGridCellPositions(*this)) {
@@ -25,6 +27,8 @@ namespace Planner {
 
 	bool BinaryOccupancyMap::RemoveObstacle(const Ref<Obstacle>& obstacle)
 	{
+		PP_ASSERT(m_occupancyMatrix, "Matrix not initialized");
+
 		if (OccupancyMap::RemoveObstacle(obstacle)) {
 			for (auto& cell : obstacle->GetGridCellPositions(*this)) {
 				(*m_occupancyMatrix)[cell.row][cell.col] = -1;
@@ -37,6 +41,8 @@ namespace Planner {
 
 	bool BinaryOccupancyMap::IsOccupied(const GridCellPosition& cell)
 	{
+		PP_ASSERT(m_occupancyMatrix, "Matrix not initialized");
+
 		return (*m_occupancyMatrix)[cell.row][cell.col] >= 0;
 	}
 }

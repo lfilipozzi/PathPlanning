@@ -36,7 +36,7 @@ namespace Planner {
 	{
 		PP_INFO("Generating non-holonomic heuristic without obstacle.");
 
-		const auto& bounds = stateSpace->GetBounds();
+		const auto& bounds = stateSpace->bounds;
 		const double& spatialResolution = stateSpace->spatialResolution;
 		const double& angularResolution = stateSpace->angularResolution;
 		const double& minTurningRadius = stateSpace->minTurningRadius;
@@ -103,21 +103,21 @@ namespace Planner {
 		diagonalResolution(std::sqrt(2) * map->resolution),
 		costMultiplier(std::min(reverseCostMultiplier, forwardCostMultiplier) * map->resolution),
 		m_map(map),
-		m_cost(map->rows, map->columns, std::numeric_limits<float>::infinity()),
-		m_explored(map->rows, map->columns, false)
+		m_cost(map->Rows(), map->Columns(), std::numeric_limits<float>::infinity()),
+		m_explored(map->Rows(), map->Columns(), false)
 	{
 	}
 
 	void ObstaclesHeuristic::Update(const Pose2d& goal)
 	{
-		for (int r = 0; r < m_map->rows; r++) {
-			for (int c = 0; c < m_map->columns; c++) {
+		for (int r = 0; r < m_map->Rows(); r++) {
+			for (int c = 0; c < m_map->Columns(); c++) {
 				m_cost[r][c] = std::numeric_limits<float>::infinity();
 				m_explored[r][c] = false;
 			}
 		}
 
-		GridCellPosition start = m_map->WorldToGridPosition(goal.position);
+		GridCellPosition start = m_map->WorldPositionToGridCell(goal.position);
 		if (!start.IsValid())
 			return;
 
@@ -129,7 +129,7 @@ namespace Planner {
 			const auto cell = frontier.Pop().position;
 			m_explored[cell.row][cell.col] = true;
 
-			for (auto& n : cell.GetNeighbors(m_map->rows, m_map->columns)) {
+			for (auto& n : cell.GetNeighbors(m_map->Rows(), m_map->Columns())) {
 				if (m_map->IsOccupied(n))
 					continue;
 				if (n.IsDiagonalTo(cell))
@@ -160,7 +160,7 @@ namespace Planner {
 	double ObstaclesHeuristic::GetHeuristicValue(const HybridAStar::State& from, const HybridAStar::State& to)
 	{
 		auto euclidean = (to.GetPose().position - from.GetPose().position).norm();
-		auto cell = m_map->WorldToGridPosition(from.GetPose().position);
+		auto cell = m_map->WorldPositionToGridCell(from.GetPose().position);
 		if (!cell.IsValid())
 			return euclidean;
 		if (!m_explored[cell.row][cell.col])

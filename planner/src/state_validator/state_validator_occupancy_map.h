@@ -9,10 +9,13 @@ namespace Planner {
 	class OccupancyMap;
 
 	/// @brief State validator based on an occupancy map.
-	class StateValidatorOccupancyMap : public StateValidator<Pose2d> {
+	class StateValidatorOccupancyMap : public StateValidator<Pose2d, 3, double> {
 	public:
-		StateValidatorOccupancyMap(const Ref<OccupancyMap>& map);
+		StateValidatorOccupancyMap(const Ref<StateSpace<Pose2d, 3, double>>& stateSpace);
 		~StateValidatorOccupancyMap() = default;
+
+		/// @brief Set the occupancy map to be used;
+		void SetOccupancyMap(const Ref<OccupancyMap>& map);
 
 		/// @copydoc Planner::StateValidator::IsStateValid
 		virtual bool IsStateValid(const Pose2d& state) override;

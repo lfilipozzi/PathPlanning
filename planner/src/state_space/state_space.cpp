@@ -3,8 +3,8 @@
 namespace Planner {
 	void PlanarStateSpace::EnforceBounds(Pose2d& state)
 	{
-		auto lb = m_bounds[0];
-		auto ub = m_bounds[1];
+		auto lb = bounds[0];
+		auto ub = bounds[1];
 		// clang-format off
 		state.x()   = std::max(lb.x(),   std::min(state.x(),   ub.x()));
 		state.y()   = std::max(lb.y(),   std::min(state.y(),   ub.y()));
@@ -15,8 +15,8 @@ namespace Planner {
 	/// @copydoc StateSpace::ValidateBounds
 	bool PlanarStateSpace::ValidateBounds(const Pose2d& state)
 	{
-		auto lb = m_bounds[0];
-		auto ub = m_bounds[1];
+		auto lb = bounds[0];
+		auto ub = bounds[1];
 		// clang-format off
 		if (state.x()   < lb.x()   || state.x()   > ub.x())   return false;
 		if (state.y()   < lb.y()   || state.y()   > ub.y())   return false;
@@ -29,8 +29,8 @@ namespace Planner {
 	Pose2d PlanarStateSpace::SampleUniform()
 	{
 		Pose2d state;
-		auto lb = m_bounds[0];
-		auto ub = m_bounds[1];
+		auto lb = bounds[0];
+		auto ub = bounds[1];
 		// clang-format off
 		state.x()   = Random<double>::SampleUniform(lb.x(),   ub.x());
 		state.y()   = Random<double>::SampleUniform(lb.y(),   ub.y());
@@ -43,8 +43,8 @@ namespace Planner {
 	 Pose2d PlanarStateSpace::SampleGaussian(const Pose2d& mean, const Pose2d& stdDev)
 	{
 		Pose2d state;
-		auto lb = m_bounds[0];
-		auto ub = m_bounds[1];
+		auto lb = bounds[0];
+		auto ub = bounds[1];
 		// clang-format off
 		state.x()   = Random<double>::SampleGaussian(mean.x(),   stdDev.x());
 		state.y()   = Random<double>::SampleGaussian(mean.y(),   stdDev.y());

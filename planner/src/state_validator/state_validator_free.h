@@ -5,15 +5,19 @@
 namespace Planner {
 
 	/// @brief State validator approving any state and path.
-	template <typename State>
-	class StateValidatorFree : public StateValidator<State> {
+	template <typename State, int Dimension, typename T>
+	class StateValidatorFree : public StateValidator<State, Dimension, T> {
 	public:
-		StateValidatorFree() = default;
+		StateValidatorFree(const Ref<StateSpace<State, Dimension, T>>& stateSpace) :
+			StateValidator<State, Dimension, T>(stateSpace) { }
 		~StateValidatorFree() = default;
 
 		/// @copydoc Planner::StateValidator::IsStateValid
-		virtual bool IsStateValid(const State& /*state*/) override
+		virtual bool IsStateValid(const State& state) override
 		{
+			// Validate bounds
+			if (!this->stateSpace->ValidateBounds(state))
+				return false;
 			return true;
 		}
 

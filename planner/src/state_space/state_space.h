@@ -11,12 +11,12 @@ namespace Planner {
 	/// @brief Interface to define the configuration space.
 	/// @details The data stored in the template type State must be continuous in
 	/// memory without offset and of type T.
-	template <typename State, int Dimension, typename T = double>
+	template <typename State, int Dimension, typename T>
 	class StateSpace {
 
 	public:
 		StateSpace(std::array<State, 2> bounds) :
-			m_bounds(bounds)
+			bounds(bounds)
 		{
 			Random<T>::Init();
 		}
@@ -24,10 +24,6 @@ namespace Planner {
 
 		/// @brief Compute the distance between two states.
 		virtual double ComputeDistance(const State& from, const State& to) = 0;
-
-		void SetBounds(std::array<Pose2d, 2> bounds) { m_bounds = bounds; }
-		const std::array<Pose2d, 2>& GetBounds() const { return m_bounds; }
-		std::array<Pose2d, 2>& GetBounds() { return m_bounds; }
 
 		/// @brief Modify the state if necessary to enforce state bounds
 		/// @param[in,out] state The state to enforce bound.
@@ -64,13 +60,11 @@ namespace Planner {
 
 	public:
 		static constexpr int dimension = Dimension;
-
-	protected:
-		std::array<Pose2d, 2> m_bounds;
+		const std::array<Pose2d, 2> bounds;
 	};
 
 	/// @brief Planar state space
-	class PlanarStateSpace : public StateSpace<Pose2d, 3> {
+	class PlanarStateSpace : public StateSpace<Pose2d, 3, double> {
 	public:
 		PlanarStateSpace(std::array<Pose2d, 2> bounds) :
 			StateSpace(bounds) { }
