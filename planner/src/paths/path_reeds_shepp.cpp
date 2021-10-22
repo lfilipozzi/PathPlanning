@@ -124,4 +124,9 @@ namespace Planner {
 
 		return start + Pose2d(x, y, turnAngle);
 	}
+
+	double PathReedsShepp::ComputeCost(double directionSwitchingCost, double reverseCostMultiplier, double forwardCostMultiplier) const
+	{
+		return m_pathSegment.ComputeCost(m_minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
+	}
 }

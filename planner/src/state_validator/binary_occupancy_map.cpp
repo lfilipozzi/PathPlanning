@@ -15,7 +15,7 @@ namespace Planner {
 		if (m_obstacles.insert(obstacle).second) {
 			int id = m_obstacles.hash_function()(obstacle);
 			for (auto& cell : obstacle->GetGridCellPositions(*this)) {
-				m_occupancyMatrix[cell.row][cell.col] = id;
+				(*m_occupancyMatrix)[cell.row][cell.col] = id;
 				m_obstacleDistanceMap->SetObstacle(cell);
 			}
 			return true;
@@ -27,7 +27,7 @@ namespace Planner {
 	{
 		if (m_obstacles.erase(obstacle) == 1) {
 			for (auto& cell : obstacle->GetGridCellPositions(*this)) {
-				m_occupancyMatrix[cell.row][cell.col] = -1;
+				(*m_occupancyMatrix)[cell.row][cell.col] = -1;
 				m_obstacleDistanceMap->UnsetObstacle(cell);
 			}
 			return true;
@@ -37,6 +37,6 @@ namespace Planner {
 
 	bool BinaryOccupancyMap::IsOccupied(const GridCellPosition& cell)
 	{
-		return m_occupancyMatrix[cell.row][cell.col] >= 0;
+		return (*m_occupancyMatrix)[cell.row][cell.col] >= 0;
 	}
 }

@@ -1,7 +1,7 @@
 #include "core/base.h"
 #include "core/timer.h"
 
-#define MODE 1
+#define MODE 4
 
 #if MODE == 0
 
@@ -33,9 +33,9 @@ int main(int /*argc*/, char** /*argv*/)
 
 	Planner::Timer timer;
 	search.SearchPath();
-	PP_INFO(timer.ElapsedMillis());
+	float searchTime = timer.ElapsedMillis();
 	std::vector<Planner::Point2i> path = search.GetPath();
-	PP_INFO(timer.ElapsedMillis());
+	PP_INFO("Search: {} ms", searchTime);
 
 	std::cout << "Path: " << std::endl;
 	for (auto point : path) {
@@ -75,14 +75,20 @@ int main()
 	hybridAStar.SetGoalState(goal);
 
 	Timer timer;
+	hybridAStar.Initialize();
+	float initTime = timer.ElapsedMillis();
+	timer.Reset();
 	hybridAStar.SearchPath();
-	PP_INFO(timer.ElapsedMillis());
+	float searchTime = timer.ElapsedMillis();
+
 	std::vector<Pose2d> path = hybridAStar.GetPath();
-	PP_INFO(timer.ElapsedMillis());
 	std::cout << "Path: " << std::endl;
 	for (auto point : path) {
 		std::cout << "x=" << point.x() << ", y=" << point.y() << ", theta=" << point.WrapTheta() * 180 * M_1_PI << std::endl;
 	}
+
+	PP_INFO("Init: {} ms", initTime);
+	PP_INFO("Search: {} ms", searchTime);
 
 	return 0;
 }
@@ -174,7 +180,9 @@ int main()
 		map->AddObstacle(obstacle);
 	}
 
-	GVD gvd(*map);
+	// map->Update();
+
+	GVD gvd(map);
 	gvd.Update();
 	gvd.Visualize("results.ppm");
 	

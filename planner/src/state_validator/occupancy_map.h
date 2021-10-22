@@ -15,11 +15,14 @@ namespace Planner {
 		OccupancyMap(float width, float height, float resolution);
 		virtual ~OccupancyMap() = default;
 
+		/// @brief Update the occupancy map. Call this method after 
+		/// updating (i.e. adding, removing, or modifying) the obstacles or 
+		/// after moving the map.
+		void Update();
+
 		/// @brief Set the position of the bottom left corner of the map.
 		void SetOriginPosition(const Point2d& position) { m_origin = position; }
 		const Point2d& GetOriginPosition() const { return m_origin; }
-
-		void Update();
 
 		/// @brief Add the obstacle to the grid.
 		virtual bool AddObstacle(const Ref<Obstacle>& obstacle) = 0;
@@ -71,7 +74,7 @@ namespace Planner {
 	protected:
 		Point2d m_origin = { 0.0, 0.0 };
 		std::unordered_set<Ref<Obstacle>> m_obstacles;
-		Grid<int> m_occupancyMatrix;
+		Ref<Grid<int>> m_occupancyMatrix;
 		Ref<GVD::ObstacleDistanceMap> m_obstacleDistanceMap;
 	};
 }

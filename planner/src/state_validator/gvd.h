@@ -2,6 +2,7 @@
 
 #include "core/base.h"
 #include "utils/grid.h"
+#include "geometry/2dplane.h"
 
 #include <queue>
 
@@ -16,14 +17,14 @@ namespace Planner {
 		using PriorityQueue = std::priority_queue<GridCell<int>, std::vector<GridCell<int>>, std::greater<GridCell<int>>>;
 
 	public:
-		struct VoronoiDistanceMap;
+		class VoronoiDistanceMap;
 
 		/// @brief Store map of distance to nearest obstacle.
 		/// @details Given a binary occupancy matrix @occupancy, the class
 		/// allows to find the distance to the closest obstacle.
-		struct ObstacleDistanceMap {
+		class ObstacleDistanceMap {
 		public:
-			ObstacleDistanceMap(const Grid<int>& occupancy, float resolution);
+			ObstacleDistanceMap(const Ref<Grid<int>>& occupancy, float resolution);
 			~ObstacleDistanceMap() = default;
 
 			void Update();
@@ -46,6 +47,7 @@ namespace Planner {
 			const int rows, columns;
 			const float resolution;
 
+		private:
 			Grid<int> distance;
 			Grid<GridCellPosition> obstacle;
 			Grid<bool> toRaise;
@@ -54,16 +56,13 @@ namespace Planner {
 			PriorityQueue open;
 			PriorityQueue voroQ;
 
-			Grid<int> occupancy;
-
-		private:
+			Ref<Grid<int>> occupancy;
 			Ref<VoronoiDistanceMap> m_voronoiMap;
 		};
 
 		/// @brief Store map of distance to nearest Voronoi edge.
-		struct VoronoiDistanceMap {
+		class VoronoiDistanceMap {
 		public:
-			VoronoiDistanceMap(unsigned int rows, unsigned int columns, float resolution);
 			~VoronoiDistanceMap() = default;
 
 			void Update();
@@ -73,6 +72,10 @@ namespace Planner {
 			float GetDistanceToNearestVoronoiEdge(int row, int col) const;
 			float GetDistanceToNearestVoronoiEdge(const GridCellPosition& s) const;
 
+		protected:
+			// Constructor should be used only by ObstacleDistanceMap
+			VoronoiDistanceMap(unsigned int rows, unsigned int columns, float resolution);
+
 		private:
 			bool IsOccupied(const GridCellPosition& s);
 
@@ -80,6 +83,7 @@ namespace Planner {
 			const int rows, columns;
 			const float resolution;
 
+		private:
 			Grid<int> distance;
 			Grid<GridCellPosition> edge;
 			Grid<bool> toRaise;
@@ -87,36 +91,25 @@ namespace Planner {
 			PriorityQueue open;
 		};
 
-	public:
+	private:
 		/// @brief Store map of cost associated to the Voronoi potential field.
 		struct PathCostMap : Grid<float> {
 		public:
 			PathCostMap(unsigned int rows, unsigned int columns, float alpha, float dMax);
 			~PathCostMap() = default;
 
+			void Update(const ObstacleDistanceMap& obstacleMap, const VoronoiDistanceMap& voronoiMap);
+
 		public:
 			const float alpha, dMax;
 		};
 
 	public:
-		GVD(const OccupancyMap& map);
+		GVD(const Ref<OccupancyMap>& map);
 		~GVD() = default;
-
-		void SetObstacle(const GridCellPosition& s) { m_obstacleMap->SetObstacle(s); }
-		void UnsetObstacle(const GridCellPosition& s) { m_obstacleMap->UnsetObstacle(s); }
 
 		/// @brief Update the Voronoi potential field
 		void Update();
-
-		/// @brief Return the position to the nearest obstacle.
-		inline const GridCellPosition& GetNearestObstacle(int row, int col) const { return m_obstacleMap->obstacle[row][col]; }
-		/// @overload
-		inline const GridCellPosition& GetNearestObstacle(const GridCellPosition& position) const { return GetNearestObstacle(position.row, position.col); }
-
-		/// @brief Return the position to the nearest Voronoi edge.
-		inline const GridCellPosition& GetNearestVoronoiEdge(int row, int col) const { return m_voronoiMap->edge[row][col]; }
-		/// @overload
-		inline const GridCellPosition& GetNearestVoronoiEdge(const GridCellPosition& position) const { return GetNearestVoronoiEdge(position.row, position.col); }
 
 		/// @brief Return the distance to the nearest obstacle
 		inline float GetDistanceToNearestObstacle(int row, int col) const { return m_obstacleMap->GetDistanceToNearestObstacle(row, col); }
@@ -129,21 +122,37 @@ namespace Planner {
 		inline float GetDistanceToNearestVoronoiEdge(const GridCellPosition& position) const { return GetDistanceToNearestVoronoiEdge(position.row, position.col); }
 
 		/// @brief Return the value of the Voronoi potential field.
-		float GetPathCost(int row, int col) const;
+		inline float GetPathCost(int row, int col) const { return m_pathCostMap[row][col]; }
 		/// @overload
 		inline float GetPathCost(const GridCellPosition& position) const { return GetPathCost(position.row, position.col); }
 
-		/// @brief Create a map of the Voronoi potential field.
-		Ref<PathCostMap> GeneratePathCostMap() const;
+		/// @brief Return the distance to the nearest obstacle
+		/// @param[in] position The world position.
+		/// @param[out] distance The distance to the nearest obstacle.
+		/// @return True if the position is in the map, false otherwise.
+		[[nodiscard]] bool GetDistanceToNearestObstacle(const Point2d& position, float& distance) const;
+		/// @brief Return the distance to the nearest Voronoi edge.
+		/// @param[in] position The world position.
+		/// @param[out] distance The distance to the nearest Voronoi edge.
+		/// @return True if the position is in the map, false otherwise.
+		[[nodiscard]] bool GetDistanceToNearestVoronoiEdge(const Point2d& position, float& distance) const;
+		/// @brief Return the value of the Voronoi potential field.
+		/// @param[in] position The world position.
+		/// @param[out] cost The path cost.
+		/// @return True if the position is in the map, false otherwise.
+		[[nodiscard]] bool GetPathCost(const Point2d& position, float& cost) const;
 
 		void Visualize(const std::string& filename) const;
 
-	private:
+	public:
 		const int rows, columns;
 		const float resolution;
+		const float alpha = 20.0f, dMax = 30.0f;
+
+	private:
+		Ref<OccupancyMap> m_occupancyMap;
 		Ref<ObstacleDistanceMap> m_obstacleMap;
 		Ref<VoronoiDistanceMap> m_voronoiMap;
-
-		float m_alpha = 20.0f, m_dMax = 30.0f;
+		PathCostMap m_pathCostMap;
 	};
 }

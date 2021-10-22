@@ -17,6 +17,8 @@ namespace Planner {
 		virtual Pose2d Interpolate(double ratio) const override;
 		/// @copydoc Planner::Path::Truncate
 		virtual void Truncate(double ratio) override;
+		/// @copydoc Planner::Path::ComputeCost
+		virtual double ComputeCost(double directionSwitchingCost, double reverseCostMultiplier, double forwardCostMultiplier) const override;
 
 	private:
 		KinematicBicycleModel* m_model;

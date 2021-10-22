@@ -5,9 +5,10 @@ namespace Planner {
 
 	OccupancyMap::OccupancyMap(float width, float height, float resolution) :
 		resolution(resolution), rows(ceil(width / resolution)), columns(ceil(height / resolution)),
-		width(width), height(height),
-		m_occupancyMatrix(rows, columns, -1)
+		width(width), height(height)
 	{
+		
+		m_occupancyMatrix = makeRef<Grid<int>>(rows, columns, -1);
 		m_obstacleDistanceMap = makeRef<GVD::ObstacleDistanceMap>(m_occupancyMatrix, resolution);
 	}
 

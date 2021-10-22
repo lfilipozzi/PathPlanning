@@ -13,6 +13,7 @@ namespace Planner {
 		stateSpace->SetBounds({ Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) });
 
 		HybridAStar hybridAStar(stateSpace, stateValidator);
+		hybridAStar.Initialize();
 
 		Pose2d start = { 0.0, 0.0, 0.0 };
 		Pose2d goal = { 10.0, 10.0, 0.78 };

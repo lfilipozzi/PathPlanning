@@ -63,15 +63,11 @@ namespace Planner {
 	}
 
 	/// @brief Template grid
-	/// @details Reference-counted
 	template <typename T>
 	struct Grid {
 		Grid(int rows, int columns, const T& val) :
 			rows(rows), columns(columns)
 		{
-			m_count = new int;
-			*m_count = 1;
-
 			m_data = new T*[rows];
 			for (unsigned int i = 0; i < rows; ++i) {
 				m_data[i] = new T[columns];
@@ -83,58 +79,21 @@ namespace Planner {
 
 		virtual ~Grid()
 		{
-			DecreaseCount();
+			for (unsigned int i = 0; i < rows; i++) {
+				delete[] m_data[i];
+			}
+			delete[] m_data;
 		}
 
-		Grid(const Grid& other) :
-			rows(other.rows), columns(other.columns)
-		{
-			IncreaseCount(other);
-		}
-
+		Grid(const Grid& other) = delete;
 		Grid& operator=(const Grid&) = delete;
 
 		T*& operator[](int i) { return m_data[i]; }
 		T* const& operator[](int i) const { return m_data[i]; }
 
-		operator bool() const
-		{
-			if (!m_count || !m_data)
-				return false;
-			return true;
-		}
-
-		/// @brief Return the count.
-		int GetCount() const { return m_count ? *m_count : 0; }
-
 		std::vector<GridCellPosition> GetNeighbors(const GridCellPosition& cell) const
 		{
 			return cell.GetNeighbors(rows, columns);
-		}
-
-	private:
-		void IncreaseCount(const Grid& other)
-		{
-			m_data = other.m_data;
-			m_count = other.m_count;
-			if (m_count)
-				(*m_count)++;
-		}
-
-		void DecreaseCount()
-		{
-			if (!m_count)
-				return;
-
-			if (*m_count <= 1) {
-				for (unsigned int i = 0; i < rows; i++) {
-					delete[] m_data[i];
-				}
-				delete[] m_data;
-				delete m_count;
-			} else {
-				(*m_count)--;
-			}
 		}
 
 	public:
@@ -142,6 +101,5 @@ namespace Planner {
 
 	protected:
 		T** m_data = nullptr;
-		int* m_count = nullptr;
 	};
 }

@@ -1,5 +1,6 @@
 #include "algo/hybrid_a_star_heuristics.h"
 #include "state_validator/occupancy_map.h"
+#include "utils/make_ref_enabler.h"
 
 namespace Planner {
 	NonHolonomicHeuristic::NonHolonomicHeuristic(double spatialResolution, double angularResolution, double minTurningRadius,
@@ -31,13 +32,6 @@ namespace Planner {
 		delete[] m_values;
 	}
 
-	// Empty structure to allow to create a Ref<NonHolonomicHeuristic>
-	struct MakeRefEnabler : public NonHolonomicHeuristic {
-		template <typename... Args>
-		MakeRefEnabler(Args&&... args) :
-			NonHolonomicHeuristic(std::forward<Args>(args)...) { }
-	};
-
 	Ref<NonHolonomicHeuristic> NonHolonomicHeuristic::Build(const Ref<HybridAStar::StateSpace>& stateSpace)
 	{
 		PP_INFO("Generating non-holonomic heuristic without obstacle.");
@@ -59,7 +53,7 @@ namespace Planner {
 		if (numSpatialGuessY % 2 == 0)
 			numSpatialGuessY++;
 
-		Ref<NonHolonomicHeuristic> heuristic = makeRef<MakeRefEnabler>(
+		Ref<NonHolonomicHeuristic> heuristic = makeRef<MakeRefEnabler<NonHolonomicHeuristic>>(
 			spatialResolution, angularResolution, minTurningRadius,
 			reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost,
 			numSpatialGuessX, numSpatialGuessY);

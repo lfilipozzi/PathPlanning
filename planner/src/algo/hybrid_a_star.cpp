@@ -2,6 +2,8 @@
 
 #include "paths/path_constant_steer.h"
 #include "state_validator/state_validator_occupancy_map.h"
+#include "state_validator/occupancy_map.h"
+#include "state_validator/gvd.h"
 #include "algo/hybrid_a_star_heuristics.h"
 #include "models/kinematic_bicycle_model.h"
 
@@ -10,8 +12,10 @@ namespace Planner {
 		unsigned int numGeneratedMotion,
 		double minTurningRadius, double directionSwitchingCost,
 		double reverseCostMultiplier, double forwardCostMultiplier,
+		double voronoiCostMultiplier,
 		const std::array<Pose2d, 2>& bounds) :
 		StateSpaceReedsShepp(minTurningRadius, directionSwitchingCost, reverseCostMultiplier, forwardCostMultiplier, bounds),
+		voronoiCostMultiplier(voronoiCostMultiplier),
 		spatialResolution(spatialResolution), angularResolution(angularResolution), numGeneratedMotion(numGeneratedMotion)
 	{
 		m_model = makeRef<KinematicBicycleModel>();
@@ -60,11 +64,11 @@ namespace Planner {
 			double cost;
 
 			// Find neighbor state in forward direction
-			if (ConstantSteer(state, delta, Direction::Forward, newState, cost))
+			if (GetConstantSteerChild(state, delta, Direction::Forward, newState, cost))
 				neighbors.push_back({ newState, cost });
 
 			// Find neighbor state in forward direction
-			if (ConstantSteer(state, delta, Direction::Backward, newState, cost))
+			if (GetConstantSteerChild(state, delta, Direction::Backward, newState, cost))
 				neighbors.push_back({ newState, cost });
 		}
 
@@ -80,74 +84,120 @@ namespace Planner {
 		return neighbors;
 	}
 
-	double HybridAStar::StateSpace::GetTransitionCost(const Ref<Path<Pose2d>>& path) const
+	double HybridAStar::StateSpace::GetTransitionCost(const Path<Pose2d>& path) const
 	{
-		if (!path)
-			return 0.0;
+		// Path cost
+		double pathCost = path.ComputeCost(directionSwitchingCost, reverseCostMultiplier, forwardCostMultiplier);
 
-		// TODO use real cost, not only path length
-		double cost = path->GetLength();
-		return cost;
+		// Voronoi cost
+		float voronoiCost = 0.0;
+		bool inside = true;
+		float interpLength = 0.1;
+		{
+			const double pathLength = path.GetLength();
+			double length = 0.0;
+			float positionCost;
+			while (length < pathLength) {
+				// Get cost
+				if (m_gvd->GetPathCost(path.Interpolate(length / pathLength).position, positionCost)) {
+					voronoiCost += positionCost;
+				} else {
+					inside = false;
+				}
+				// Update length
+				length += interpLength;
+			}
+
+			voronoiCost *= interpLength;
+			if (!inside) {
+				PP_WARN("Requesting path cost outside of the map");
+			}
+		}
+		return pathCost + voronoiCostMultiplier * voronoiCost;
 	}
 
-	bool HybridAStar::StateSpace::ConstantSteer(const State& state, double delta, Direction direction, State& next, double& cost) const
+	bool HybridAStar::StateSpace::GetConstantSteerChild(const State& state, double delta, Direction direction, State& child, double& cost) const
 	{
 		auto path = makeRef<PathConstantSteer>(m_model.get(), state.GetPose(), delta, spatialResolution * 1.5, direction);
-		next = CreateStateFromPath(path);
+		child = CreateStateFromPath(path);
 
 		// Validate transition
 		float lastValidRatio;
-		if (!m_validator->IsPathValid(*(next.path), &lastValidRatio)) {
-			next.path->Truncate(lastValidRatio);
-			next.discrete = DiscretizePose(next.path->GetFinalState());
+		if (!m_validator->IsPathValid(*(child.path), &lastValidRatio)) {
+			child.path->Truncate(lastValidRatio);
+			child.discrete = DiscretizePose(child.path->GetFinalState());
 			// Skip if the last valid state does not belong to a new cell
-			if (state == next) {
+			if (state == child) {
 				return false;
 			}
 		}
 
 		// Compute transition cost
-		cost = GetTransitionCost(next.path);
+		cost = GetTransitionCost(*child.path);
 		return true;
 	}
 
-	bool HybridAStar::StateSpace::GetReedsSheppChild(const State& state, State& reedsShepp, double& cost) const
+	bool HybridAStar::StateSpace::GetReedsSheppChild(const State& state, State& child, double& cost) const
 	{
 		auto path = ComputeOptimalPath(state.GetPose(), m_goalState.GetPose());
-		reedsShepp = CreateStateFromPath(path);
-		if (!m_validator->IsPathValid(*(reedsShepp.path)))
+		child = CreateStateFromPath(path);
+		if (!m_validator->IsPathValid(*(child.path)))
 			return false;
 
 		// Compute transition cost
-		cost = GetTransitionCost(reedsShepp.path);
+		cost = GetTransitionCost(*child.path);
 		return true;
 	}
 
 	HybridAStar::HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidatorOccupancyMap>& stateValidator) :
 		m_stateSpace(stateSpace), m_stateValidator(stateValidator)
 	{
+	}
+
+	bool HybridAStar::Initialize()
+	{
+		if (!m_stateSpace || !m_stateValidator) {
+			isInitialized = false;
+			return false;
+		}
+
+		// Initialize state-space
+		m_gvd = makeScope<GVD>(m_stateValidator->GetOccupancyMap());;
+
+		// Initialize heuristic
 		m_nonHoloHeuristic = NonHolonomicHeuristic::Build(m_stateSpace);
 		m_obstacleHeuristic = makeRef<ObstaclesHeuristic>(m_stateValidator->GetOccupancyMap());
 		m_heuristic = makeRef<AStarCombinedHeuristic<State>>();
 		m_heuristic->Add(m_nonHoloHeuristic, m_obstacleHeuristic);
 
+		// A* search algorithm
 		m_aStarSearch = makeScope<AStar<State, State::Hash, State::Equal>>(m_stateSpace, m_heuristic);
+
+		isInitialized = true;
+		return true;
 	}
 
 	Status HybridAStar::SearchPath()
 	{
-		// Set the validator of the state-space
-		if (!m_stateValidator || !m_heuristic)
+		if (!isInitialized) {
+			PP_ERROR("The algorithm has not been initialized successfully.");
 			return Status::Failure;
+		}
+
+		// Set members of hybrid A* state-space
 		m_stateSpace->m_validator = m_stateValidator.get();
 		m_stateSpace->m_heuristic = m_heuristic.get();
+		m_stateSpace->m_gvd = m_gvd.get();
+
+		// Update members
+		m_obstacleHeuristic->Update(this->m_goal);
+		m_gvd->Update();
 
 		// Run A* on 2D pose
 		State initState = m_stateSpace->CreateStateFromPose(this->m_init);
 		State goalState = m_stateSpace->SetGoalState(this->m_goal);
 		m_aStarSearch->SetInitState(initState);
 		m_aStarSearch->SetGoalState(goalState);
-		m_obstacleHeuristic->Update(this->m_goal);
 		auto status = m_aStarSearch->SearchPath();
 
 		auto solutionStates = m_aStarSearch->GetPath();
