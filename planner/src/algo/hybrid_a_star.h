@@ -124,6 +124,22 @@ namespace Planner {
 			State m_goalState;
 		};
 
+		/// @brief Adapter heuristic A* of Pose2d to heuristic A* for 
+		/// HybrisAStar::State.
+		class HeuristicAdapter : public AStarHeuristic<State> {
+		public:
+			HeuristicAdapter(const Ref<AStarHeuristic<Pose2d>>& heuristic) :
+				m_heuristic(heuristic) { }
+
+			inline virtual double GetHeuristicValue(const State& from, const State& to) override
+			{
+				return m_heuristic->GetHeuristicValue(from.GetPose(), to.GetPose());
+			}
+
+		private:
+			Ref<AStarHeuristic<Pose2d>> m_heuristic;
+		};
+
 	public:
 		HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidatorOccupancyMap>& stateValidator);
 		virtual ~HybridAStar() = default;
@@ -142,7 +158,7 @@ namespace Planner {
 		Ref<StateValidatorOccupancyMap> m_stateValidator;
 		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
 		Ref<ObstaclesHeuristic> m_obstacleHeuristic;
-		Ref<AStarCombinedHeuristic<State>> m_heuristic;
+		Ref<AStarHeuristic<State>> m_heuristic;
 		Scope<GVD> m_gvd;
 		Scope<AStar<State, State::Hash, State::Equal>> m_aStarSearch;
 		std::vector<Pose2d> m_path;

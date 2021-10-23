@@ -1,7 +1,7 @@
 #include "core/base.h"
 #include "core/timer.h"
 
-#define MODE 4
+#define MODE 1
 
 #if MODE == 0
 
@@ -144,7 +144,7 @@ int main()
 	#include "state_validator/binary_occupancy_map.h"
 	#include "state_validator/obstacle.h"
 	#include "state_validator/gvd.h"
-	#include "algo/hybrid_a_star_heuristics.h"
+	#include "algo/heuristics.h"
 
 using namespace Planner;
 

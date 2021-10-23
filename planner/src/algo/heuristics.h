@@ -2,19 +2,20 @@
 
 #include "core/base.h"
 #include "algo/a_star.h"
-#include "algo/hybrid_a_star.h"
 #include "geometry/2dplane.h"
 #include "utils/grid.h"
 
 namespace Planner {
-	class NonHolonomicHeuristic : public AStarHeuristic<HybridAStar::State> {
+	class NonHolonomicHeuristic : public AStarHeuristic<Pose2d> {
 	public:
 		~NonHolonomicHeuristic();
 
 		/// @brief Generate the NonHolonomicHeuristic heuristic.
-		static Ref<NonHolonomicHeuristic> Build(const Ref<HybridAStar::StateSpace>& stateSpace);
+		static Ref<NonHolonomicHeuristic> Build(const std::array<Pose2d, 2>& bounds,
+			double spatialResolution, double angularResolution, double minTurningRadius,
+			double reverseCostMultiplier, double forwardCostMultiplier, double directionSwitchingCost);
 
-		virtual double GetHeuristicValue(const HybridAStar::State& from, const HybridAStar::State& to) override;
+		virtual double GetHeuristicValue(const Pose2d& from, const Pose2d& to) override;
 
 	protected:
 		NonHolonomicHeuristic(double spatialResolution, double angularResolution, double minTurningRadius,
@@ -33,7 +34,7 @@ namespace Planner {
 
 	class OccupancyMap;
 
-	class ObstaclesHeuristic : public AStarHeuristic<HybridAStar::State> {
+	class ObstaclesHeuristic : public AStarHeuristic<Pose2d> {
 	private:
 		struct CompareCell {
 			bool operator()(const GridCell<float>& lhs, const GridCell<float>& rhs) const
@@ -61,7 +62,7 @@ namespace Planner {
 
 		void Update(const Pose2d& goal);
 
-		virtual double GetHeuristicValue(const HybridAStar::State& from, const HybridAStar::State& to) override;
+		virtual double GetHeuristicValue(const Pose2d& from, const Pose2d& to) override;
 
 		void Visualize(const std::string& filename) const;
 

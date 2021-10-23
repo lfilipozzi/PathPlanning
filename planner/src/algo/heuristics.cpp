@@ -1,6 +1,7 @@
-#include "algo/hybrid_a_star_heuristics.h"
+#include "algo/heuristics.h"
 #include "state_validator/occupancy_map.h"
 #include "utils/make_ref_enabler.h"
+#include "geometry/reeds_shepp.h"
 
 namespace Planner {
 	NonHolonomicHeuristic::NonHolonomicHeuristic(double spatialResolution, double angularResolution, double minTurningRadius,
@@ -32,17 +33,12 @@ namespace Planner {
 		delete[] m_values;
 	}
 
-	Ref<NonHolonomicHeuristic> NonHolonomicHeuristic::Build(const Ref<HybridAStar::StateSpace>& stateSpace)
+	Ref<NonHolonomicHeuristic> NonHolonomicHeuristic::Build(const std::array<Pose2d, 2>& bounds,
+		double spatialResolution, double angularResolution, double minTurningRadius,
+		double reverseCostMultiplier, double forwardCostMultiplier, double directionSwitchingCost)
 	{
 		PP_INFO("Generating non-holonomic heuristic without obstacle.");
 
-		const auto& bounds = stateSpace->bounds;
-		const double& spatialResolution = stateSpace->spatialResolution;
-		const double& angularResolution = stateSpace->angularResolution;
-		const double& minTurningRadius = stateSpace->minTurningRadius;
-		const double& reverseCostMultiplier = stateSpace->reverseCostMultiplier;
-		const double& forwardCostMultiplier = stateSpace->forwardCostMultiplier;
-		const double& directionSwitchingCost = stateSpace->directionSwitchingCost;
 		const double spatialSizeX = bounds[1].x() - bounds[0].x();
 		const double spatialSizeY = bounds[1].y() - bounds[0].y();
 
@@ -79,9 +75,9 @@ namespace Planner {
 		return heuristic;
 	}
 
-	double NonHolonomicHeuristic::GetHeuristicValue(const HybridAStar::State& from, const HybridAStar::State& to)
+	double NonHolonomicHeuristic::GetHeuristicValue(const Pose2d& from, const Pose2d& to)
 	{
-		auto delta = to.GetPose() - from.GetPose();
+		auto delta = to - from;
 		delta.theta = delta.WrapTheta();
 
 		int i = (int)round((delta.x() + offsetX) / spatialResolution);
@@ -157,10 +153,10 @@ namespace Planner {
 		}
 	}
 
-	double ObstaclesHeuristic::GetHeuristicValue(const HybridAStar::State& from, const HybridAStar::State& to)
+	double ObstaclesHeuristic::GetHeuristicValue(const Pose2d& from, const Pose2d& to)
 	{
-		auto euclidean = (to.GetPose().position - from.GetPose().position).norm();
-		auto cell = m_map->WorldPositionToGridCell(from.GetPose().position);
+		auto euclidean = (to.position - from.position).norm();
+		auto cell = m_map->WorldPositionToGridCell(from.position);
 		if (!cell.IsValid())
 			return euclidean;
 		if (!m_explored[cell.row][cell.col])

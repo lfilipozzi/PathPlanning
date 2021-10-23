@@ -38,7 +38,7 @@ endif()
 
 add_library(pathPlanning
 	${CMAKE_SOURCE_DIR}/planner/src/algo/hybrid_a_star.cpp
-	${CMAKE_SOURCE_DIR}/planner/src/algo/hybrid_a_star_heuristics.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/algo/heuristics.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/geometry/2dplane.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/geometry/reeds_shepp.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/models/kinematic_bicycle_model.cpp

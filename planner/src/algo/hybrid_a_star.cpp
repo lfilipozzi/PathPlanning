@@ -4,7 +4,7 @@
 #include "state_validator/state_validator_occupancy_map.h"
 #include "state_validator/occupancy_map.h"
 #include "state_validator/gvd.h"
-#include "algo/hybrid_a_star_heuristics.h"
+#include "algo/heuristics.h"
 #include "models/kinematic_bicycle_model.h"
 
 namespace Planner {
@@ -167,10 +167,13 @@ namespace Planner {
 		// Initialize heuristic
 		const auto reverseCost = m_stateSpace->reverseCostMultiplier;
 		const auto forwardCost = m_stateSpace->forwardCostMultiplier;
-		m_nonHoloHeuristic = NonHolonomicHeuristic::Build(m_stateSpace);
+		m_nonHoloHeuristic = NonHolonomicHeuristic::Build(m_stateSpace->bounds,
+			m_stateSpace->spatialResolution, m_stateSpace->angularResolution, m_stateSpace->minTurningRadius,
+			m_stateSpace->reverseCostMultiplier, m_stateSpace->forwardCostMultiplier, m_stateSpace->directionSwitchingCost);
 		m_obstacleHeuristic = makeRef<ObstaclesHeuristic>(m_stateValidator->GetOccupancyMap(), reverseCost, forwardCost);
-		m_heuristic = makeRef<AStarCombinedHeuristic<State>>();
-		m_heuristic->Add(m_nonHoloHeuristic, m_obstacleHeuristic);
+		auto heuristic = makeRef<AStarCombinedHeuristic<Pose2d>>();
+		heuristic->Add(m_nonHoloHeuristic, m_obstacleHeuristic);
+		m_heuristic = makeRef<HeuristicAdapter>(heuristic);
 
 		// A* search algorithm
 		m_aStarSearch = makeScope<AStar<State, State::Hash, State::Equal>>(m_stateSpace, m_heuristic);
