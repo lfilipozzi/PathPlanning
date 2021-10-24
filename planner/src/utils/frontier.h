@@ -5,12 +5,12 @@
 #include <unordered_set>
 
 namespace Planner {
-	/// @brief Implement a priority list which allows unique membership and
-	/// random access removal.
+	/// @brief Implement a priority list which allows unique membership. It 
+	/// combines the capabilities of a priority queue and a hash table.
 	/// @details The list is sorted by increasing order. A user-provided Compare
 	/// can be supplied to change the ordering, e.g. using std::greater would
 	/// cause the smallest element to appear as the top.
-	template <typename T, typename Compare = std::less<T>, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>>
+	template <typename T, typename Compare = std::less<T>, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>, typename Container = std::vector<T>>
 	class Frontier {
 	public:
 		Frontier() = default;
@@ -101,68 +101,53 @@ namespace Planner {
 		/// container for which Compare(@value, @elmt) is false.
 		/// @details Implemented using a binary search.
 		/// @return An iterator to the element.
-		typename std::vector<T>::iterator FindFirstCompareIsFalse(const T& value)
+		typename Container::iterator FindFirstCompareIsFalse(const T& value)
 		{
-			unsigned int index = 0;
-			{
-				int begin = 0;
-				int end = m_vec.size() - 1;
-				while (begin <= end) {
-					int mid = begin + (end - begin) / 2;
-
-					bool left = !m_compare(value, m_vec[mid]);
-					bool right = mid + 1 < m_vec.size() ? m_compare(value, m_vec[mid + 1]) : true;
-
-					if (left && right) {
-						index = mid + 1;
-						break;
-					} else if (!left)
-						end = mid - 1;
-					else if (!right)
-						begin = mid + 1;
+			auto begin = m_vec.begin();
+			auto end = m_vec.end();
+			auto mid = begin;
+			while (begin != end) {
+				mid = std::next(begin, std::distance(begin, end) / 2);
+				auto midNext = std::next(mid, 1);
+				if (m_compare(value, *mid))
+					end = mid;
+				else if (midNext != m_vec.end() ? !m_compare(value, *midNext) : false)
+					begin = midNext;
+				else {
+					mid = midNext;
+					break;
 				}
 			}
-
-			auto it = m_vec.begin();
-			std::advance(it, index);
-			return it;
+			return mid;
 		}
 
 		/// @brief Return an iterator to the last element @elmt in the
 		/// container for which Compare(@elmt, @value) is true.
 		/// @details Implemented using a binary search.
 		/// @return An iterator to the element.
-		typename std::vector<T>::iterator FindLastCompareIsTrue(const T& value)
+		typename Container::iterator FindLastCompareIsTrue(const T& value)
 		{
-			unsigned int index = 0;
-			{
-				int begin = 0;
-				int end = m_vec.size() - 1;
-				while (begin <= end) {
-					int mid = begin + (end - begin) / 2;
-
-					bool left = m_compare(m_vec[mid], value);
-					bool right = mid + 1 < m_vec.size() ? !m_compare(m_vec[mid + 1], value) : true;
-
-					if (left && right) {
-						index = mid;
-						break;
-					} else if (!left)
-						end = mid - 1;
-					else if (!right)
-						begin = mid + 1;
+			auto begin = m_vec.begin();
+			auto end = m_vec.end();
+			auto mid = begin;
+			while (begin != end) {
+				mid = std::next(begin, std::distance(begin, end) / 2);
+				auto midNext = std::next(mid, 1);
+				if (!m_compare(*mid, value))
+					end = mid;
+				else if (midNext != m_vec.end() ? m_compare(*midNext, value) : false)
+					begin = midNext;
+				else {
+					break;
 				}
 			}
-
-			auto it = m_vec.begin();
-			std::advance(it, index);
-			return it;
+			return mid;
 		}
 
 	private:
 		Compare m_compare;
 		KeyEqual m_keyEqual;
-		std::vector<T> m_vec;
+		Container m_vec;
 		std::unordered_set<T, Hash, KeyEqual> m_set;
 	};
 }
