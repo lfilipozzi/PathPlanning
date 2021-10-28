@@ -39,7 +39,7 @@ namespace Planner {
 		};
 	}
 
-	HybridAStar::State HybridAStar::StateSpace::CreateStateFromPath(const Ref<Path<Pose2d>>& path) const
+	HybridAStar::State HybridAStar::StateSpace::CreateStateFromPath(const Ref<PlanarPath>& path) const
 	{
 		State state;
 		state.discrete = DiscretizePose(path->GetFinalState());
@@ -84,7 +84,7 @@ namespace Planner {
 		return neighbors;
 	}
 
-	double HybridAStar::StateSpace::GetTransitionCost(const Path<Pose2d>& path) const
+	double HybridAStar::StateSpace::GetTransitionCost(const PlanarPath& path) const
 	{
 		// Path cost
 		double pathCost = path.ComputeCost(directionSwitchingCost, reverseCostMultiplier, forwardCostMultiplier);
@@ -162,7 +162,8 @@ namespace Planner {
 		}
 
 		// Initialize state-space
-		m_gvd = makeScope<GVD>(m_stateValidator->GetOccupancyMap());
+		m_gvd = makeRef<GVD>(m_stateValidator->GetOccupancyMap());
+		m_smoother = makeScope<Smoother>(m_stateValidator, m_gvd, m_stateValidator->minSafeRadius, m_stateSpace->minTurningRadius);
 
 		// Initialize heuristic
 		const auto reverseCost = m_stateSpace->reverseCostMultiplier;
@@ -205,14 +206,31 @@ namespace Planner {
 		m_aStarSearch->SetGoalState(goalState);
 		auto status = m_aStarSearch->SearchPath();
 
-		auto solutionStates = m_aStarSearch->GetPath();
-		m_path.reserve(solutionStates.size());
-		for (auto& state : solutionStates) {
-			m_path.push_back(state.GetPose()); // TODO need to change type of m_path to std::vector<Path<Pose2d>>
+		// Process path before smoothing
+		auto aStarPath = m_aStarSearch->GetPath();
+		std::vector<Smoother::State> nonSmoothPath;
+		double totalPathLength = 0;
+		for (auto& state : aStarPath)
+			totalPathLength += state.path->GetLength();
+		nonSmoothPath.reserve(totalPathLength / pathInterpolation);
+		for (auto& state : aStarPath) {
+			const auto& pathLength = state.path->GetLength();
+			double length = 0.0;
+			while (length < pathLength) {
+				nonSmoothPath.push_back({ state.path->Interpolate(length / pathLength),
+					state.path->GetDirection(length / pathLength) });
+				length += pathInterpolation;
+			}
 		}
 
 		// Smooth the path
-		// TODO smooth path with variational method
+		auto smoothPath = m_smoother->Smooth(nonSmoothPath);
+
+		// Save the result
+		m_path.reserve(smoothPath.size());
+		for (auto& state : smoothPath) {
+			m_path.push_back(state.pose);
+		}
 
 		return status;
 	}

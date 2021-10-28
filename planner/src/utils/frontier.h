@@ -5,7 +5,7 @@
 #include <unordered_set>
 
 namespace Planner {
-	/// @brief Implement a priority list which allows unique membership. It 
+	/// @brief Implement a priority list which allows unique membership. It
 	/// combines the capabilities of a priority queue and a hash table.
 	/// @details The list is sorted by increasing order. A user-provided Compare
 	/// can be supplied to change the ordering, e.g. using std::greater would

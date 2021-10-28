@@ -22,13 +22,20 @@ BOOST_PYTHON_MODULE(paths)
 		.value("NO_MOTION", Direction::NoMotion);
 
 	struct PlanarPathWrapper : PlanarPath, wrapper<PlanarPath> {
-		virtual Pose2d Interpolate(double) const override {
+		virtual Pose2d Interpolate(double) const override
+		{
 			return this->get_override("interpolate")();
 		}
-		virtual void Truncate(double) override {
+		virtual void Truncate(double) override
+		{
 			this->get_override("truncate")();
 		}
-		virtual double ComputeCost(double, double, double) const override {
+		virtual Direction GetDirection(double) const override
+		{
+			return this->get_override("get_direction")();
+		}
+		virtual double ComputeCost(double, double, double) const override
+		{
 			return this->get_override("compute_cost")();
 		}
 	};
@@ -39,9 +46,10 @@ BOOST_PYTHON_MODULE(paths)
 		.def("interpolate", pure_virtual(&PlanarPath::Interpolate))
 		.def("truncate", pure_virtual(&PlanarPath::Truncate))
 		.def("get_length", &PlanarPath::GetLength)
+		.def("get_direction", pure_virtual(&PlanarPath::GetDirection))
 		.def("compute_cost", pure_virtual(&PlanarPath::ComputeCost));
 
 	class_<PathReedsShepp, bases<PlanarPath>>("PathReedsShepp", init<Pose2d, ReedsShepp::PathSegment, double>());
-	
+
 	class_<PathConstantSteer, bases<PlanarPath>>("PathConstantSteer", init<KinematicBicycleModel*, Pose2d, double, double, Direction>());
 }

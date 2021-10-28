@@ -3,7 +3,7 @@
 
 namespace Planner {
 	PathReedsShepp::PathReedsShepp(const Pose2d& init, const ReedsShepp::PathSegment& pathSegment, double minTurningRadius) :
-		Path<Pose2d>(init, pathSegment.GetLength(minTurningRadius)),
+		PlanarPath(init, pathSegment.GetLength(minTurningRadius)),
 		m_pathSegment(pathSegment), m_minTurningRadius(minTurningRadius)
 	{
 		m_final = Interpolate(1.0);
@@ -123,6 +123,22 @@ namespace Planner {
 		}
 
 		return start + Pose2d(x, y, turnAngle);
+	}
+
+	Direction PathReedsShepp::GetDirection(double ratio) const
+	{
+		if (m_length == 0)
+			return Direction::NoMotion;
+
+		double length = 0;
+		for (const auto& motion : m_pathSegment.m_motions) {
+			if (!motion.IsValid())
+				break;
+			length += motion.length;
+			if (ratio * m_length <= length)
+				return motion.direction;
+		}
+		return Direction::NoMotion;
 	}
 
 	double PathReedsShepp::ComputeCost(double directionSwitchingCost, double reverseCostMultiplier, double forwardCostMultiplier) const

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "geometry/2dplane.h"
 #include <vector>
 
 namespace Planner {
@@ -37,4 +38,6 @@ namespace Planner {
 		Vertex m_init;
 		Vertex m_goal;
 	};
+
+	using PlanarPathPlanner = PathPlanner<Pose2d>;
 }
