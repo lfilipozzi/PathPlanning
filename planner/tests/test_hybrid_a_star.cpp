@@ -25,8 +25,14 @@ namespace Planner {
 		std::vector<Pose2d> path = hybridAStar.GetPath();
 
 		assert(!path.empty());
-		assert(stateSpace->DiscretizePose(start) == stateSpace->DiscretizePose(path.front()));
-		assert(stateSpace->DiscretizePose(goal) == stateSpace->DiscretizePose(path.back()));
+		double spatialTolerance = 1e-1;
+		double angularTolerance = 5 * M_PI / 180;
+		auto deltaStart = path.front() - start;
+		assert(deltaStart.position.norm() < spatialTolerance);
+		assert(abs(deltaStart.theta) < angularTolerance);
+		auto deltaGoal = path.back() - goal;
+		assert(deltaGoal.position.norm() < spatialTolerance);
+		assert(abs(deltaGoal.theta) < angularTolerance);
 	}
 }
 

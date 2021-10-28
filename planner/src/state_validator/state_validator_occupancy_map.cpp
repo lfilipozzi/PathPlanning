@@ -2,8 +2,8 @@
 #include "state_validator/occupancy_map.h"
 
 namespace Planner {
-	StateValidatorOccupancyMap::StateValidatorOccupancyMap(const Ref<StateSpace<Pose2d, 3, double>>& stateSpace) :
-		StateValidator<Pose2d, 3, double>(stateSpace) { }
+	StateValidatorOccupancyMap::StateValidatorOccupancyMap(const Ref<PlanarStateSpace>& stateSpace) :
+		PlanarStateValidator(stateSpace) { }
 
 	void StateValidatorOccupancyMap::SetOccupancyMap(const Ref<OccupancyMap>& map)
 	{
@@ -28,7 +28,7 @@ namespace Planner {
 		return false;
 	}
 
-	bool StateValidatorOccupancyMap::IsPathValid(const Path<Pose2d>& path, float* last)
+	bool StateValidatorOccupancyMap::IsPathValid(const PlanarPath& path, float* last)
 	{
 		const double pathLength = path.GetLength();
 

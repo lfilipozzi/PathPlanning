@@ -14,7 +14,7 @@ namespace Planner {
 	/// @details Three coordinate frames are defined. The world frame correspond
 	/// to the global frame. The local translates the global frame. The grid
 	/// frame is translated from the local frame so that the point whose
-	/// coordinate is (-width, -height) becomes the origin, where with and
+	/// coordinate is (-width/2, -height/2) becomes the origin, where with and
 	/// height are the width and height of the occupancy map.
 	class OccupancyMap {
 	public:
@@ -82,6 +82,12 @@ namespace Planner {
 		/// @overload
 		Point2d WorldPositionToLocalPosition(double x, double y) const;
 
+		/// @brief Check if the point is inside the occupancy map
+		/// @param point The point in world coordinate
+		bool IsInsideMap(const Point2d& position) const;
+		/// @overload
+		bool IsInsideMap(const GridCellPosition& cell) const;
+
 	private:
 		inline Point2d GridCellToGridPosition(const GridCellPosition& position) const
 		{
@@ -93,7 +99,9 @@ namespace Planner {
 			int row = static_cast<int>(position.x() / resolution);
 			int col = static_cast<int>(position.y() / resolution);
 
-			if (!bounded || (row >= 0 && row < m_rows && col >= 0 && col < m_columns))
+			if (!bounded)
+				return GridCellPosition(row, col);
+			else if (IsInsideMap(GridCellPosition(row, col)))
 				return GridCellPosition(row, col);
 			else
 				return GridCellPosition(-1, -1);

@@ -2,6 +2,7 @@
 
 #include "paths/path.h"
 #include "state_space/state_space.h"
+#include "geometry/2dplane.h"
 
 namespace Planner {
 
@@ -37,5 +38,11 @@ namespace Planner {
 
 	public:
 		const Ref<StateSpace<State, Dimension, T>> stateSpace;
+	};
+
+	class PlanarStateValidator : public StateValidator<Pose2d, 3, double> {
+	public:
+		PlanarStateValidator(const Ref<PlanarStateSpace>& stateSpace) :
+			StateValidator(stateSpace) { }
 	};
 }

@@ -3,8 +3,10 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 
+#include "core/base.h"
 #include "algo/path_planner.h"
 #include "algo/a_star.h"
+#include "algo/smoother.h"
 #include "geometry/2dplane.h"
 #include "state_space/state_space_reeds_shepp.h"
 
@@ -28,7 +30,7 @@ namespace Planner {
 		/// algorithm.
 		struct State {
 			/// @brief Path connecting the previous state to the current state.
-			Ref<Path<Pose2d>> path;
+			Ref<PlanarPath> path;
 			/// @brief Discretized state.
 			Pose2i discrete;
 
@@ -75,7 +77,7 @@ namespace Planner {
 			Pose2i DiscretizePose(const Pose2d& pose) const;
 
 			/// @brief Create an augmented state from a path.
-			State CreateStateFromPath(const Ref<Path<Pose2d>>& path) const;
+			State CreateStateFromPath(const Ref<PlanarPath>& path) const;
 
 			/// @brief Create an augmented state from a pose.
 			State CreateStateFromPose(Pose2d pose) const;
@@ -84,7 +86,7 @@ namespace Planner {
 			virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) override;
 
 		private:
-			double GetTransitionCost(const Path<Pose2d>& path) const;
+			double GetTransitionCost(const PlanarPath& path) const;
 
 			/// @brief Update state assuming constant steer angle and bicycle
 			/// kinematic model.
@@ -124,7 +126,7 @@ namespace Planner {
 			State m_goalState;
 		};
 
-		/// @brief Adapter heuristic A* of Pose2d to heuristic A* for 
+		/// @brief Adapter heuristic A* of Pose2d to heuristic A* for
 		/// HybrisAStar::State.
 		class HeuristicAdapter : public AStarHeuristic<State> {
 		public:
@@ -153,14 +155,19 @@ namespace Planner {
 		Ref<StateSpace>& GetStateSpace() { return m_stateSpace; }
 		Ref<StateValidatorOccupancyMap>& GetStateValidator() { return m_stateValidator; }
 
+	public:
+		/// @brief Distance to interpolate pose from the path
+		float pathInterpolation = 0.1f;
+
 	private:
 		Ref<StateSpace> m_stateSpace;
 		Ref<StateValidatorOccupancyMap> m_stateValidator;
 		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
 		Ref<ObstaclesHeuristic> m_obstacleHeuristic;
 		Ref<AStarHeuristic<State>> m_heuristic;
-		Scope<GVD> m_gvd;
+		Ref<GVD> m_gvd;
 		Scope<AStar<State, State::Hash, State::Equal>> m_aStarSearch;
+		Scope<Smoother> m_smoother;
 		std::vector<Pose2d> m_path;
 		bool isInitialized = false;
 	};

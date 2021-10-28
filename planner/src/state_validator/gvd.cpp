@@ -86,16 +86,6 @@ namespace Planner {
 		m_toProcess[s.row][s.col] = true;
 	}
 
-	float GVD::ObstacleDistanceMap::GetDistanceToNearestObstacle(int row, int col) const
-	{
-		return std::sqrt(m_distance[row][col]) * resolution;
-	}
-
-	float GVD::ObstacleDistanceMap::GetDistanceToNearestObstacle(const GridCellPosition& s) const
-	{
-		return GetDistanceToNearestObstacle(s.row, s.col);
-	}
-
 	Ref<GVD::VoronoiDistanceMap> GVD::ObstacleDistanceMap::GetVoronoiDistanceMap()
 	{
 		if (m_voronoiMap)
@@ -259,16 +249,6 @@ namespace Planner {
 		m_toProcess[s.row][s.col] = true;
 	}
 
-	float GVD::VoronoiDistanceMap::GetDistanceToNearestVoronoiEdge(int row, int col) const
-	{
-		return std::sqrt(m_distance[row][col]) * resolution;
-	}
-
-	float GVD::VoronoiDistanceMap::GetDistanceToNearestVoronoiEdge(const GridCellPosition& s) const
-	{
-		return GetDistanceToNearestVoronoiEdge(s.row, s.col);
-	}
-
 	bool GVD::VoronoiDistanceMap::IsOccupied(const GridCellPosition& s)
 	{
 		return s.IsValid() && m_edge[s.row][s.col] == s;
@@ -312,10 +292,28 @@ namespace Planner {
 		m_pathCostMap.Update(*m_obstacleMap, *m_voronoiMap);
 	}
 
+	bool GVD::GetNearestObstaclePosition(const Point2d& position, Point2d& obstacle) const
+	{
+		auto cell = m_occupancyMap->WorldPositionToGridCell(position);
+		if (!m_occupancyMap->IsInsideMap(cell))
+			return false;
+		obstacle = m_occupancyMap->GridCellToWorldPosition(GetNearestObstacleCell(cell));
+		return true;
+	}
+
+	bool GVD::GetNearestVoronoiEdgePosition(const Point2d& position, Point2d& voronoi) const
+	{
+		auto cell = m_occupancyMap->WorldPositionToGridCell(position);
+		if (!m_occupancyMap->IsInsideMap(cell))
+			return false;
+		voronoi = m_occupancyMap->GridCellToWorldPosition(GetNearestVoronoiEdgeCell(cell));
+		return true;
+	}
+
 	bool GVD::GetDistanceToNearestObstacle(const Point2d& position, float& distance) const
 	{
 		auto cell = m_occupancyMap->WorldPositionToGridCell(position);
-		if (!cell.IsValid())
+		if (!m_occupancyMap->IsInsideMap(cell))
 			return false;
 		distance = GetDistanceToNearestObstacle(cell);
 		return true;
@@ -324,7 +322,7 @@ namespace Planner {
 	bool GVD::GetDistanceToNearestVoronoiEdge(const Point2d& position, float& distance) const
 	{
 		auto cell = m_occupancyMap->WorldPositionToGridCell(position);
-		if (!cell.IsValid())
+		if (!m_occupancyMap->IsInsideMap(cell))
 			return false;
 		distance = GetDistanceToNearestVoronoiEdge(cell);
 		return true;
@@ -333,7 +331,7 @@ namespace Planner {
 	bool GVD::GetPathCost(const Point2d& position, float& cost) const
 	{
 		auto cell = m_occupancyMap->WorldPositionToGridCell(position);
-		if (!cell.IsValid())
+		if (!m_occupancyMap->IsInsideMap(cell))
 			return false;
 		cost = GetPathCost(cell);
 		return true;

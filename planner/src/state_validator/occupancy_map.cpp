@@ -112,4 +112,15 @@ namespace Planner {
 	{
 		return WorldPositionToLocalPosition({ x, y });
 	}
+
+	bool OccupancyMap::IsInsideMap(const Point2d& position) const
+	{
+		auto cell = WorldPositionToGridCell(position, true);
+		return IsInsideMap(cell);
+	}
+
+	bool OccupancyMap::IsInsideMap(const GridCellPosition& cell) const
+	{
+		return cell.row >= 0 && cell.row < m_rows && cell.col >= 0 && cell.col < m_columns;
+	}
 }
