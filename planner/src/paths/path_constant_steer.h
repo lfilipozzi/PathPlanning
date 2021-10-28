@@ -9,7 +9,7 @@ namespace Planner {
 
 	/// @brief Represent a planar path of constant steering angle using a
 	/// kinematic bicycle model.
-	class PathConstantSteer : public Path<Pose2d> {
+	class PathConstantSteer : public PlanarPath {
 	public:
 		PathConstantSteer(KinematicBicycleModel* model, const Pose2d& init, double steering = 0.0, double length = 0.0, Direction direction = Direction::Forward);
 

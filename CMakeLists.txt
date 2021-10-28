@@ -54,6 +54,8 @@ add_library(pathPlanning
 )
 target_link_libraries(pathPlanning flann ${logger_LIB})
 
+add_subdirectory(interfaces/python/src)
+
 add_executable(mainPathPlanning main.cpp)
 target_link_libraries(mainPathPlanning pathPlanning)
 

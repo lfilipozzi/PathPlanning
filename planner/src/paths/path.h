@@ -1,5 +1,7 @@
 #pragma once
 
+#include "geometry/2dplane.h"
+
 namespace Planner {
 
 	enum class Steer {
@@ -49,4 +51,6 @@ namespace Planner {
 		State m_init, m_final;
 		double m_length = 0.0;
 	};
+
+	using PlanarPath = Path<Pose2d>;
 }

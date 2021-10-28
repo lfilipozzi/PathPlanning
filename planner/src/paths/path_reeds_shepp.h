@@ -4,7 +4,7 @@
 #include "geometry/reeds_shepp.h"
 
 namespace Planner {
-	class PathReedsShepp : public Path<Pose2d> {
+	class PathReedsShepp : public PlanarPath {
 	public:
 		PathReedsShepp(const Pose2d& init, const ReedsShepp::PathSegment& pathSegment, double minTurningRadius);
 
