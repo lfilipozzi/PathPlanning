@@ -11,10 +11,10 @@ namespace Planner {
 	/// @brief Interface to sample the configuration space as required by A*
 	/// algorithms.
 	template <typename State>
-	class AStarStateSpace {
+	class AStarStatePropagator {
 	public:
-		AStarStateSpace() = default;
-		virtual ~AStarStateSpace() = default;
+		AStarStatePropagator() = default;
+		virtual ~AStarStatePropagator() = default;
 
 		/// @brief Returns a list of all neighbor positions and the transition
 		/// cost. The transition from the current state to the neighbor state must
@@ -104,7 +104,7 @@ namespace Planner {
 	public:
 		/// @brief Constructor.
 		/// @param stateSpace The configuration space.
-		AStar(const Ref<AStarStateSpace<State>>& stateSpace, const Ref<AStarHeuristic<State>>& heuristic) :
+		AStar(const Ref<AStarStatePropagator<State>>& stateSpace, const Ref<AStarHeuristic<State>>& heuristic) :
 			m_stateSpace(stateSpace), m_heuristic(heuristic) {};
 		virtual ~AStar() = default;
 
@@ -181,10 +181,11 @@ namespace Planner {
 			return path;
 		}
 
-		Ref<AStarStateSpace<State>> GetStateSpace() const { return m_stateSpace; }
+		const Ref<AStarStatePropagator<State>>& GetStatePropagator() const { return m_stateSpace; }
+		const Ref<AStarHeuristic<State>>& GetHeuristic() const { return m_heuristic; }
 
 	private:
-		Ref<AStarStateSpace<State>> m_stateSpace;
+		Ref<AStarStatePropagator<State>> m_stateSpace;
 		Ref<AStarHeuristic<State>> m_heuristic;
 
 		Scope<Node> m_rootNode;

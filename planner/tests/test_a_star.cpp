@@ -15,10 +15,10 @@ namespace Planner {
 
 	void TestAStar()
 	{
-		auto stateSpace = Planner::makeRef<AStarStateSpace2D>();
+		auto statePropagator = Planner::makeRef<AStarStatePropagator2D>();
 		auto heuristic = Planner::makeRef<Test2DHeuristic>();
 
-		Planner::AStar<Point2i> aStar(stateSpace, heuristic);
+		Planner::AStar<Point2i> aStar(statePropagator, heuristic);
 
 		Point2i start = { 0.0, 0.0 };
 		Point2i goal = { 10.0, 5.0 };

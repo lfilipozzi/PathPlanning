@@ -48,7 +48,8 @@ BOOST_PYTHON_MODULE(pyplanning)
 		.def("set_init_state", &PlanarPathPlanner::SetInitState)
 		.def("set_goal_state", &PlanarPathPlanner::SetGoalState);
 
-	class_<HybridAStar, boost::noncopyable, bases<PlanarPathPlanner>>("HybridAStar", init<Ref<HybridAStar::StateSpace>, Ref<StateValidatorOccupancyMap>>())
+	class_<HybridAStar, boost::noncopyable, bases<PlanarPathPlanner>>("HybridAStar", init<Ref<StateValidatorOccupancyMap>>())
+		.def(init<Ref<StateValidatorOccupancyMap>, HybridAStar::SearchParameters>())
 		.def("initialize", &HybridAStar::Initialize)
 		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation);
 

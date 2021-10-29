@@ -23,7 +23,7 @@ int main(int /*argc*/, char** /*argv*/)
 	PP_INIT_LOGGER;
 
 	Planner::AStar<Planner::Point2i> search(
-		Planner::makeRef<Planner::AStarStateSpace2D>(),
+		Planner::makeRef<Planner::AStarStatePropagator2D>(),
 		Planner::makeRef<Heuristic2D>());
 
 	Planner::Point2i start = { 0.0, 0.0 };
@@ -49,6 +49,7 @@ int main(int /*argc*/, char** /*argv*/)
 
 	#include "algo/hybrid_a_star.h"
 	#include "geometry/2dplane.h"
+	#include "state_space/state_space_reeds_shepp.h"
 	#include "state_validator/state_validator_occupancy_map.h"
 	#include "state_validator/binary_occupancy_map.h"
 
@@ -63,12 +64,11 @@ int main()
 	PP_INIT_LOGGER;
 
 	std::array<Pose2d, 2> bounds = { Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) };
-	Ref<HybridAStar::StateSpace> stateSpace = makeRef<HybridAStar::StateSpace>(bounds);
+	Ref<StateSpaceReedsShepp> stateSpace = makeRef<StateSpaceReedsShepp>(bounds);
 	Ref<BinaryOccupancyMap> map = makeRef<BinaryOccupancyMap>(0.1);
-	Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace);
-	stateValidator->SetOccupancyMap(map);
+	Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace, map);
 
-	HybridAStar hybridAStar(stateSpace, stateValidator);
+	HybridAStar hybridAStar(stateValidator);
 
 	Timer timer;
 	hybridAStar.Initialize();

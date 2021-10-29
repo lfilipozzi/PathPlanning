@@ -8,7 +8,6 @@
 #include "algo/a_star.h"
 #include "algo/smoother.h"
 #include "geometry/2dplane.h"
-#include "state_space/state_space_reeds_shepp.h"
 
 namespace Planner {
 
@@ -26,6 +25,29 @@ namespace Planner {
 	/// nonlinear optimization.
 	class HybridAStar : public PlanarPathPlanner {
 	public:
+		struct SearchParameters {
+			const double minTurningRadius = 1.0;
+			const double directionSwitchingCost = 0.0;
+			const double reverseCostMultiplier = 1.0;
+			const double forwardCostMultiplier = 1.0;
+			const double voronoiCostMultiplier = 1.0;
+			const unsigned int numGeneratedMotion = 5;
+			const double spatialResolution = 1.0;
+			const double angularResolution = 0.0872;
+
+			SearchParameters() = default;
+			SearchParameters(double minTurningRadius, double directionSwitchingCost,
+				double reverseCostMultiplier, double forwardCostMultiplier,
+				double voronoiCostMultiplier, unsigned int numGeneratedMotion,
+				double spatialResolution, double angularResolution) :
+				minTurningRadius(minTurningRadius),
+				directionSwitchingCost(directionSwitchingCost),
+				reverseCostMultiplier(reverseCostMultiplier), forwardCostMultiplier(forwardCostMultiplier),
+				voronoiCostMultiplier(voronoiCostMultiplier), numGeneratedMotion(numGeneratedMotion),
+				spatialResolution(spatialResolution), angularResolution(angularResolution) { }
+		};
+
+	private:
 		/// @brief Augmented state used for the A* search in the hybrid A*
 		/// algorithm.
 		struct State {
@@ -62,16 +84,12 @@ namespace Planner {
 		};
 
 		/// @brief Define the state-space used for the A* search.
-		class StateSpace : public AStarStateSpace<State>, public StateSpaceReedsShepp {
-			friend HybridAStar;
-
+		class StatePropagator : public AStarStatePropagator<State> {
 		public:
-			StateSpace(const std::array<Pose2d, 2>& bounds = { Pose2d(-100, -100, -M_PI), Pose2d(100, 100, M_PI) },
-				double spatialResolution = 1.0, double angularResolution = 0.0872,
-				unsigned int numGeneratedMotion = 5,
-				double minTurningRadius = 1.0, double directionSwitchingCost = 0.0,
-				double reverseCostMultiplier = 1.0, double forwardCostMultiplier = 1.0,
-				double voronoiCostMultiplier = 1.0);
+			StatePropagator(const SearchParameters& parameters);
+
+			void Initialize(const Ref<StateValidatorOccupancyMap>& stateValidator,
+				const Ref<AStarHeuristic<State>>& heuristic, const Ref<GVD>& gvd);
 
 			/// @brief Discretize a state.
 			Pose2i DiscretizePose(const Pose2d& pose) const;
@@ -84,6 +102,16 @@ namespace Planner {
 
 			/// @copydoc Planner::AStarStateSpace::GetNeighborStates()
 			virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) override;
+
+			/// @brief Set the goal state from the goal pose.
+			State& SetGoalState(const Pose2d& goal)
+			{
+				m_goalState = CreateStateFromPose(goal);
+				return m_goalState;
+			}
+
+			SearchParameters GetParameters() { return m_param; }
+			const SearchParameters& GetParameters() const { return m_param; }
 
 		private:
 			double GetTransitionCost(const PlanarPath& path) const;
@@ -106,21 +134,11 @@ namespace Planner {
 			/// @return Boolean to indicate if the transition is valid.
 			[[nodiscard]] bool GetReedsSheppChild(const State& state, State& child, double& cost) const;
 
-			State& SetGoalState(const Pose2d& goal)
-			{
-				m_goalState = CreateStateFromPose(goal);
-				return m_goalState;
-			}
-
-		public:
-			const double voronoiCostMultiplier;
-			const double spatialResolution, angularResolution;
-			const unsigned int numGeneratedMotion;
-
 		private:
-			StateValidatorOccupancyMap* m_validator;
-			AStarHeuristic<State>* m_heuristic;
-			GVD* m_gvd;
+			SearchParameters m_param;
+			Ref<StateValidatorOccupancyMap> m_validator;
+			Ref<AStarHeuristic<State>> m_heuristic;
+			Ref<GVD> m_gvd;
 			Ref<KinematicBicycleModel> m_model;
 			std::vector<double> m_deltas;
 			State m_goalState;
@@ -143,7 +161,8 @@ namespace Planner {
 		};
 
 	public:
-		HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidatorOccupancyMap>& stateValidator);
+		HybridAStar(const Ref<StateValidatorOccupancyMap>& validator);
+		HybridAStar(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& parameters);
 		virtual ~HybridAStar() = default;
 
 		bool Initialize();
@@ -152,19 +171,28 @@ namespace Planner {
 
 		virtual std::vector<Pose2d> GetPath() override { return m_path; }
 
-		Ref<StateSpace>& GetStateSpace() { return m_stateSpace; }
-		Ref<StateValidatorOccupancyMap>& GetStateValidator() { return m_stateValidator; }
+		Ref<StateValidatorOccupancyMap>& GetStateValidator() { return m_validator; }
+
+		SearchParameters GetSearchParameters() { return m_propagator->GetParameters(); }
+		const SearchParameters& GetSearchParameters() const
+		{
+			return const_cast<const StatePropagator&>(*m_propagator).GetParameters();
+		}
+		Smoother::Parameters GetSmootherParameters() { return m_smoother->GetParameters(); }
+		const Smoother::Parameters& GetSmootherParameters() const
+		{
+			return const_cast<const Smoother&>(*m_smoother).GetParameters();
+		}
 
 	public:
 		/// @brief Distance to interpolate pose from the path
 		float pathInterpolation = 0.1f;
 
 	private:
-		Ref<StateSpace> m_stateSpace;
-		Ref<StateValidatorOccupancyMap> m_stateValidator;
+		Ref<StateValidatorOccupancyMap> m_validator;
+		Ref<StatePropagator> m_propagator;
 		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
 		Ref<ObstaclesHeuristic> m_obstacleHeuristic;
-		Ref<AStarHeuristic<State>> m_heuristic;
 		Ref<GVD> m_gvd;
 		Scope<AStar<State, State::Hash, State::Equal>> m_aStarSearch;
 		Scope<Smoother> m_smoother;
