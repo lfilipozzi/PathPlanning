@@ -9,5 +9,5 @@ set(CMAKE_SHARED_MODULE_PREFIX "")
 add_library(pyplanning MODULE pyplanning.cpp)
 
 # Set up the libraries and header search paths for this target
-target_link_libraries(pyplanning ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
+target_link_libraries(pyplanning pathPlanning ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
 target_include_directories(pyplanning PRIVATE ${PYTHON_INCLUDE_DIRS})

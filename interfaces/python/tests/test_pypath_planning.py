@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 
 import unittest
-from pyplanning import nav
+import os, sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..','..','..','build','lib'))
+import pyplanning as nav
 
 class TestGeometry(unittest.TestCase):
 
     def test_point2d(self):
-        null
+        pass
 
     def test_pose2d(self):
-        null
+        pass
 
 if __name__ == '__main__':
     unittest.main()

@@ -21,7 +21,7 @@ BOOST_PYTHON_MODULE(pyplanning)
 	//             _                  _ _   _               
 	//       /\   | |                (_) | | |              
 	//      /  \  | | __ _  ___  _ __ _| |_| |__  _ __ ___  
-	//     / /\ \ | |/ _` |/ _ \| '__| | __| '_ \| '_ ` _ \ 
+	//     / /\ \ | |/ _` |/ _ \| '__| | __| '_ \| '_ ` _ \
 	//    / ____ \| | (_| | (_) | |  | | |_| | | | | | | | |
 	//   /_/    \_\_|\__, |\___/|_|  |_|\__|_| |_|_| |_| |_|
 	//                __/ |                                 
@@ -48,9 +48,9 @@ BOOST_PYTHON_MODULE(pyplanning)
 		.def("set_init_state", &PlanarPathPlanner::SetInitState)
 		.def("set_goal_state", &PlanarPathPlanner::SetGoalState);
 
-// 	class_<HybridAStar, boost::noncopyable, bases<PlanarPathPlanner>>("HybridAStar", init<Ref<HybridAStar::StateSpace>, Ref<StateValidatorOccupancyMap>>())
-// 		.def("initialize", &HybridAStar::Initialize)
-// 		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation);
+	class_<HybridAStar, boost::noncopyable, bases<PlanarPathPlanner>>("HybridAStar", init<Ref<HybridAStar::StateSpace>, Ref<StateValidatorOccupancyMap>>())
+		.def("initialize", &HybridAStar::Initialize)
+		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation);
 
 	//     _____                           _              
 	//    / ____|                         | |             
@@ -61,17 +61,21 @@ BOOST_PYTHON_MODULE(pyplanning)
 	//                                               __/ |
 	//                                              |___/ 
 	class_<Point2d>("Point2d")
-		.def(init<double, double>());
-// 		.def("x", &Point2d::x)
-// 		.def(self  self);
+		.def(init<double, double>())
+		.def("x", static_cast<double& (Point2d::*)()>(&Point2d::x), return_value_policy<copy_non_const_reference>())
+		.def("y", static_cast<double& (Point2d::*)()>(&Point2d::y), return_value_policy<copy_non_const_reference>())
+		.def(self + self)
+		.def(self - self)
+		.def(self == self)
+		.def(self != self);
 
 	class_<Pose2d>("Pose2d")
 		.def(init<Point2d, double>())
 		.def(init<double, double, double>())
 		.def_readwrite("position", &Pose2d::position)
 		.def_readwrite("theta", &Pose2d::theta)
-// 		.def("x", &Pose2d::x)
-// 		.def("y", &Pose2d::y)
+		.def("x", static_cast<double& (Pose2d::*)()>(&Pose2d::x), return_value_policy<copy_non_const_reference>())
+		.def("y", static_cast<double& (Pose2d::*)()>(&Pose2d::y), return_value_policy<copy_non_const_reference>())
 		.def(self + self)
 		.def(self - self)
 		.def(self == self)
@@ -81,7 +85,7 @@ BOOST_PYTHON_MODULE(pyplanning)
 	//   |  __ \    | | | |        
 	//   | |__) |_ _| |_| |__  ___ 
 	//   |  ___/ _` | __| '_ \/ __|
-	//   | |  | (_| | |_| | | \__ \ 
+	//   | |  | (_| | |_| | | \__ \
 	//   |_|   \__,_|\__|_| |_|___/
 	//                             
 	enum_<Steer>("Steer")
