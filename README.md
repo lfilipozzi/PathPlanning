@@ -4,10 +4,11 @@
 
 Build
 =========
-Dependencies are stored as submodules, to initialize:
+Some dependencies are stored as submodules, to initialize them:
 ```shell
 git submodule update --recursive --init
 ```
+The following dependencies must be installed: [flann](https://github.com/flann-lib/flann), [Eigen](https://eigen.tuxfamily.org/index.php?title=Main_Page).
 
 This project uses CMake:
 ```shell
