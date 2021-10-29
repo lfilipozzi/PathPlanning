@@ -26,14 +26,26 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/planner/src
 )
 
-find_path(flannIncludeDir "flann/flann.hpp")
-find_library(flannLibrary "flann" "/usr/lib" "/usr/local/lib")
-if(flannInclude AND flannLibrary)
-	add_library(flann INTERFACE)
-	#target_include_directories(flann INTERFACE ${flannIncludeDir})
-	#target_link_libraries(foo INTERFACE ${flannLibrary})
+message(STATUS "Finding flann libraries")
+find_library(LZ4_LIBRARIES NAMES liblz4.so HINTS "lz4/lib")
+if(LZ4_LIBRARIES)
+	message("LZ4 libraries: ${LZ4_LIBRARIES}")
 else()
-	#... # read on
+	message("LZ4 libraries: ${LZ4_LIBRARIES}")
+	message(FATAL_ERROR "Cannot find required LZ4 libraries")
+endif()
+find_path(FLANN_INCLUDE_DIR "flann/flann.hpp")
+find_library(FLANN_LIBRARIES NAMES "flann" PATHS "/usr/lib" "/usr/lib/x86_64-linux-gnu" "/usr/local/lib")
+if(FLANN_INCLUDE_DIR AND FLANN_LIBRARIES)
+	message("Flann include directory: " ${FLANN_INCLUDE_DIR})
+	message("Flann libraries: " ${FLANN_LIBRARIES})
+	add_library(flann INTERFACE)
+	target_include_directories(flann INTERFACE ${FLANN_INCLUDE_DIR})
+	target_link_libraries(flann INTERFACE ${FLANN_LIBRARIES} ${LZ4_LIBRARIES})
+else()
+	message("Flann include directory: " ${FLANN_INCLUDE_DIR})
+	message("Flann libraries: " ${FLANN_LIBRARIES})
+	message(FATAL_ERROR "Cannot find required flann libraries")
 endif()
 
 add_library(pathPlanning
