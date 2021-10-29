@@ -2,10 +2,8 @@
 #include "state_validator/occupancy_map.h"
 
 namespace Planner {
-	StateValidatorOccupancyMap::StateValidatorOccupancyMap(const Ref<PlanarStateSpace>& stateSpace) :
-		PlanarStateValidator(stateSpace) { }
-
-	void StateValidatorOccupancyMap::SetOccupancyMap(const Ref<OccupancyMap>& map)
+	StateValidatorOccupancyMap::StateValidatorOccupancyMap(const Ref<PlanarStateSpace>& stateSpace, const Ref<OccupancyMap>& map) :
+		PlanarStateValidator(stateSpace)
 	{
 		m_map = map;
 		float width = stateSpace->bounds[1].position.x() - stateSpace->bounds[0].position.x();
@@ -17,7 +15,7 @@ namespace Planner {
 	{
 		// Validate bounds
 		Pose2d localState(m_map->WorldPositionToLocalPosition(state.position), state.theta);
-		if (!stateSpace->ValidateBounds(localState))
+		if (!m_stateSpace->ValidateBounds(localState))
 			return false;
 		// Check intersection with obstacles
 		GridCellPosition cell = m_map->WorldPositionToGridCell(state.position);

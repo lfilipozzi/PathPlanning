@@ -12,8 +12,8 @@ namespace Planner {
 		return a - (a.x() * b.x() + a.y() * b.y()) * b / b.squaredNorm();
 	}
 
-	Smoother::Smoother(const Ref<StateValidatorOccupancyMap>& validator, const Ref<GVD>& gvd, float minCollisionDist, float maxCurvature) :
-		minCollisionDist(minCollisionDist), maxCurvature(maxCurvature), m_validator(validator), m_map(validator->GetOccupancyMap()), m_gvd(gvd) { }
+	Smoother::Smoother(const Ref<StateValidatorOccupancyMap>& validator, const Ref<GVD>& gvd, float maxCurvature) :
+		m_param(maxCurvature), m_validator(validator), m_map(validator->GetOccupancyMap()), m_gvd(gvd) { }
 
 	std::vector<Smoother::State> Smoother::Smooth(const std::vector<State>& path)
 	{
@@ -31,10 +31,10 @@ namespace Planner {
 
 		std::vector<State> currentPath = path;
 
-		const float unsafeRadius = minCollisionDist * (1 + collisionRatio);
+		const float unsafeRadius = m_validator->minSafeRadius * (1 + m_param.collisionRatio);
 		int count = 0;
-		float step = stepTolerance;
-		while (step >= stepTolerance && count < maxIterations) {
+		float step = m_param.stepTolerance;
+		while (step >= m_param.stepTolerance && count < m_param.maxIterations) {
 			for (int i = 2; i < num - 2; i++) {
 				// Do not modify this point if it is a cust point of if it is adjacent to a cusp point
 				if (currentPath[i - 2].direction != currentPath[i - 1].direction)
@@ -54,19 +54,19 @@ namespace Planner {
 				Point2d gradient = { 0.0, 0.0 };
 
 				// Original path term
-				gradient += pathWeight * (path[i].Position() - curr);
+				gradient += m_param.pathWeight * (path[i].Position() - curr);
 
 				if (m_map->IsInsideMap(curr)) {
 					// Collision term
 					Point2d dirToClosestObs = curr - m_map->GridCellToWorldPosition(m_gvd->GetNearestObstacleCell(m_map->WorldPositionToGridCell(curr)));
 					float obstDist = dirToClosestObs.norm();
 					if (obstDist < unsafeRadius)
-						gradient -= collisionWeight * (obstDist - unsafeRadius) * dirToClosestObs / obstDist;
+						gradient -= m_param.collisionWeight * (obstDist - unsafeRadius) * dirToClosestObs / obstDist;
 
 					// Voronoi term
 					const auto& alpha = m_gvd->alpha;
 					const auto& dMax = m_gvd->dMax;
-					if (obstDist < dMax && voronoiWeight > 0.0f) {
+					if (obstDist < dMax && m_param.voronoiWeight > 0.0f) {
 						Point2d dirToClosestVoroEdge = curr - m_map->GridCellToWorldPosition(m_gvd->GetNearestVoronoiEdgeCell(m_map->WorldPositionToGridCell(curr)));
 						float voroDist = dirToClosestVoroEdge.norm();
 
@@ -78,20 +78,20 @@ namespace Planner {
 							float pvdv = (alpha / alphaPlusObstDist) * (obstDistMinusDMax * obstDistMinusDMax / dMaxSquared) * (obstDist / (obstDistPlusVoroDist * obstDistPlusVoroDist));
 							float pvdo = (alpha / alphaPlusObstDist) * (voroDist / obstDistPlusVoroDist) * (obstDistMinusDMax / dMaxSquared) * (-obstDistMinusDMax / alphaPlusObstDist - obstDistMinusDMax / obstDistPlusVoroDist + 2);
 
-							gradient -= voronoiWeight * (pvdo * dirToClosestObs / obstDist + pvdv * dirToClosestVoroEdge / voroDist);
+							gradient -= m_param.voronoiWeight * (pvdo * dirToClosestObs / obstDist + pvdv * dirToClosestVoroEdge / voroDist);
 						}
 					}
 				}
 
 				// Smoothing term
-				gradient -= smoothWeight * (currentPath[i - 2].Position() - 4 * currentPath[i - 1].Position() + 6 * curr - 4 * currentPath[i + 1].Position() + currentPath[i + 2].Position());
+				gradient -= m_param.smoothWeight * (currentPath[i - 2].Position() - 4 * currentPath[i - 1].Position() + 6 * curr - 4 * currentPath[i + 1].Position() + currentPath[i + 2].Position());
 
 				// Curvature term
-				gradient -= curvatureWeight * CalculateCurvatureTerm(currentPath[i - 1].Position(), currentPath[i].Position(), currentPath[i + 1].Position());
+				gradient -= m_param.curvatureWeight * CalculateCurvatureTerm(currentPath[i - 1].Position(), currentPath[i].Position(), currentPath[i + 1].Position());
 
-				gradient /= collisionWeight + smoothWeight + voronoiWeight + pathWeight + curvatureWeight;
+				gradient /= m_param.collisionWeight + m_param.smoothWeight + m_param.voronoiWeight + m_param.pathWeight + m_param.curvatureWeight;
 
-				currentPath[i].Position() = curr + learningRate * gradient;
+				currentPath[i].Position() = curr + m_param.learningRate * gradient;
 
 				step = gradient.norm();
 			}
@@ -117,7 +117,7 @@ namespace Planner {
 		Point2d p1, p2;
 		dphi = acos(Maths::Clamp<float>((dxi.x() * dxip1.x() + dxi.y() * dxip1.y()) / (dxi.norm() * dxip1.norm()), -1.0f, 1.0f));
 		float k = dphi / dxi.norm();
-		if (k <= maxCurvature)
+		if (k <= m_param.maxCurvature)
 			return { 0.0, 0.0 };
 
 		ddphi = (float)(-1 / sqrt(1 - pow(cos(dphi), 2)));
@@ -133,7 +133,7 @@ namespace Planner {
 		kim1 = coeff1 * p2 + coeff2 * Point2d(1.0, 1.0);
 		kip1 = coeff1 * p1;
 
-		return (k - maxCurvature) * (0.25f * kim1 + 0.5f * ki + 0.25f * kip1);
+		return (k - m_param.maxCurvature) * (0.25f * kim1 + 0.5f * ki + 0.25f * kip1);
 	}
 
 	std::unordered_set<int> Smoother::CheckPath(const std::vector<State>& path) const

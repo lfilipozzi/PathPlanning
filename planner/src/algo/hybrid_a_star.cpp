@@ -1,6 +1,7 @@
 #include "algo/hybrid_a_star.h"
 
 #include "paths/path_constant_steer.h"
+#include "state_space/state_space_reeds_shepp.h"
 #include "state_validator/state_validator_occupancy_map.h"
 #include "state_validator/occupancy_map.h"
 #include "state_validator/gvd.h"
@@ -8,38 +9,39 @@
 #include "models/kinematic_bicycle_model.h"
 
 namespace Planner {
-	HybridAStar::StateSpace::StateSpace(const std::array<Pose2d, 2>& bounds,
-		double spatialResolution, double angularResolution,
-		unsigned int numGeneratedMotion,
-		double minTurningRadius, double directionSwitchingCost,
-		double reverseCostMultiplier, double forwardCostMultiplier,
-		double voronoiCostMultiplier) :
-		StateSpaceReedsShepp(minTurningRadius, directionSwitchingCost, reverseCostMultiplier, forwardCostMultiplier, bounds),
-		voronoiCostMultiplier(voronoiCostMultiplier),
-		spatialResolution(spatialResolution), angularResolution(angularResolution), numGeneratedMotion(numGeneratedMotion)
+	HybridAStar::StatePropagator::StatePropagator(const SearchParameters& parameters) :
+		m_param(parameters)
 	{
 		m_model = makeRef<KinematicBicycleModel>();
 
-		m_deltas.reserve(numGeneratedMotion);
-		const double deltaMax = m_model->GetSteeringAngleFromTurningRadius(minTurningRadius);
+		m_deltas.reserve(m_param.numGeneratedMotion);
+		const double deltaMax = m_model->GetSteeringAngleFromTurningRadius(m_param.minTurningRadius);
 		m_deltas.push_back(0.0);
-		for (unsigned int i = 0; i < numGeneratedMotion / 2; i++) {
+		for (unsigned int i = 0; i < m_param.numGeneratedMotion / 2; i++) {
 			double delta = (i + 1) / 2.0 * deltaMax;
 			m_deltas.push_back(delta);
 			m_deltas.push_back(-delta);
 		}
 	}
 
-	Pose2i HybridAStar::StateSpace::DiscretizePose(const Pose2d& pose) const
+	void HybridAStar::StatePropagator::Initialize(const Ref<StateValidatorOccupancyMap>& stateValidator,
+		const Ref<AStarHeuristic<State>>& heuristic, const Ref<GVD>& gvd)
+	{
+		m_validator = stateValidator;
+		m_heuristic = heuristic;
+		m_gvd = gvd;
+	}
+
+	Pose2i HybridAStar::StatePropagator::DiscretizePose(const Pose2d& pose) const
 	{
 		return {
-			static_cast<int>(pose.x() / spatialResolution),
-			static_cast<int>(pose.y() / spatialResolution),
-			static_cast<int>(pose.WrapTheta() / angularResolution),
+			static_cast<int>(pose.x() / m_param.spatialResolution),
+			static_cast<int>(pose.y() / m_param.spatialResolution),
+			static_cast<int>(pose.WrapTheta() / m_param.angularResolution),
 		};
 	}
 
-	HybridAStar::State HybridAStar::StateSpace::CreateStateFromPath(const Ref<PlanarPath>& path) const
+	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPath(const Ref<PlanarPath>& path) const
 	{
 		State state;
 		state.discrete = DiscretizePose(path->GetFinalState());
@@ -47,7 +49,7 @@ namespace Planner {
 		return state;
 	}
 
-	HybridAStar::State HybridAStar::StateSpace::CreateStateFromPose(Pose2d pose) const
+	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPose(Pose2d pose) const
 	{
 		State state;
 		state.discrete = DiscretizePose(pose);
@@ -55,7 +57,7 @@ namespace Planner {
 		return state;
 	}
 
-	std::vector<std::tuple<HybridAStar::State, double>> HybridAStar::StateSpace::GetNeighborStates(const State& state)
+	std::vector<std::tuple<HybridAStar::State, double>> HybridAStar::StatePropagator::GetNeighborStates(const State& state)
 	{
 		std::vector<std::tuple<State, double>> neighbors;
 		neighbors.reserve(2 * m_deltas.size());
@@ -84,10 +86,11 @@ namespace Planner {
 		return neighbors;
 	}
 
-	double HybridAStar::StateSpace::GetTransitionCost(const PlanarPath& path) const
+	double HybridAStar::StatePropagator::GetTransitionCost(const PlanarPath& path) const
 	{
 		// Path cost
-		double pathCost = path.ComputeCost(directionSwitchingCost, reverseCostMultiplier, forwardCostMultiplier);
+		double pathCost = path.ComputeCost(
+			m_param.directionSwitchingCost, m_param.reverseCostMultiplier, m_param.forwardCostMultiplier);
 
 		// Voronoi cost
 		float voronoiCost = 0.0;
@@ -113,12 +116,12 @@ namespace Planner {
 				PP_WARN("Requesting path cost outside of the map");
 			}
 		}
-		return pathCost + voronoiCostMultiplier * voronoiCost;
+		return pathCost + m_param.voronoiCostMultiplier * voronoiCost;
 	}
 
-	bool HybridAStar::StateSpace::GetConstantSteerChild(const State& state, double delta, Direction direction, State& child, double& cost) const
+	bool HybridAStar::StatePropagator::GetConstantSteerChild(const State& state, double delta, Direction direction, State& child, double& cost) const
 	{
-		auto path = makeRef<PathConstantSteer>(m_model.get(), state.GetPose(), delta, spatialResolution * 1.5, direction);
+		auto path = makeRef<PathConstantSteer>(m_model.get(), state.GetPose(), delta, m_param.spatialResolution * 1.5, direction);
 		child = CreateStateFromPath(path);
 
 		// Validate transition
@@ -137,9 +140,14 @@ namespace Planner {
 		return true;
 	}
 
-	bool HybridAStar::StateSpace::GetReedsSheppChild(const State& state, State& child, double& cost) const
+	bool HybridAStar::StatePropagator::GetReedsSheppChild(const State& state, State& child, double& cost) const
 	{
-		auto path = ComputeOptimalPath(state.GetPose(), m_goalState.GetPose());
+		const auto& from = state.GetPose();
+		const auto& to = m_goalState.GetPose();
+		auto pathSegment = ReedsShepp::Solver::GetOptimalPath(from, to,
+			m_param.minTurningRadius, m_param.reverseCostMultiplier,
+			m_param.forwardCostMultiplier, m_param.directionSwitchingCost);
+		auto path = makeRef<PathReedsShepp>(from, pathSegment, m_param.minTurningRadius);
 		child = CreateStateFromPath(path);
 		if (!m_validator->IsPathValid(*(child.path)))
 			return false;
@@ -149,35 +157,40 @@ namespace Planner {
 		return true;
 	}
 
-	HybridAStar::HybridAStar(const Ref<StateSpace>& stateSpace, const Ref<StateValidatorOccupancyMap>& stateValidator) :
-		m_stateSpace(stateSpace), m_stateValidator(stateValidator)
+	HybridAStar::HybridAStar(const Ref<StateValidatorOccupancyMap>& validator) :
+		HybridAStar(validator, SearchParameters()) { }
+	HybridAStar::HybridAStar(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& p) :
+		m_validator(validator)
 	{
+		m_propagator = makeRef<StatePropagator>(p);
 	}
 
 	bool HybridAStar::Initialize()
 	{
-		if (!m_stateSpace || !m_stateValidator) {
+		if (!m_validator || !m_validator->GetStateSpace()) {
 			isInitialized = false;
 			return false;
 		}
 
-		// Initialize state-space
-		m_gvd = makeRef<GVD>(m_stateValidator->GetOccupancyMap());
-		m_smoother = makeScope<Smoother>(m_stateValidator, m_gvd, m_stateValidator->minSafeRadius, m_stateSpace->minTurningRadius);
+		const auto& p = m_propagator->GetParameters();
+
+		// Initialize Voronoi field and smoother
+		m_gvd = makeRef<GVD>(m_validator->GetOccupancyMap());
+		m_smoother = makeScope<Smoother>(m_validator, m_gvd, p.minTurningRadius);
 
 		// Initialize heuristic
-		const auto reverseCost = m_stateSpace->reverseCostMultiplier;
-		const auto forwardCost = m_stateSpace->forwardCostMultiplier;
-		m_nonHoloHeuristic = NonHolonomicHeuristic::Build(m_stateSpace->bounds,
-			m_stateSpace->spatialResolution, m_stateSpace->angularResolution, m_stateSpace->minTurningRadius,
-			m_stateSpace->reverseCostMultiplier, m_stateSpace->forwardCostMultiplier, m_stateSpace->directionSwitchingCost);
-		m_obstacleHeuristic = makeRef<ObstaclesHeuristic>(m_stateValidator->GetOccupancyMap(), reverseCost, forwardCost);
-		auto heuristic = makeRef<AStarCombinedHeuristic<Pose2d>>();
-		heuristic->Add(m_nonHoloHeuristic, m_obstacleHeuristic);
-		m_heuristic = makeRef<HeuristicAdapter>(heuristic);
+		m_nonHoloHeuristic = NonHolonomicHeuristic::Build(m_validator->GetStateSpace()->bounds,
+			p.spatialResolution, p.angularResolution, p.minTurningRadius,
+			p.reverseCostMultiplier, p.forwardCostMultiplier, p.directionSwitchingCost);
+		m_obstacleHeuristic = makeRef<ObstaclesHeuristic>(
+			m_validator->GetOccupancyMap(), p.reverseCostMultiplier, p.forwardCostMultiplier);
+		auto combinedHeur = makeRef<AStarCombinedHeuristic<Pose2d>>();
+		combinedHeur->Add(m_nonHoloHeuristic, m_obstacleHeuristic);
+		auto heuristic = makeRef<HeuristicAdapter>(combinedHeur);
 
-		// A* search algorithm
-		m_aStarSearch = makeScope<AStar<State, State::Hash, State::Equal>>(m_stateSpace, m_heuristic);
+		// Initialize A* search algorithm and its state propagator
+		m_propagator->Initialize(m_validator, heuristic, m_gvd);
+		m_aStarSearch = makeScope<AStar<State, State::Hash, State::Equal>>(m_propagator, heuristic);
 
 		isInitialized = true;
 		return true;
@@ -190,18 +203,13 @@ namespace Planner {
 			return Status::Failure;
 		}
 
-		// Set members of hybrid A* state-space
-		m_stateSpace->m_validator = m_stateValidator.get();
-		m_stateSpace->m_heuristic = m_heuristic.get();
-		m_stateSpace->m_gvd = m_gvd.get();
-
 		// Update members
 		m_obstacleHeuristic->Update(this->m_goal);
 		m_gvd->Update();
 
 		// Run A* on 2D pose
-		State initState = m_stateSpace->CreateStateFromPose(this->m_init);
-		State goalState = m_stateSpace->SetGoalState(this->m_goal);
+		State initState = m_propagator->CreateStateFromPose(this->m_init);
+		State goalState = m_propagator->SetGoalState(this->m_goal);
 		m_aStarSearch->SetInitState(initState);
 		m_aStarSearch->SetGoalState(goalState);
 		auto status = m_aStarSearch->SearchPath();

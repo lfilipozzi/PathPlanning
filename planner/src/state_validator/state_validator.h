@@ -11,7 +11,7 @@ namespace Planner {
 	class StateValidator {
 	public:
 		StateValidator(const Ref<StateSpace<State, Dimension, T>>& stateSpace) :
-			stateSpace(stateSpace) { }
+			m_stateSpace(stateSpace) { }
 		virtual ~StateValidator() = default;
 
 		/// @brief Check if a state is valid.
@@ -36,8 +36,11 @@ namespace Planner {
 			return validated;
 		}
 
-	public:
-		const Ref<StateSpace<State, Dimension, T>> stateSpace;
+		Ref<StateSpace<State, Dimension, T>>& GetStateSpace() { return m_stateSpace; }
+		const Ref<StateSpace<State, Dimension, T>>& GetStateSpace() const { return m_stateSpace; }
+
+	protected:
+		Ref<StateSpace<State, Dimension, T>> m_stateSpace;
 	};
 
 	class PlanarStateValidator : public StateValidator<Pose2d, 3, double> {

@@ -66,7 +66,7 @@ namespace Planner {
 			m_stateSpace(stateSpace) {};
 		virtual ~RRTStar() = default;
 
-		RRTStarParameters& GetParameters() { return m_parameters; }
+		RRTStarParameters GetParameters() { return m_parameters; }
 		const RRTStarParameters& GetParameters() const { return m_parameters; }
 		void SetParameters(const RRTStarParameters& params) { m_parameters = params; }
 

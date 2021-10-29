@@ -4,7 +4,7 @@
 #include "algo/a_star.h"
 
 namespace Planner {
-	class AStarStateSpace2D : public AStarStateSpace<Point2i> {
+	class AStarStatePropagator2D : public AStarStatePropagator<Point2i> {
 	public:
 		virtual std::vector<std::tuple<Point2i, double>> GetNeighborStates(const Point2i& state) override
 		{
