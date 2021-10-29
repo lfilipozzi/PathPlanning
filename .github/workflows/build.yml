@@ -20,8 +20,8 @@ jobs:
         
     - name: Install Linux Dependencies
       run: |
-        sudo apt update
-        sudo apt install libflann-dev libeigen3-dev
+        sudo apt update -yq
+        sudo apt install -yq cmake libflann-dev libeigen3-dev
 
     - name: Create Build Directory
       run: |
@@ -30,21 +30,18 @@ jobs:
 
     - name: Configure CMake
       shell: bash
-      working-directory: ${{github.workspace}}
+      working-directory: ${{github.workspace}}/build
       run: | 
-        cd build
         cmake ${{github.workspace}} -DCMAKE_BUILD_TYPE="${{env.BUILD_TYPE}}"
 
     - name: Build
-      working-directory: ${{github.workspace}}
+      working-directory: ${{github.workspace}}/build
       shell: bash
       run: | 
-        cd build
         cmake --build . --config "${{env.BUILD_TYPE}}"
 
     - name: Test
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: |
-        cd build
         ctest -C "${{env.BUILD_TYPE}}"

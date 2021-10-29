@@ -1,5 +1,7 @@
 #pragma once
 
+#include "geometry/2dplane.h"
+
 namespace Planner {
 
 	enum class Steer {
@@ -37,6 +39,9 @@ namespace Planner {
 		/// @brief Return the length of the path.
 		double GetLength() const { return m_length; }
 
+		/// @brief Return the direction of the path
+		virtual Direction GetDirection(double ratio) const = 0;
+
 		/// @brief Compute the cost associated to the path.
 		/// @details The cost penalizes the distance traveled with a cost
 		/// multiplier @forwardCostMultiplier for forward motion, and
@@ -49,4 +54,6 @@ namespace Planner {
 		State m_init, m_final;
 		double m_length = 0.0;
 	};
+
+	using PlanarPath = Path<Pose2d>;
 }
