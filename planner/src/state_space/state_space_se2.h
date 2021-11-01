@@ -9,7 +9,7 @@ namespace Planner {
 	/// @brief Configuration space in the special Euclidean group SE(2).
 	class StateSpaceSE2 : public PlanarStateSpace {
 	public:
-		StateSpaceSE2(std::array<Pose2d, 2> bounds = { Pose2d(-100, -100, -M_PI), Pose2d(100, 100, M_PI) }) :
+		StateSpaceSE2(const std::array<Pose2d, 2>& bounds = { Pose2d(-100, -100, -M_PI), Pose2d(100, 100, M_PI) }) :
 			PlanarStateSpace(bounds) { }
 		~StateSpaceSE2() = default;
 

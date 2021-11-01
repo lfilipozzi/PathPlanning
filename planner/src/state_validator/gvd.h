@@ -20,8 +20,8 @@ namespace Planner {
 		class VoronoiDistanceMap;
 
 		/// @brief Store map of distance to nearest obstacle.
-		/// @details Given a binary occupancy matrix @occupancy, the class
-		/// allows to find the distance to the closest obstacle.
+		/// @details Given an occupancy matrix @occupancy, this class allows to
+		/// find the distance to the closest obstacle.
 		class ObstacleDistanceMap {
 			friend class GVD;
 

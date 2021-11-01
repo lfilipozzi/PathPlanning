@@ -37,7 +37,6 @@ namespace Planner {
 		}
 
 		Ref<StateSpace<State, Dimension, T>>& GetStateSpace() { return m_stateSpace; }
-		const Ref<StateSpace<State, Dimension, T>>& GetStateSpace() const { return m_stateSpace; }
 
 	protected:
 		Ref<StateSpace<State, Dimension, T>> m_stateSpace;

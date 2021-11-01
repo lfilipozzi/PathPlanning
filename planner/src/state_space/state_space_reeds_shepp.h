@@ -6,7 +6,7 @@
 namespace Planner {
 	class StateSpaceReedsShepp : public PlanarStateSpace {
 	public:
-		StateSpaceReedsShepp(std::array<Pose2d, 2> bounds = { Pose2d(-100, -100, -M_PI), Pose2d(100, 100, M_PI) },
+		StateSpaceReedsShepp(const std::array<Pose2d, 2>& bounds = { Pose2d(-100, -100, -M_PI), Pose2d(100, 100, M_PI) },
 			double minTurningRadius = 1.0) :
 			PlanarStateSpace(bounds),
 			minTurningRadius(minTurningRadius) { }
