@@ -15,7 +15,7 @@ namespace Planner {
 	class StateSpace {
 
 	public:
-		StateSpace(std::array<State, 2> bounds) :
+		StateSpace(const std::array<State, 2>& bounds) :
 			bounds(bounds)
 		{
 			Random<T>::Init();
@@ -66,7 +66,7 @@ namespace Planner {
 	/// @brief Planar state space
 	class PlanarStateSpace : public StateSpace<Pose2d, 3, double> {
 	public:
-		PlanarStateSpace(std::array<Pose2d, 2> bounds) :
+		PlanarStateSpace(const std::array<Pose2d, 2>& bounds) :
 			StateSpace(bounds) { }
 		virtual ~PlanarStateSpace() = default;
 

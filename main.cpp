@@ -51,7 +51,7 @@ int main(int /*argc*/, char** /*argv*/)
 	#include "geometry/2dplane.h"
 	#include "state_space/state_space_reeds_shepp.h"
 	#include "state_validator/state_validator_occupancy_map.h"
-	#include "state_validator/binary_occupancy_map.h"
+	#include "state_validator/obstacle_list_occupancy_map.h"
 
 	#define _USE_MATH_DEFINES
 	#include <cmath>
@@ -65,7 +65,7 @@ int main()
 
 	std::array<Pose2d, 2> bounds = { Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) };
 	Ref<StateSpaceReedsShepp> stateSpace = makeRef<StateSpaceReedsShepp>(bounds);
-	Ref<BinaryOccupancyMap> map = makeRef<BinaryOccupancyMap>(0.1);
+	Ref<ObstacleListOccupancyMap> map = makeRef<ObstacleListOccupancyMap>(0.1);
 	Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace, map);
 
 	HybridAStar hybridAStar(stateValidator);
@@ -141,7 +141,7 @@ int main()
 
 #elif MODE == 4
 
-	#include "state_validator/binary_occupancy_map.h"
+	#include "state_validator/obstacle_list_occupancy_map.h"
 	#include "state_validator/obstacle.h"
 	#include "state_validator/gvd.h"
 	#include "algo/heuristics.h"
@@ -155,7 +155,7 @@ int main()
 	float width = 5;
 	float height = 5;
 	float resolution = width / 300;
-	auto map = makeRef<BinaryOccupancyMap>(resolution);
+	auto map = makeRef<ObstacleListOccupancyMap>(resolution);
 	map->InitializeSize(width, height);
 	map->SetPosition({ 0.0, 0.0 });
 	GVD gvd(map);

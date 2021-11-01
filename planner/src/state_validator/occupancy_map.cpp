@@ -17,42 +17,6 @@ namespace Planner {
 		m_obstacleDistanceMap->Update();
 	}
 
-	unsigned int FindSmallestIDAvailable(const std::set<unsigned int>& IDs)
-	{
-		constexpr int smallestAllowedID = 0;
-		if (IDs.empty())
-			return smallestAllowedID;
-		if (*IDs.begin() > smallestAllowedID)
-			return smallestAllowedID;
-		else {
-			auto res = std::adjacent_find(IDs.begin(), IDs.end(), [](unsigned int a, unsigned int b) { return a + 1 != b; });
-			if (res == IDs.end())
-				return *IDs.rbegin() + 1;
-			else
-				return *res + 1;
-		}
-	}
-
-	bool OccupancyMap::AddObstacle(const Ref<Obstacle>& obstacle)
-	{
-		auto id = FindSmallestIDAvailable(m_obstacleIDs);
-		if (m_obstacles.insert({ obstacle, id }).second) {
-			m_obstacleIDs.insert(id);
-			return true;
-		}
-		return false;
-	}
-
-	bool OccupancyMap::RemoveObstacle(const Ref<Obstacle>& obstacle)
-	{
-		auto it = m_obstacles.find(obstacle);
-		if (it == m_obstacles.end())
-			return false;
-		m_obstacleIDs.erase(it->second);
-		m_obstacles.erase(it);
-		return true;
-	}
-
 	Point2d OccupancyMap::GridCellToLocalPosition(const GridCellPosition& position) const
 	{
 		return m_gridOrigin + GridCellToGridPosition(position);

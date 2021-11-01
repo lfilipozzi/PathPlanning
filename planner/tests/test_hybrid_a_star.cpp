@@ -3,14 +3,14 @@
 #include "geometry/2dplane.h"
 #include "state_space/state_space_reeds_shepp.h"
 #include "state_validator/state_validator_occupancy_map.h"
-#include "state_validator/binary_occupancy_map.h"
+#include "state_validator/obstacle_list_occupancy_map.h"
 
 namespace Planner {
 	void TestHybridAStar()
 	{
 		std::array<Pose2d, 2> bounds = { Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) };
 		Ref<StateSpaceReedsShepp> stateSpace = makeRef<StateSpaceReedsShepp>(bounds);
-		Ref<BinaryOccupancyMap> map = makeRef<BinaryOccupancyMap>(0.1);
+		Ref<ObstacleListOccupancyMap> map = makeRef<ObstacleListOccupancyMap>(0.1);
 		Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace, map);
 
 		HybridAStar hybridAStar(stateValidator);

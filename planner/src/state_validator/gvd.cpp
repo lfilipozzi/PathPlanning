@@ -374,10 +374,15 @@ namespace Planner {
 			return;
 		}
 
-		const int numObstacles = m_occupancyMap->GetNumObstacles();
-
 		const auto& sizeX = rows;
 		const auto& sizeY = columns;
+		int numObstacles = 0;
+		for (int x = 0; x < sizeX; x++) {
+			for (int y = 0; y < sizeY; y++) {
+				numObstacles = std::max(numObstacles, m_occupancyMap->GetOccupancyValue(x, y));
+			}
+		}
+
 		fprintf(F, "P6\n#\n");
 		fprintf(F, "%d %d\n255\n", sizeX, sizeY);
 		for (int y = sizeY - 1; y >= 0; y--) {

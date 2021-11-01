@@ -60,7 +60,7 @@ add_library(pathPlanning
 	${CMAKE_SOURCE_DIR}/planner/src/state_space/state_space.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/gvd.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/obstacle.cpp
-	${CMAKE_SOURCE_DIR}/planner/src/state_validator/binary_occupancy_map.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/state_validator/obstacle_list_occupancy_map.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/occupancy_map.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/state_validator_occupancy_map.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/utils/grid.cpp
