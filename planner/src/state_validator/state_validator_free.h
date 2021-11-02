@@ -16,7 +16,7 @@ namespace Planner {
 		virtual bool IsStateValid(const State& state) override
 		{
 			// Validate bounds
-			if (!this->stateSpace->ValidateBounds(state))
+			if (!this->m_stateSpace->ValidateBounds(state))
 				return false;
 			return true;
 		}
@@ -29,4 +29,6 @@ namespace Planner {
 			return true;
 		}
 	};
+
+	using PlanarStateValidatorFree = StateValidatorFree<Pose2d, 3, double>;
 }
