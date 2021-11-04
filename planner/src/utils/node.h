@@ -33,6 +33,45 @@ namespace Planner {
 		const GenericNode* GetParent() const { return m_parent; }
 		GenericNode* GetParent() { return m_parent; }
 
+		/// @brief Return the children of the node.
+		/// @return The children of the node.
+		const std::vector<Scope<GenericNode>>& GetChildren() const { return m_children; }
+
+		/// @brief Return the previous sibling of the node.
+		/// @return The previous sibling of the node.
+		const GenericNode* GetPrevious() const
+		{
+			if (m_parent == nullptr)
+				return nullptr;
+			auto& siblings = m_parent->m_children;
+			auto it = std::find_if(siblings.begin(), siblings.end(), [this](const Scope<GenericNode>& object ) { return object.get() == this; });
+			if (it == siblings.begin())
+				return nullptr;
+			return (--it)->get();
+		}
+
+		/// @brief Return the next sibling of the node.
+		/// @return The next sibling of the node.
+		const GenericNode* GetNext() const
+		{
+			if (m_parent == nullptr)
+				return nullptr;
+			auto& siblings = m_parent->m_children;
+			auto it = std::find_if(siblings.rbegin(), siblings.rend(), [this](const Scope<GenericNode>& object ) { return object.get() == this; });
+			if (it == siblings.rbegin())
+				return nullptr;
+			return (--it)->get();
+		}
+
+		/// @brief Return the first children of the node.
+		/// @return The first children of the node.
+		const GenericNode* GetFirst() const
+		{
+			if (m_children.empty())
+				return nullptr;
+			return m_children[0].get();
+		}
+
 		/// @brief Return the state of the node.
 		/// @return The state of the node.
 		const State& GetState() const { return m_state; }

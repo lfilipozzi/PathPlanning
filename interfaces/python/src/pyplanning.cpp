@@ -28,14 +28,21 @@
 using namespace boost::python;
 using namespace Planner;
 
-#define INSTANTIATE_STD_VECTOR_TO_PYTHON_LIST(Type)                       \
+#define INSTANTIATE_PYTHON_STD_VECTOR(Type)                       \
 	class_<std::vector<Type>>(("StdVector" + std::string(#Type)).c_str()) \
 		.def(vector_indexing_suite<std::vector<Type>>());
+
+void Initialize()
+{
+	PP_INIT_LOGGER;
+}
 
 BOOST_PYTHON_MODULE(pyplanning)
 {
 
-	PP_FOR_EACH(INSTANTIATE_STD_VECTOR_TO_PYTHON_LIST, Pose2d, Point2d);
+	PP_FOR_EACH(INSTANTIATE_PYTHON_STD_VECTOR, Pose2d, Point2d);
+
+	def("initialize", &Initialize);
 
 	//             _                  _ _   _
 	//       /\   | |                (_) | | |
@@ -70,7 +77,8 @@ BOOST_PYTHON_MODULE(pyplanning)
 	class_<HybridAStar, boost::noncopyable, bases<PlanarPathPlanner>>("HybridAStar", init<Ref<StateValidatorOccupancyMap>>())
 		.def(init<Ref<StateValidatorOccupancyMap>, HybridAStar::SearchParameters>())
 		.def("initialize", &HybridAStar::Initialize)
-		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation);
+		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation)
+		.def("visualize_obstacle_heuristic", &HybridAStar::VisualizeObstacleHeuristic);
 
 	//     _____                           _
 	//    / ____|                         | |

@@ -160,6 +160,8 @@ namespace Planner {
 			Ref<AStarHeuristic<Pose2d>> m_heuristic;
 		};
 
+		using AStarDeclType = AStar<State, State::Hash, State::Equal>;
+
 	public:
 		HybridAStar(const Ref<StateValidatorOccupancyMap>& validator);
 		HybridAStar(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& parameters);
@@ -184,6 +186,13 @@ namespace Planner {
 			return const_cast<const Smoother&>(*m_smoother).GetParameters();
 		}
 
+		void VisualizeObstacleHeuristic(const std::string& filename) const;
+
+		Scope<GenericNode<Pose2d>> GetTree() const;
+
+	private:
+		Scope<GenericNode<Pose2d>> CopySubTreeOfPose(const AStarDeclType::Node* src) const;
+
 	public:
 		/// @brief Distance to interpolate pose from the path
 		float pathInterpolation = 0.1f;
@@ -194,7 +203,7 @@ namespace Planner {
 		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
 		Ref<ObstaclesHeuristic> m_obstacleHeuristic;
 		Ref<GVD> m_gvd;
-		Scope<AStar<State, State::Hash, State::Equal>> m_aStarSearch;
+		Scope<AStarDeclType> m_aStarSearch;
 		Scope<Smoother> m_smoother;
 		std::vector<Pose2d> m_path;
 		bool isInitialized = false;

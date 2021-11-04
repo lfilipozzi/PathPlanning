@@ -190,7 +190,7 @@ namespace Planner {
 
 		// Initialize A* search algorithm and its state propagator
 		m_propagator->Initialize(m_validator, heuristic, m_gvd);
-		m_aStarSearch = makeScope<AStar<State, State::Hash, State::Equal>>(m_propagator, heuristic);
+		m_aStarSearch = makeScope<AStarDeclType>(m_propagator, heuristic);
 
 		isInitialized = true;
 		return true;
@@ -214,32 +214,61 @@ namespace Planner {
 		m_aStarSearch->SetGoalState(goalState);
 		auto status = m_aStarSearch->SearchPath();
 
-		// Process path before smoothing
-		auto aStarPath = m_aStarSearch->GetPath();
-		std::vector<Smoother::State> nonSmoothPath;
-		double totalPathLength = 0;
-		for (auto& state : aStarPath)
-			totalPathLength += state.path->GetLength();
-		nonSmoothPath.reserve(totalPathLength / pathInterpolation);
-		for (auto& state : aStarPath) {
-			const auto& pathLength = state.path->GetLength();
-			double length = 0.0;
-			while (length < pathLength) {
-				nonSmoothPath.push_back({ state.path->Interpolate(length / pathLength),
-					state.path->GetDirection(length / pathLength) });
-				length += pathInterpolation;
-			}
-		}
-
-		// Smooth the path
-		auto smoothPath = m_smoother->Smooth(nonSmoothPath);
+		// FIXME uncomment
+// 		// Process path before smoothing
+// 		auto aStarPath = m_aStarSearch->GetPath();
+// 		std::vector<Smoother::State> nonSmoothPath;
+// 		double totalPathLength = 0;
+// 		for (auto& state : aStarPath)
+// 			totalPathLength += state.path->GetLength();
+// 		nonSmoothPath.reserve(totalPathLength / pathInterpolation);
+// 		for (auto& state : aStarPath) {
+// 			const auto& pathLength = state.path->GetLength();
+// 			double length = 0.0;
+// 			while (length < pathLength) {
+// 				nonSmoothPath.push_back({ state.path->Interpolate(length / pathLength),
+// 					state.path->GetDirection(length / pathLength) });
+// 				length += pathInterpolation;
+// 			}
+// 		}
+// 
+// 		// Smooth the path
+// 		auto smoothPath = m_smoother->Smooth(nonSmoothPath);
 
 		// Save the result
-		m_path.reserve(smoothPath.size());
-		for (auto& state : smoothPath) {
-			m_path.push_back(state.pose);
+// 		m_path.reserve(smoothPath.size());
+// 		for (auto& state : smoothPath) {
+// 			m_path.push_back(state.pose);
+// 		}
+		auto aStarPath = m_aStarSearch->GetPath();
+		for (auto& state : aStarPath) {
+			m_path.push_back(state.GetPose());
 		}
 
 		return status;
+	}
+
+	void HybridAStar::VisualizeObstacleHeuristic(const std::string& filename) const
+	{
+		m_obstacleHeuristic->Visualize(filename);
+	}
+
+	Scope<GenericNode<Pose2d>> HybridAStar::CopySubTreeOfPose(const AStarDeclType::Node* src) const
+	{
+		auto copy = makeScope<GenericNode<Pose2d>>(src->GetState().GetPose());
+		for (auto& child : src->GetChildren()) {
+			copy->AddChild(CopySubTreeOfPose(child.get()));
+		}
+		return copy;
+	}
+
+	Scope<GenericNode<Pose2d>> HybridAStar::GetTree() const
+	{
+		const auto srcRootNode = m_aStarSearch->GetTree();
+		Scope<GenericNode<Pose2d>> copyRootNode;
+		if (!srcRootNode)
+			return copyRootNode;
+		copyRootNode = CopySubTreeOfPose(srcRootNode);
+		return copyRootNode;
 	}
 }

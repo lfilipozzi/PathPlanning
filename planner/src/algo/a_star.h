@@ -72,7 +72,7 @@ namespace Planner {
 	class AStar : public PathPlanner<State> {
 		static_assert(std::is_copy_constructible<State>::value);
 
-	private:
+	public:
 		/// @brief Node metadata used by A* star.
 		struct NodeMetadata {
 			double pathCost = 0;
@@ -80,6 +80,7 @@ namespace Planner {
 		};
 		using Node = GenericNode<State, NodeMetadata>;
 
+	private:
 		struct CompareNode {
 			bool operator()(Node* lhs, Node* rhs) const
 			{
@@ -103,9 +104,9 @@ namespace Planner {
 
 	public:
 		/// @brief Constructor.
-		/// @param stateSpace The configuration space.
-		AStar(const Ref<AStarStatePropagator<State>>& stateSpace, const Ref<AStarHeuristic<State>>& heuristic) :
-			m_stateSpace(stateSpace), m_heuristic(heuristic) {};
+		/// @param Propagator The state-space propagator.
+		AStar(const Ref<AStarStatePropagator<State>>& propagator, const Ref<AStarHeuristic<State>>& heuristic) :
+			m_propagator(propagator), m_heuristic(heuristic) {};
 		virtual ~AStar() = default;
 
 		virtual Status SearchPath() override
@@ -135,7 +136,7 @@ namespace Planner {
 
 				explored.insert(node->GetState());
 
-				for (auto [childState, transitionCost] : m_stateSpace->GetNeighborStates(node->GetState())) {
+				for (auto [childState, transitionCost] : m_propagator->GetNeighborStates(node->GetState())) {
 					// Create the child node
 					Scope<Node> childScope = makeScope<Node>(childState);
 					Node* child = childScope.get();
@@ -181,11 +182,13 @@ namespace Planner {
 			return path;
 		}
 
-		const Ref<AStarStatePropagator<State>>& GetStatePropagator() const { return m_stateSpace; }
+		const Node* GetTree() const { return m_rootNode.get(); }
+
+		const Ref<AStarStatePropagator<State>>& GetStatePropagator() const { return m_propagator; }
 		const Ref<AStarHeuristic<State>>& GetHeuristic() const { return m_heuristic; }
 
 	private:
-		Ref<AStarStatePropagator<State>> m_stateSpace;
+		Ref<AStarStatePropagator<State>> m_propagator;
 		Ref<AStarHeuristic<State>> m_heuristic;
 
 		Scope<Node> m_rootNode;
