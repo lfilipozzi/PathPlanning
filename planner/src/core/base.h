@@ -42,11 +42,9 @@ namespace Planner {
 #define PP_INTERNAL_FOR_EACH_NARG_(...) PP_INTERNAL_FOR_EACH_ARG_N(__VA_ARGS__)
 #define PP_INTERNAL_FOR_EACH_ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, N, ...) N
 #define PP_INTERNAL_FOR_EACH_RSEQ_N() 8, 7, 6, 5, 4, 3, 2, 1, 0
-// clang-format on
-#define PP_INTERNAL_FOR_EACH_(N, WHAT, ...) \
-	PP_CONCATENATE(PP_INTERNAL_FOR_EACH_, N)   \
-	(WHAT, __VA_ARGS__)
+#define PP_INTERNAL_FOR_EACH_(N, WHAT, ...) PP_CONCATENATE(PP_INTERNAL_FOR_EACH_, N) (WHAT, __VA_ARGS__)
 #define PP_FOR_EACH(WHAT, ...) PP_INTERNAL_FOR_EACH_(PP_INTERNAL_FOR_EACH_NARG(__VA_ARGS__), WHAT, __VA_ARGS__)
+// clang-format on
 
 // Platform detection
 #include "core/platform_detection.h"

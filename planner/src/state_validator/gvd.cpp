@@ -387,20 +387,30 @@ namespace Planner {
 		fprintf(F, "%d %d\n255\n", sizeX, sizeY);
 		for (int y = sizeY - 1; y >= 0; y--) {
 			for (int x = 0; x < sizeX; x++) {
+				// Obstacle
 				if (m_occupancyMap->IsOccupied({ x, y })) {
-					// Obstacle
 					fputc(0, F);
 					fputc(0, F);
 					fputc(0, F);
+					continue;
+				}
+				// Path cost map
+				auto obstacleCell = m_obstacleMap->m_obstacle[x][y];
+				if (!obstacleCell.IsValid()) {
+					// Empty map
+					fputc(0, F);
+					fputc(0, F);
+					fputc(0, F);
+					continue;
 				} else {
-					// Path cost map
-					float h = (m_occupancyMap->GetOccupancyValue(m_obstacleMap->m_obstacle[x][y])) / (float)(numObstacles + 1);
+					float h = m_occupancyMap->GetOccupancyValue(obstacleCell) / (float)(numObstacles + 1);
 					float l = (1.0 - m_pathCostMap[x][y]);
 					l = std::max(0.0f, std::min(l, 1.0f));
 					auto [r, g, b] = HSVToRGB(h, 1.0f, l);
 					fputc((unsigned char)r, F);
 					fputc((unsigned char)g, F);
 					fputc((unsigned char)b, F);
+					continue;
 				}
 			}
 		}

@@ -68,6 +68,8 @@ namespace Planner {
 		Grid(int rows, int columns, const T& val) :
 			rows(rows), columns(columns)
 		{
+			PP_ASSERT(rows > 0 && columns > 0, "Invalid grid size");
+
 			m_data = new T*[rows];
 			for (unsigned int i = 0; i < rows; ++i) {
 				m_data[i] = new T[columns];

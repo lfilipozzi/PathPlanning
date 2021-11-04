@@ -20,6 +20,8 @@ namespace Planner {
 		{
 			Random<T>::Init();
 		}
+		StateSpace(const State& lb, const State& ub) :
+			StateSpace({ lb, ub }) { }
 		virtual ~StateSpace() = default;
 
 		/// @brief Compute the distance between two states.
@@ -68,6 +70,8 @@ namespace Planner {
 	public:
 		PlanarStateSpace(const std::array<Pose2d, 2>& bounds) :
 			StateSpace(bounds) { }
+		PlanarStateSpace(const Pose2d& lb, const Pose2d& ub) :
+			PlanarStateSpace(std::array<Pose2d, 2>({ lb, ub })) { }
 		virtual ~PlanarStateSpace() = default;
 
 		/// @copydoc StateSpace::EnforceBounds

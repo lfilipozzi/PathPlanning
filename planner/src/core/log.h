@@ -4,6 +4,7 @@
 
 	#include "core/base.h"
 	#include <spdlog/spdlog.h>
+	#include <memory>
 
 namespace Planner {
 
@@ -12,11 +13,11 @@ namespace Planner {
 	public:
 		static void Init();
 
-		inline static Ref<spdlog::logger>& GetLogger() { return s_logger; }
+		inline static std::shared_ptr<spdlog::logger>& GetLogger() { return s_logger; }
 
 	private:
 		static bool s_initialized;
-		static Ref<spdlog::logger> s_logger;
+		static std::shared_ptr<spdlog::logger> s_logger;
 	};
 
 }

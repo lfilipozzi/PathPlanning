@@ -35,7 +35,7 @@ using namespace Planner;
 BOOST_PYTHON_MODULE(pyplanning)
 {
 
-	PP_FOR_EACH(INSTANTIATE_STD_VECTOR_TO_PYTHON_LIST, Pose2d);
+	PP_FOR_EACH(INSTANTIATE_STD_VECTOR_TO_PYTHON_LIST, Pose2d, Point2d);
 
 	//             _                  _ _   _
 	//       /\   | |                (_) | | |
@@ -164,23 +164,28 @@ BOOST_PYTHON_MODULE(pyplanning)
 	struct PlanarStateSpaceWrapper : PlanarStateSpace, wrapper<PlanarStateSpace> {
 		PlanarStateSpaceWrapper(const std::array<Pose2d, 2>& bounds) :
 			PlanarStateSpace(bounds) { }
+		PlanarStateSpaceWrapper(const Pose2d& lb, const Pose2d& ub) :
+			PlanarStateSpace(lb, ub) { }
 		virtual double ComputeDistance(const Pose2d&, const Pose2d&) override
 		{
 			return this->get_override("compute_distance")();
 		}
 	};
 
-	class_<PlanarStateSpaceWrapper, boost::noncopyable>("PlanarStateSpace", init<const std::array<Pose2d, 2>&>())
+	class_<PlanarStateSpaceWrapper, Ref<PlanarStateSpaceWrapper>, boost::noncopyable>("PlanarStateSpace", init<const std::array<Pose2d, 2>&>())
+		.def(init<const Pose2d&, const Pose2d&>())
 		.def("compute_distance)", pure_virtual(&PlanarStateSpace::ComputeDistance))
 		.def("enforce_bounds", &PlanarStateSpace::EnforceBounds)
 		.def("validate_bounds", &PlanarStateSpace::ValidateBounds)
 		.def("sample_uniform", &PlanarStateSpace::SampleUniform)
 		.def("sample_gaussian", &PlanarStateSpace::SampleGaussian);
 
-	class_<StateSpaceReedsShepp, bases<PlanarStateSpace>>("StateSpaceReedsShepp", init<const std::array<Pose2d, 2>&, double>())
+	class_<StateSpaceReedsShepp, Ref<StateSpaceReedsShepp>, bases<PlanarStateSpace>>("StateSpaceReedsShepp", init<const std::array<Pose2d, 2>&, double>())
+		.def(init<const Pose2d&, const Pose2d&>())
 		.def_readonly("min_turning_radius", &StateSpaceReedsShepp::minTurningRadius);
 
-	class_<StateSpaceSE2, bases<PlanarStateSpace>>("StateSpaceSE2", init<const std::array<Pose2d, 2>&>());
+	class_<StateSpaceSE2, Ref<StateSpaceSE2>, bases<PlanarStateSpace>>("StateSpaceSE2", init<const std::array<Pose2d, 2>&>())
+		.def(init<const Pose2d&, const Pose2d&>());
 
 	//   __      __   _ _     _       _
 	//   \ \    / /  | (_)   | |     | |
@@ -209,7 +214,7 @@ BOOST_PYTHON_MODULE(pyplanning)
 		}
 	};
 
-	class_<OccupancyMapWrapper, boost::noncopyable>("OccupancyMap", init<float>())
+	class_<OccupancyMapWrapper, Ref<OccupancyMapWrapper>, boost::noncopyable>("OccupancyMap", init<float>())
 		.def("rows", &OccupancyMap::Rows)
 		.def("columns", &OccupancyMap::Columns)
 		.def("update", &OccupancyMap::Update, &OccupancyMapWrapper::default_Update)
@@ -228,12 +233,12 @@ BOOST_PYTHON_MODULE(pyplanning)
 		.def<bool (OccupancyMap::*)(const Point2d&) const>("is_inside_map", &OccupancyMap::IsInsideMap)
 		.def<bool (OccupancyMap::*)(const GridCellPosition&) const>("is_inside_map", &OccupancyMap::IsInsideMap);
 
-	class_<ObstacleListOccupancyMap>("ObstacleListOccupancyMap", init<float>())
+	class_<ObstacleListOccupancyMap, Ref<ObstacleListOccupancyMap>, bases<OccupancyMap>>("ObstacleListOccupancyMap", init<float>())
 		.def("add_obstacle", &ObstacleListOccupancyMap::AddObstacle)
 		.def("remove_obstacle", &ObstacleListOccupancyMap::RemoveObstacle)
 		.def("get_num_obstacles", &ObstacleListOccupancyMap::GetNumObstacles);
 
-	class_<Obstacle>("Obstacle")
+	class_<Obstacle, Ref<Obstacle>>("Obstacle")
 		.def("set_shape", &Obstacle::SetShape)
 		.def("set_pose", &Obstacle::SetPose);
 
@@ -242,13 +247,13 @@ BOOST_PYTHON_MODULE(pyplanning)
 		{
 		}
 	};
-	class_<ShapeWrapper, boost::noncopyable>("Shape");
-	class_<CompositeShape, bases<Shape>>("CompositeShape")
+	class_<ShapeWrapper, Ref<ShapeWrapper>, boost::noncopyable>("Shape");
+	class_<CompositeShape, Ref<CompositeShape>, bases<Shape>>("CompositeShape")
 		.def("add", &CompositeShape::Add);
-	class_<PolygonShape, bases<Shape>>("PolygonShape", init<const std::vector<Point2d>&>());
-	class_<RegularPolygonShape, bases<Shape>>("RegularPolygonShape", init<double, int>());
-	class_<RectangleShape, bases<Shape>>("RectangleShape", init<double, double>());
-	class_<CircleShape, bases<Shape>>("CircleShape", init<double, int>());
+	class_<PolygonShape, Ref<PolygonShape>, bases<Shape>>("PolygonShape", init<const std::vector<Point2d>&>());
+	class_<RegularPolygonShape, Ref<RegularPolygonShape>, bases<Shape>>("RegularPolygonShape", init<double, int>());
+	class_<RectangleShape, Ref<RectangleShape>, bases<Shape>>("RectangleShape", init<double, double>());
+	class_<CircleShape, Ref<CircleShape>, bases<Shape>>("CircleShape", init<double, int>());
 
 	struct PlanarStateValidatorWrapper : PlanarStateValidator, wrapper<PlanarStateValidator> {
 		PlanarStateValidatorWrapper(const Ref<PlanarStateSpace>& stateSpace) :
