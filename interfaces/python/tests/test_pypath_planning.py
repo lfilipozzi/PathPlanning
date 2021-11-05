@@ -5,6 +5,7 @@ import os, sys
 
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..','..','..','build','lib'))
 import pyplanning as nav

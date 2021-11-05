@@ -21,7 +21,7 @@ jobs:
     - name: Install Linux Dependencies
       run: |
         sudo apt update -yq
-        sudo apt install -yq cmake libflann-dev libeigen3-dev python3-dev libboost-python-dev
+        sudo apt install -yq cmake libflann-dev libeigen3-dev python3-dev python3-pybind11 pybind11-dev
 
     - name: Create Build Directory
       run: |

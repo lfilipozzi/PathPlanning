@@ -1,13 +1,12 @@
 cmake_minimum_required(VERSION 3.5)
 project(pyplanning)
 
-find_package(PythonLibs 3.7 REQUIRED)
-find_package(Boost COMPONENTS python REQUIRED)
+find_package(pybind11 REQUIRED)
+pybind11_add_module(pyplanning pyplanning.cpp)
+target_link_libraries(pyplanning PRIVATE pathPlanning)
 
-set(CMAKE_SHARED_MODULE_PREFIX "")
-
-add_library(pyplanning MODULE pyplanning.cpp)
-
-# Set up the libraries and header search paths for this target
-target_link_libraries(pyplanning pathPlanning ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
-target_include_directories(pyplanning PRIVATE ${PYTHON_INCLUDE_DIRS})
+# Rename macro to support versions of pybind11 older than v2.5.0
+if (pybind11_VERSION_MAJOR VERSION_LESS "2.5.0")
+	target_compile_definitions(pyplanning PRIVATE PYBIND11_OVERRIDE_PURE=PYBIND11_OVERLOAD_PURE)
+	target_compile_definitions(pyplanning PRIVATE PYBIND11_OVERRIDE=PYBIND11_OVERLOAD)
+endif()
