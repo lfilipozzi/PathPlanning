@@ -70,6 +70,7 @@ PYBIND11_MODULE(pyplanning, m)
 		.def(init<Ref<StateValidatorOccupancyMap>, HybridAStar::SearchParameters>())
 		.def("initialize", &HybridAStar::Initialize)
 		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation)
+		.def("get_explored_paths", &HybridAStar::GetExploredPaths)
 		.def("visualize_obstacle_heuristic", &HybridAStar::VisualizeObstacleHeuristic);
 
 	//     _____                           _

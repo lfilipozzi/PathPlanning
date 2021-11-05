@@ -242,7 +242,12 @@ namespace Planner {
 // 		}
 		auto aStarPath = m_aStarSearch->GetPath();
 		for (auto& state : aStarPath) {
-			m_path.push_back(state.GetPose());
+			const auto& pathLength = state.path->GetLength();
+			double length = 0.0;
+			while (length < pathLength) {
+				m_path.push_back(state.path->Interpolate(length / pathLength));
+				length += pathInterpolation;
+			}
 		}
 
 		return status;
@@ -253,22 +258,16 @@ namespace Planner {
 		m_obstacleHeuristic->Visualize(filename);
 	}
 
-	Scope<GenericNode<Pose2d>> HybridAStar::CopySubTreeOfPose(const AStarDeclType::Node* src) const
-	{
-		auto copy = makeScope<GenericNode<Pose2d>>(src->GetState().GetPose());
-		for (auto& child : src->GetChildren()) {
-			copy->AddChild(CopySubTreeOfPose(child.get()));
-		}
-		return copy;
-	}
-
-	Scope<GenericNode<Pose2d>> HybridAStar::GetTree() const
+	std::unordered_set<Ref<PlanarPath>> HybridAStar::GetExploredPaths() const
 	{
 		const auto srcRootNode = m_aStarSearch->GetTree();
-		Scope<GenericNode<Pose2d>> copyRootNode;
+		std::unordered_set<Ref<PlanarPath>> exploredPaths;
 		if (!srcRootNode)
-			return copyRootNode;
-		copyRootNode = CopySubTreeOfPose(srcRootNode);
-		return copyRootNode;
+			return exploredPaths;
+		auto lambda = [&](const AStarDeclType::Node& node) {
+			exploredPaths.insert(node.GetState().path);
+		};
+		srcRootNode->PreOrderTraversal(lambda);
+		return exploredPaths;
 	}
 }

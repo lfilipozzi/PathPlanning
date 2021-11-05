@@ -188,10 +188,7 @@ namespace Planner {
 
 		void VisualizeObstacleHeuristic(const std::string& filename) const;
 
-		Scope<GenericNode<Pose2d>> GetTree() const;
-
-	private:
-		Scope<GenericNode<Pose2d>> CopySubTreeOfPose(const AStarDeclType::Node* src) const;
+		std::unordered_set<Ref<PlanarPath>> GetExploredPaths() const;
 
 	public:
 		/// @brief Distance to interpolate pose from the path

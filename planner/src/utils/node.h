@@ -17,6 +17,30 @@ namespace Planner {
 			m_state(state) { }
 		~GenericNode() = default;
 
+		/// @brief Perform a pre-order traversal of the tree whose root node
+		/// is *this.
+		/// @param func Function to apply.
+		template <typename Func>
+		void PreOrderTraversal(Func& func) const
+		{
+			func(*this);
+			for (auto& child : m_children) {
+				child->PreOrderTraversal(func);
+			}
+		}
+
+		/// @brief Perform a post-order traversal of the tree whose root node
+		/// is *this.
+		/// @param func Function to apply.
+		template <typename Func>
+		void PostOrderTraversal(Func& func) const
+		{
+			for (auto& child : m_children) {
+				child->PostOrderTraversal(func);
+			}
+			func(*this);
+		}
+
 		/// @brief Compute the depth of the node in the tree.
 		/// @return The depth.
 		[[nodiscard]] unsigned int GetDepth() const
