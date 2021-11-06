@@ -7,16 +7,23 @@ namespace Planner {
 			dist = -dist;
 
 		// Get current pose
-		Pose2d interp = from;
+		Pose2d to = from;
 
 		// Update pose
-		double& theta = interp.theta;
+		// angle between center of curvature, CoG, and rear wheel
 		double beta = atan(m_rearToCG * tan(steering) / m_wheelbase);
-		interp.x() += dist * cos(theta + beta);
-		interp.y() += dist * sin(theta + beta);
-		interp.theta += dist * cos(beta) * tan(steering) / m_wheelbase;
+		// Change in yaw angle per distance traveled
+		double DthetaDdist = cos(beta) * tan(steering) / m_wheelbase;
+		if (DthetaDdist > 1e-9) {
+			to.theta += dist * DthetaDdist;
+			to.x() += 1 / DthetaDdist * ( sin(beta + to.theta) - sin(beta + from.theta));
+			to.y() += 1 / DthetaDdist * (-cos(beta + to.theta) + cos(beta + from.theta));
+		} else {
+			to.x() += dist * cos(from.theta);
+			to.y() += dist * sin(from.theta);
+		}
 
-		return interp;
+		return to;
 	}
 
 	double KinematicBicycleModel::GetSteeringAngleFromTurningRadius(double radius)
