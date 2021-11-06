@@ -68,6 +68,11 @@ namespace Planner {
 		Grid(int rows, int columns, const T& val) :
 			rows(rows), columns(columns)
 		{
+			if(!(rows > 0 && columns > 0)) {
+				std::string msg("Invalid grid size: received ");
+				throw std::invalid_argument(msg + std::to_string(rows) + " x " + std::to_string(columns));
+			}
+
 			m_data = new T*[rows];
 			for (unsigned int i = 0; i < rows; ++i) {
 				m_data[i] = new T[columns];
