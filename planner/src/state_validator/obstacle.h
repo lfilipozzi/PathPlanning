@@ -18,7 +18,7 @@ namespace Planner {
 		/// @param[in] grid The grid.
 		/// @param[in] pose The obstacle pose.
 		/// @param[out] cells The cell positions.
-		virtual void GetGridCellPositions(const OccupancyMap& grid, const Pose2d pose, std::vector<GridCellPosition>& cells) = 0;
+		virtual void GetGridCellPositions(const OccupancyMap& grid, const Pose2d& pose, std::vector<GridCellPosition>& cells) = 0;
 
 	protected:
 		void RasterizeLine(const OccupancyMap& grid, const Point2d& p0, const Point2d& p1, std::vector<GridCellPosition>& line) const;
@@ -30,7 +30,7 @@ namespace Planner {
 
 		void Add(const Ref<Shape>& shape) { m_children.push_back(shape); }
 		/// @copydoc Planner::Shape::GetGridCellPositions
-		virtual void GetGridCellPositions(const OccupancyMap& grid, const Pose2d pose, std::vector<GridCellPosition>& cells) override;
+		virtual void GetGridCellPositions(const OccupancyMap& grid, const Pose2d& pose, std::vector<GridCellPosition>& cells) override;
 
 	private:
 		std::vector<Ref<Shape>> m_children;
@@ -42,7 +42,7 @@ namespace Planner {
 		PolygonShape(std::vector<Point2d>&& vertices) { m_vertices = vertices; }
 
 		/// @copydoc Planner::Shape::GetGridCellPositions
-		virtual void GetGridCellPositions(const OccupancyMap& grid, const Pose2d pose, std::vector<GridCellPosition>& cells) override final;
+		virtual void GetGridCellPositions(const OccupancyMap& grid, const Pose2d& pose, std::vector<GridCellPosition>& cells) override final;
 
 	protected:
 		PolygonShape() = default;

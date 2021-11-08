@@ -59,15 +59,15 @@ PYBIND11_MODULE(pyplanning, m)
 	};
 
 	class_<PlanarPathPlanner, PlanarPathPlannerWrapper>(m, "PlanarPathPlanner")
-        .def(init<>())
+		.def(init<>())
 		.def("search_path", &PlanarPathPlanner::SearchPath)
 		.def("get_path", &PlanarPathPlanner::GetPath)
 		.def("set_init_state", &PlanarPathPlanner::SetInitState)
 		.def("set_goal_state", &PlanarPathPlanner::SetGoalState);
 
 	class_<HybridAStar, PlanarPathPlanner>(m, "HybridAStar")
-        .def(init<Ref<StateValidatorOccupancyMap>>())
-		.def(init<Ref<StateValidatorOccupancyMap>, HybridAStar::SearchParameters>())
+		.def(init<const Ref<StateValidatorOccupancyMap>&>())
+		.def(init<const Ref<StateValidatorOccupancyMap>&, const HybridAStar::SearchParameters&>())
 		.def("initialize", &HybridAStar::Initialize)
 		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation)
 		.def("get_explored_paths", &HybridAStar::GetExploredPaths)
@@ -92,7 +92,7 @@ PYBIND11_MODULE(pyplanning, m)
 		.def(self != self);
 
 	class_<Pose2d>(m, "Pose2d")
-		.def(init<Point2d, double>())
+		.def(init<const Point2d&, double>())
 		.def(init<double, double, double>())
 		.def_readwrite("position", &Pose2d::position)
 		.def_readwrite("theta", &Pose2d::theta)
@@ -129,7 +129,7 @@ PYBIND11_MODULE(pyplanning, m)
 		virtual double ComputeCost(double a, double b, double c) const override { PYBIND11_OVERRIDE_PURE(double, PlanarPath, ComputeCost, a, b, c); }
 	};
 
-	class_<PlanarPath, PlanarPathWrapper>(m, "PlanarPath")
+	class_<PlanarPath, Ref<PlanarPath>, PlanarPathWrapper>(m, "PlanarPath")
 		.def(init<>())
 		.def("get_initial_state", &PlanarPath::GetInitialState)
 		.def("get_final_state", &PlanarPath::GetFinalState)
@@ -139,11 +139,27 @@ PYBIND11_MODULE(pyplanning, m)
 		.def("get_direction", &PlanarPath::GetDirection)
 		.def("compute_cost", &PlanarPath::ComputeCost);
 
-	class_<PathReedsShepp, PlanarPath>(m, "PathReedsShepp")
-		.def(init<Pose2d, ReedsShepp::PathSegment, double>());
+	class_<PathReedsShepp, Ref<PathReedsShepp>, PlanarPath>(m, "PathReedsShepp")
+		.def(init<const Pose2d&, ReedsShepp::PathSegment, double>());
 
-	class_<PathConstantSteer, PlanarPath>(m, "PathConstantSteer")
-		.def(init<KinematicBicycleModel*, Pose2d, double, double, Direction>());
+	class_<PathConstantSteer, Ref<PathConstantSteer>, PlanarPath>(m, "PathConstantSteer")
+		.def(init<const Ref<KinematicBicycleModel>&, const Pose2d&, double, double, Direction>())
+		.def_property("steering", &PathConstantSteer::GetSteeringAngle, nullptr);
+
+	class_<KinematicBicycleModel, Ref<KinematicBicycleModel>>(m, "KinematicBicycleModel")
+		.def(init<double, double>());
+
+	struct PathConnectionWrapper : PlanarPathConnection {
+		using PlanarPathConnection::PlanarPathConnection;
+		virtual Ref<Path<Pose2d>> Connect(const Pose2d& from, const Pose2d& to) override { PYBIND11_OVERRIDE_PURE(Ref<Path<Pose2d>>, PlanarPathConnection, Connect, from, to); }
+	};
+
+	class_<PlanarPathConnection, Ref<PlanarPathConnection>, PathConnectionWrapper>(m, "PlanarPathConnection")
+		.def(init<>())
+		.def("connect", &PlanarPathConnection::Connect);
+
+	class_<ReedsSheppConnection, Ref<ReedsSheppConnection>, PlanarPathConnection>(m, "ReedsSheppConnection")
+		.def(init<>());
 
 	//     _____ _        _        _____
 	//    / ____| |      | |      / ____|
@@ -166,7 +182,8 @@ PYBIND11_MODULE(pyplanning, m)
 		.def("enforce_bounds", &PlanarStateSpace::EnforceBounds)
 		.def("validate_bounds", &PlanarStateSpace::ValidateBounds)
 		.def("sample_uniform", &PlanarStateSpace::SampleUniform)
-		.def("sample_gaussian", &PlanarStateSpace::SampleGaussian);
+		.def("sample_gaussian", &PlanarStateSpace::SampleGaussian)
+		.def_readonly("bounds", &PlanarStateSpace::bounds);
 
 	class_<StateSpaceReedsShepp, Ref<StateSpaceReedsShepp>, PlanarStateSpace>(m, "StateSpaceReedsShepp")
 		.def(init<const std::array<Pose2d, 2>&, double>())
@@ -224,7 +241,7 @@ PYBIND11_MODULE(pyplanning, m)
 
 	struct ShapeWrapper : Shape {
 		using Shape::Shape;
-		virtual void GetGridCellPositions(const OccupancyMap&a , const Pose2d b , std::vector<GridCellPosition>&c) override
+		virtual void GetGridCellPositions(const OccupancyMap& a, const Pose2d& b, std::vector<GridCellPosition>& c) override
 		{
 			PYBIND11_OVERRIDE_PURE(void, Shape, GetGridCellPositions, a, b, c);
 		}

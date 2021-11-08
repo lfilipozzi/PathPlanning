@@ -11,7 +11,7 @@ namespace Planner {
 	/// kinematic bicycle model.
 	class PathConstantSteer : public PlanarPath {
 	public:
-		PathConstantSteer(KinematicBicycleModel* model, const Pose2d& init, double steering = 0.0, double length = 0.0, Direction direction = Direction::Forward);
+		PathConstantSteer(const Ref<KinematicBicycleModel>& model, const Pose2d& init, double steering = 0.0, double length = 0.0, Direction direction = Direction::Forward);
 
 		/// @copydoc Planner::Path::Interpolate
 		virtual Pose2d Interpolate(double ratio) const override;
@@ -22,8 +22,10 @@ namespace Planner {
 		/// @copydoc Planner::Path::ComputeCost
 		virtual double ComputeCost(double directionSwitchingCost, double reverseCostMultiplier, double forwardCostMultiplier) const override;
 
+		double GetSteeringAngle() const { return m_steering; }
+
 	private:
-		KinematicBicycleModel* m_model;
+		Ref<KinematicBicycleModel> m_model;
 		double m_steering;
 		Direction m_direction;
 	};

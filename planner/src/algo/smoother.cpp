@@ -115,7 +115,7 @@ namespace Planner {
 
 		float dphi, ddphi;
 		Point2d p1, p2;
-		dphi = acos(Maths::Clamp<float>((dxi.x() * dxip1.x() + dxi.y() * dxip1.y()) / (dxi.norm() * dxip1.norm()), -1.0f, 1.0f));
+		dphi = acos(std::clamp<float>((dxi.x() * dxip1.x() + dxi.y() * dxip1.y()) / (dxi.norm() * dxip1.norm()), -1.0f, 1.0f));
 		float k = dphi / dxi.norm();
 		if (k <= m_param.maxCurvature)
 			return { 0.0, 0.0 };

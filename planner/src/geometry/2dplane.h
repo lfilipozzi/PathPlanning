@@ -16,10 +16,10 @@ namespace Planner {
 	template <typename T>
 	struct Pose2 {
 		Pose2() = default;
-		Pose2(Point2<T> position, T theta) :
-			position(position), theta(theta) { }
-		Pose2(T x, T y, T theta) :
-			position({ x, y }), theta(theta) { }
+		Pose2(Point2<T> pos, T orientation) :
+			position(pos), theta(orientation) { theta = WrapTheta(); }
+		Pose2(T x, T y, T orientation) :
+			position({ x, y }), theta(orientation) { theta = WrapTheta(); }
 
 		Point2<T> position = Point2<T>();
 		T theta = 0.0;
@@ -36,7 +36,12 @@ namespace Planner {
 	template <typename T>
 	T Pose2<T>::WrapTheta() const
 	{
-		return fmod(theta + M_PI, 2 * M_PI) - M_PI;
+		T t = theta;
+		while (t > M_PI)
+			t -= 2 * M_PI;
+		while (t < -M_PI)
+			t += 2 * M_PI;
+		return t;
 	}
 
 	/// @brief Add the Pose @rhs after @lhs.
@@ -52,6 +57,7 @@ namespace Planner {
 		// Translate
 		out.position += lhs.position;
 
+		out.theta = out.WrapTheta();
 		return out;
 	}
 
@@ -63,9 +69,12 @@ namespace Planner {
 		auto deltaPosition = lhs.position - rhs.position;
 
 		// Rotate
-		return Pose2<T>(
+		Pose2<T> out(
 			Eigen::Rotation2D<T>(-rhs.theta) * deltaPosition,
 			lhs.theta - rhs.theta);
+
+		out.theta = out.WrapTheta();
+		return out;
 	}
 
 	template <typename T>

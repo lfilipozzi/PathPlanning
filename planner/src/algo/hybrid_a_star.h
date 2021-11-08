@@ -26,7 +26,8 @@ namespace Planner {
 	class HybridAStar : public PlanarPathPlanner {
 	public:
 		struct SearchParameters {
-			const double minTurningRadius = 1.0;
+			const double wheelbase = 2.6;// TODO add maxSteeringAngle to choose how to propagate bicycle model
+			const double minTurningRadius = 2.0;
 			const double directionSwitchingCost = 0.0;
 			const double reverseCostMultiplier = 1.0;
 			const double forwardCostMultiplier = 1.0;

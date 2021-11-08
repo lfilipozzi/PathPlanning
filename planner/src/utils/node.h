@@ -68,7 +68,7 @@ namespace Planner {
 			if (m_parent == nullptr)
 				return nullptr;
 			auto& siblings = m_parent->m_children;
-			auto it = std::find_if(siblings.begin(), siblings.end(), [this](const Scope<GenericNode>& object ) { return object.get() == this; });
+			auto it = std::find_if(siblings.begin(), siblings.end(), [this](const Scope<GenericNode>& object) { return object.get() == this; });
 			if (it == siblings.begin())
 				return nullptr;
 			return (--it)->get();
@@ -81,7 +81,7 @@ namespace Planner {
 			if (m_parent == nullptr)
 				return nullptr;
 			auto& siblings = m_parent->m_children;
-			auto it = std::find_if(siblings.rbegin(), siblings.rend(), [this](const Scope<GenericNode>& object ) { return object.get() == this; });
+			auto it = std::find_if(siblings.rbegin(), siblings.rend(), [this](const Scope<GenericNode>& object) { return object.get() == this; });
 			if (it == siblings.rbegin())
 				return nullptr;
 			return (--it)->get();

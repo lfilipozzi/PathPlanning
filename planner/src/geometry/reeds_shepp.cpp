@@ -521,7 +521,6 @@ namespace Planner {
 			Pose2d newGoal = goal - start;
 			newGoal.x() = newGoal.x() / minTurningRadius;
 			newGoal.y() = newGoal.y() / minTurningRadius;
-			newGoal.theta = newGoal.WrapTheta();
 
 			// clang-format off
 			std::array<Pose2d, 4> goals = {

@@ -12,7 +12,10 @@ namespace Planner {
 	HybridAStar::StatePropagator::StatePropagator(const SearchParameters& parameters) :
 		m_param(parameters)
 	{
-		m_model = makeRef<KinematicBicycleModel>();
+		// The heading of the point defining the trajectory of the vehicle must
+		// be tangent to the trajectory (e.g. for front-steered vehicle, the 
+		// point must refer to the rear wheel)
+		m_model = makeRef<KinematicBicycleModel>(parameters.wheelbase, 0.0);
 
 		m_deltas.reserve(m_param.numGeneratedMotion);
 		const double deltaMax = m_model->GetSteeringAngleFromTurningRadius(m_param.minTurningRadius);
@@ -53,7 +56,7 @@ namespace Planner {
 	{
 		State state;
 		state.discrete = DiscretizePose(pose);
-		state.path = makeRef<PathConstantSteer>(m_model.get(), pose);
+		state.path = makeRef<PathConstantSteer>(m_model, pose);
 		return state;
 	}
 
@@ -121,16 +124,16 @@ namespace Planner {
 
 	bool HybridAStar::StatePropagator::GetConstantSteerChild(const State& state, double delta, Direction direction, State& child, double& cost) const
 	{
-		auto path = makeRef<PathConstantSteer>(m_model.get(), state.GetPose(), delta, m_param.spatialResolution * 1.5, direction);
+		auto path = makeRef<PathConstantSteer>(m_model, state.GetPose(), delta, m_param.spatialResolution * 1.5, direction);
 		child = CreateStateFromPath(path);
 
 		// Validate transition
 		float lastValidRatio;
-		if (!m_validator->IsPathValid(*(child.path), &lastValidRatio)) {
+		if (!m_validator->IsPathValid(*child.path, &lastValidRatio)) {
 			child.path->Truncate(lastValidRatio);
 			child.discrete = DiscretizePose(child.path->GetFinalState());
 			// Skip if the last valid state does not belong to a new cell
-			if (state == child) {
+			if (State::Equal()(state, child)) {
 				return false;
 			}
 		}
@@ -149,7 +152,7 @@ namespace Planner {
 			m_param.forwardCostMultiplier, m_param.directionSwitchingCost);
 		auto path = makeRef<PathReedsShepp>(from, pathSegment, m_param.minTurningRadius);
 		child = CreateStateFromPath(path);
-		if (!m_validator->IsPathValid(*(child.path)))
+		if (!m_validator->IsPathValid(*child.path))
 			return false;
 
 		// Compute transition cost
@@ -215,31 +218,31 @@ namespace Planner {
 		auto status = m_aStarSearch->SearchPath();
 
 		// FIXME uncomment
-// 		// Process path before smoothing
-// 		auto aStarPath = m_aStarSearch->GetPath();
-// 		std::vector<Smoother::State> nonSmoothPath;
-// 		double totalPathLength = 0;
-// 		for (auto& state : aStarPath)
-// 			totalPathLength += state.path->GetLength();
-// 		nonSmoothPath.reserve(totalPathLength / pathInterpolation);
-// 		for (auto& state : aStarPath) {
-// 			const auto& pathLength = state.path->GetLength();
-// 			double length = 0.0;
-// 			while (length < pathLength) {
-// 				nonSmoothPath.push_back({ state.path->Interpolate(length / pathLength),
-// 					state.path->GetDirection(length / pathLength) });
-// 				length += pathInterpolation;
-// 			}
-// 		}
-// 
-// 		// Smooth the path
-// 		auto smoothPath = m_smoother->Smooth(nonSmoothPath);
-
+		// // Process path before smoothing
+		// auto aStarPath = m_aStarSearch->GetPath();
+		// std::vector<Smoother::State> nonSmoothPath;
+		// double totalPathLength = 0;
+		// for (auto& state : aStarPath)
+		// 	totalPathLength += state.path->GetLength();
+		// nonSmoothPath.reserve(totalPathLength / pathInterpolation);
+		// for (auto& state : aStarPath) {
+		// 	const auto& pathLength = state.path->GetLength();
+		// 	double length = 0.0;
+		// 	while (length < pathLength) {
+		// 		nonSmoothPath.push_back({ state.path->Interpolate(length / pathLength),
+		// 			state.path->GetDirection(length / pathLength) });
+		// 		length += pathInterpolation;
+		// 	}
+		// }
+		// 
+		// // Smooth the path
+		// auto smoothPath = m_smoother->Smooth(nonSmoothPath);
+		// 
 		// Save the result
-// 		m_path.reserve(smoothPath.size());
-// 		for (auto& state : smoothPath) {
-// 			m_path.push_back(state.pose);
-// 		}
+		// m_path.reserve(smoothPath.size());
+		// for (auto& state : smoothPath) {
+		// 	m_path.push_back(state.pose);
+		// }
 		auto aStarPath = m_aStarSearch->GetPath();
 		for (auto& state : aStarPath) {
 			const auto& pathLength = state.path->GetLength();

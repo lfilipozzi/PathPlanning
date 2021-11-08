@@ -78,7 +78,6 @@ namespace Planner {
 	double NonHolonomicHeuristic::GetHeuristicValue(const Pose2d& from, const Pose2d& to)
 	{
 		auto delta = to - from;
-		delta.theta = delta.WrapTheta();
 
 		int i = (int)round((delta.x() + offsetX) / spatialResolution);
 		int j = (int)round((delta.y() + offsetY) / spatialResolution);
