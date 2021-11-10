@@ -85,10 +85,10 @@ class TestGeometry(unittest.TestCase):
 		gvd.update()
 		gvd.visualize("test.ppm")
 
-		algo = nav.HybridAStar(state_validator)
+		algo = nav.HybridAStar()
 		algo.set_init_state(nav.Pose2d(0.0, -9.0, 0.0))
 		algo.set_goal_state(nav.Pose2d(8.0, 8.0, 0.0))
-		algo.initialize()
+		algo.initialize(state_validator)
 		algo.search_path()
 		path = algo.get_path()
 

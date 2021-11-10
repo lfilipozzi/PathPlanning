@@ -26,7 +26,7 @@ namespace Planner {
 	class HybridAStar : public PlanarPathPlanner {
 	public:
 		struct SearchParameters {
-			const double wheelbase = 2.6;// TODO add maxSteeringAngle to choose how to propagate bicycle model
+			const double wheelbase = 2.6; // TODO add maxSteeringAngle to choose how to propagate bicycle model
 			const double minTurningRadius = 2.0;
 			const double directionSwitchingCost = 0.0;
 			const double reverseCostMultiplier = 1.0;
@@ -161,18 +161,56 @@ namespace Planner {
 			Ref<AStarHeuristic<Pose2d>> m_heuristic;
 		};
 
-		using AStarDeclType = AStar<State, State::Hash, State::Equal>;
+		/// @brief A* based graph search for Hybrid A*
+		class GraphSearch : public AStar<State, State::Hash, State::Equal, true> {
+		public:
+			GraphSearch() = default;
+
+		protected:
+			inline virtual void AddChildren(Node* node) override
+			{
+				for (auto& [childState, transitionCost] : m_propagator->GetNeighborStates(node->GetState())) {
+					// Create the child node
+					Scope<Node> childScope = makeScope<Node>(childState);
+					Node* child = childScope.get();
+					child->meta.pathCost = node->meta.pathCost + transitionCost;
+					child->meta.totalCost = child->meta.pathCost + m_heuristic->GetHeuristicValue(child->GetState(), this->m_goal);
+
+					// Check if the child node is in the frontier or explored set
+					Node* const* inFrontier = m_frontier.Find(child);
+					bool inExplored = m_explored.find(child->GetState()) != m_explored.end();
+					if (!inFrontier && !inExplored) {
+						// Add child to frontier and to the tree
+						m_frontier.Push(child);
+						node->AddChild(std::move(childScope));
+					} else if (inFrontier) {
+						// Check if the node in frontier has a higher cost than the
+						// current path, and if so replace it by child and that they
+						// refer to the same continuous pose.
+						bool identicalPose = (*inFrontier)->GetState().GetPose() == node->GetState().GetPose();
+						bool betterCost = (*inFrontier)->meta.totalCost > child->meta.totalCost;
+						if (identicalPose && betterCost) {
+							// Replace the node *inFrontier by the newly find better node.
+							auto previousChildScope = (*inFrontier)->GetParent()->ReplaceChild(*inFrontier, std::move(childScope), false);
+							// Replace the node in the frontier by child
+							m_frontier.Remove(previousChildScope.get());
+							m_frontier.Push(child);
+						}
+					}
+				}
+			}
+		};
 
 	public:
-		HybridAStar(const Ref<StateValidatorOccupancyMap>& validator);
-		HybridAStar(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& parameters);
+		HybridAStar();
+		HybridAStar(const SearchParameters& parameters);
 		virtual ~HybridAStar() = default;
 
-		bool Initialize();
+		bool Initialize(const Ref<StateValidatorOccupancyMap>& validator);
 
 		virtual Status SearchPath() override;
 
-		virtual std::vector<Pose2d> GetPath() override { return m_path; }
+		virtual std::vector<Pose2d> GetPath() const override { return m_path; }
 
 		Ref<StateValidatorOccupancyMap>& GetStateValidator() { return m_validator; }
 
@@ -181,15 +219,16 @@ namespace Planner {
 		{
 			return const_cast<const StatePropagator&>(*m_propagator).GetParameters();
 		}
-		Smoother::Parameters GetSmootherParameters() { return m_smoother->GetParameters(); }
+		Smoother::Parameters GetSmootherParameters() { return m_smoother.GetParameters(); }
 		const Smoother::Parameters& GetSmootherParameters() const
 		{
-			return const_cast<const Smoother&>(*m_smoother).GetParameters();
+			return const_cast<const Smoother&>(m_smoother).GetParameters();
 		}
 
 		void VisualizeObstacleHeuristic(const std::string& filename) const;
 
-		std::unordered_set<Ref<PlanarPath>> GetExploredPaths() const;
+		std::unordered_set<Ref<PlanarPath>> GetGraphSearchExploredSet() const;
+		std::vector<Ref<PlanarPath>> GetGraphSearchPath() const;
 
 	public:
 		/// @brief Distance to interpolate pose from the path
@@ -201,8 +240,8 @@ namespace Planner {
 		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
 		Ref<ObstaclesHeuristic> m_obstacleHeuristic;
 		Ref<GVD> m_gvd;
-		Scope<AStarDeclType> m_aStarSearch;
-		Scope<Smoother> m_smoother;
+		GraphSearch m_graphSearch;
+		Smoother m_smoother;
 		std::vector<Pose2d> m_path;
 		bool isInitialized = false;
 	};

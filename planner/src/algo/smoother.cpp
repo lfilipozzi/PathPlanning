@@ -12,11 +12,31 @@ namespace Planner {
 		return a - (a.x() * b.x() + a.y() * b.y()) * b / b.squaredNorm();
 	}
 
-	Smoother::Smoother(const Ref<StateValidatorOccupancyMap>& validator, const Ref<GVD>& gvd, float maxCurvature) :
-		m_param(maxCurvature), m_validator(validator), m_map(validator->GetOccupancyMap()), m_gvd(gvd) { }
+	Smoother::Smoother() :
+		m_param(1.0f) { }
+
+	bool Smoother::Initialize(const Ref<StateValidatorOccupancyMap>& validator, const Ref<GVD>& gvd, float maxCurvature)
+	{
+		if (!validator || !gvd) {
+			isInitialized = false;
+			return false;
+		}
+
+		m_param = Parameters(maxCurvature);
+		m_validator = validator;
+		m_map = validator->GetOccupancyMap();
+		m_gvd = gvd;
+		isInitialized = true;
+		return true;
+	}
 
 	std::vector<Smoother::State> Smoother::Smooth(const std::vector<State>& path)
 	{
+		if (!isInitialized) {
+			PP_ERROR("The algorithm has not been initialized successfully.");
+			return std::vector<Smoother::State>();
+		}
+
 		return Smooth(path, nullptr);
 	}
 

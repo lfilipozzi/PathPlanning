@@ -13,7 +13,7 @@ namespace Planner {
 		m_param(parameters)
 	{
 		// The heading of the point defining the trajectory of the vehicle must
-		// be tangent to the trajectory (e.g. for front-steered vehicle, the 
+		// be tangent to the trajectory (e.g. for front-steered vehicle, the
 		// point must refer to the rear wheel)
 		m_model = makeRef<KinematicBicycleModel>(parameters.wheelbase, 0.0);
 
@@ -160,26 +160,26 @@ namespace Planner {
 		return true;
 	}
 
-	HybridAStar::HybridAStar(const Ref<StateValidatorOccupancyMap>& validator) :
-		HybridAStar(validator, SearchParameters()) { }
-	HybridAStar::HybridAStar(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& p) :
-		m_validator(validator)
+	HybridAStar::HybridAStar() :
+		HybridAStar(SearchParameters()) { }
+	HybridAStar::HybridAStar(const SearchParameters& p)
 	{
 		m_propagator = makeRef<StatePropagator>(p);
 	}
 
-	bool HybridAStar::Initialize()
+	bool HybridAStar::Initialize(const Ref<StateValidatorOccupancyMap>& validator)
 	{
-		if (!m_validator || !m_validator->GetStateSpace()) {
+		if (!validator || !validator->GetStateSpace()) {
 			isInitialized = false;
 			return false;
 		}
 
+		m_validator = validator;
 		const auto& p = m_propagator->GetParameters();
 
 		// Initialize Voronoi field and smoother
 		m_gvd = makeRef<GVD>(m_validator->GetOccupancyMap());
-		m_smoother = makeScope<Smoother>(m_validator, m_gvd, p.minTurningRadius);
+		m_smoother.Initialize(m_validator, m_gvd, p.minTurningRadius);
 
 		// Initialize heuristic
 		m_nonHoloHeuristic = NonHolonomicHeuristic::Build(m_validator->GetStateSpace()->bounds,
@@ -193,7 +193,7 @@ namespace Planner {
 
 		// Initialize A* search algorithm and its state propagator
 		m_propagator->Initialize(m_validator, heuristic, m_gvd);
-		m_aStarSearch = makeScope<AStarDeclType>(m_propagator, heuristic);
+		m_graphSearch.Initialize(m_propagator, heuristic);
 
 		isInitialized = true;
 		return true;
@@ -213,19 +213,19 @@ namespace Planner {
 		// Run A* on 2D pose
 		State initState = m_propagator->CreateStateFromPose(this->m_init);
 		State goalState = m_propagator->SetGoalState(this->m_goal);
-		m_aStarSearch->SetInitState(initState);
-		m_aStarSearch->SetGoalState(goalState);
-		auto status = m_aStarSearch->SearchPath();
+		m_graphSearch.SetInitState(initState);
+		m_graphSearch.SetGoalState(goalState);
+		auto status = m_graphSearch.SearchPath();
 
-		// FIXME uncomment
+		// // FIXME fix smoother and uncomment
 		// // Process path before smoothing
-		// auto aStarPath = m_aStarSearch->GetPath();
+		// const auto& graphSearchPath = m_graphSearch.GetPath();
 		// std::vector<Smoother::State> nonSmoothPath;
 		// double totalPathLength = 0;
-		// for (auto& state : aStarPath)
+		// for (auto& state : graphSearchPath)
 		// 	totalPathLength += state.path->GetLength();
 		// nonSmoothPath.reserve(totalPathLength / pathInterpolation);
-		// for (auto& state : aStarPath) {
+		// for (auto& state : graphSearchPath) {
 		// 	const auto& pathLength = state.path->GetLength();
 		// 	double length = 0.0;
 		// 	while (length < pathLength) {
@@ -234,16 +234,17 @@ namespace Planner {
 		// 		length += pathInterpolation;
 		// 	}
 		// }
-		// 
+		//
 		// // Smooth the path
-		// auto smoothPath = m_smoother->Smooth(nonSmoothPath);
-		// 
-		// Save the result
+		// auto smoothPath = m_smoother.Smooth(nonSmoothPath);
+		//
+		// // Save the result
 		// m_path.reserve(smoothPath.size());
 		// for (auto& state : smoothPath) {
 		// 	m_path.push_back(state.pose);
 		// }
-		auto aStarPath = m_aStarSearch->GetPath();
+
+		const auto& aStarPath = m_graphSearch.GetPath();
 		for (auto& state : aStarPath) {
 			const auto& pathLength = state.path->GetLength();
 			double length = 0.0;
@@ -261,16 +262,21 @@ namespace Planner {
 		m_obstacleHeuristic->Visualize(filename);
 	}
 
-	std::unordered_set<Ref<PlanarPath>> HybridAStar::GetExploredPaths() const
+	std::unordered_set<Ref<PlanarPath>> HybridAStar::GetGraphSearchExploredSet() const
 	{
-		const auto srcRootNode = m_aStarSearch->GetTree();
+		const auto& exploredStates = m_graphSearch.GetExploredStates();
 		std::unordered_set<Ref<PlanarPath>> exploredPaths;
-		if (!srcRootNode)
-			return exploredPaths;
-		auto lambda = [&](const AStarDeclType::Node& node) {
-			exploredPaths.insert(node.GetState().path);
-		};
-		srcRootNode->PreOrderTraversal(lambda);
+		for (auto& state : exploredStates)
+			exploredPaths.insert(state.path);
 		return exploredPaths;
+	}
+
+	std::vector<Ref<PlanarPath>> HybridAStar::GetGraphSearchPath() const
+	{
+		const auto& graphSearchPath = m_graphSearch.GetPath();
+		std::vector<Ref<PlanarPath>> paths;
+		for (auto& state : graphSearchPath)
+			paths.push_back(state.path);
+		return paths;
 	}
 }

@@ -55,7 +55,7 @@ PYBIND11_MODULE(pyplanning, m)
 	struct PlanarPathPlannerWrapper : PlanarPathPlanner {
 		using PlanarPathPlanner::PlanarPathPlanner;
 		virtual Status SearchPath() override { PYBIND11_OVERRIDE_PURE(Status, PlanarPathPlanner, SearchPath); }
-		virtual std::vector<Pose2d> GetPath() override { PYBIND11_OVERRIDE_PURE(std::vector<Pose2d>, PlanarPathPlanner, GetPath); }
+		virtual std::vector<Pose2d> GetPath() const override { PYBIND11_OVERRIDE_PURE(std::vector<Pose2d>, PlanarPathPlanner, GetPath); }
 	};
 
 	class_<PlanarPathPlanner, PlanarPathPlannerWrapper>(m, "PlanarPathPlanner")
@@ -66,11 +66,12 @@ PYBIND11_MODULE(pyplanning, m)
 		.def("set_goal_state", &PlanarPathPlanner::SetGoalState);
 
 	class_<HybridAStar, PlanarPathPlanner>(m, "HybridAStar")
-		.def(init<const Ref<StateValidatorOccupancyMap>&>())
-		.def(init<const Ref<StateValidatorOccupancyMap>&, const HybridAStar::SearchParameters&>())
+		.def(init<>())
+		.def(init<const HybridAStar::SearchParameters&>())
 		.def("initialize", &HybridAStar::Initialize)
 		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation)
-		.def("get_explored_paths", &HybridAStar::GetExploredPaths)
+		.def("get_graph_search_explored_set", &HybridAStar::GetGraphSearchExploredSet)
+		.def("get_graph_search_path", &HybridAStar::GetGraphSearchPath)
 		.def("visualize_obstacle_heuristic", &HybridAStar::VisualizeObstacleHeuristic);
 
 	//     _____                           _

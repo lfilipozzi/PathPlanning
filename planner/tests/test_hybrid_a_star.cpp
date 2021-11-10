@@ -13,8 +13,8 @@ namespace Planner {
 		Ref<ObstacleListOccupancyMap> map = makeRef<ObstacleListOccupancyMap>(0.1);
 		Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace, map);
 
-		HybridAStar hybridAStar(stateValidator);
-		hybridAStar.Initialize();
+		HybridAStar hybridAStar;
+		hybridAStar.Initialize(stateValidator);
 
 		Pose2d start = { 0.0, 0.0, 0.0 };
 		Pose2d goal = { 10.0, 10.0, 0.78 };

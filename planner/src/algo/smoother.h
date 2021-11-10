@@ -60,7 +60,9 @@ namespace Planner {
 		};
 
 	public:
-		Smoother(const Ref<StateValidatorOccupancyMap>& validator, const Ref<GVD>& gvd, float maxCurvature);
+		Smoother();
+
+		bool Initialize(const Ref<StateValidatorOccupancyMap>& validator, const Ref<GVD>& gvd, float maxCurvature);
 
 		std::vector<State> Smooth(const std::vector<State>& path);
 
@@ -75,6 +77,8 @@ namespace Planner {
 		std::unordered_set<int> CheckPath(const std::vector<State>& path) const;
 
 	private:
+		bool isInitialized = false;
+
 		Parameters m_param;
 		Ref<StateValidatorOccupancyMap> m_validator;
 		Ref<OccupancyMap> m_map;

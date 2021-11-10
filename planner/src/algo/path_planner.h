@@ -25,7 +25,7 @@ namespace Planner {
 		virtual Status SearchPath() = 0;
 
 		/// @brief Return the optimal collision-free path.
-		virtual std::vector<Vertex> GetPath() = 0;
+		virtual std::vector<Vertex> GetPath() const = 0;
 
 		void SetInitState(const Vertex& init) { m_init = init; }
 		void SetGoalState(const Vertex& goal) { m_goal = goal; }
