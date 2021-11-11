@@ -145,20 +145,16 @@ namespace Planner {
 			State m_goalState;
 		};
 
-		/// @brief Adapter heuristic A* of Pose2d to heuristic A* for
-		/// HybrisAStar::State.
-		class HeuristicAdapter : public AStarHeuristic<State> {
+		class Adapter {
+		public:
+			const Pose2d& operator()(const State& state) { return state.GetPose(); }
+		};
+		/// @brief Adapter a heuristic for an A* search of Pose2d to an
+		/// heuristic for A* search of HybrisAStar::State.
+		class HeuristicAdapter : public AStarHeuristicAdapter<State, Pose2d, Adapter> {
 		public:
 			HeuristicAdapter(const Ref<AStarHeuristic<Pose2d>>& heuristic) :
-				m_heuristic(heuristic) { }
-
-			inline virtual double GetHeuristicValue(const State& from, const State& to) override
-			{
-				return m_heuristic->GetHeuristicValue(from.GetPose(), to.GetPose());
-			}
-
-		private:
-			Ref<AStarHeuristic<Pose2d>> m_heuristic;
+				AStarHeuristicAdapter(heuristic, Adapter()) { }
 		};
 
 		/// @brief A* based graph search for Hybrid A*
@@ -167,14 +163,21 @@ namespace Planner {
 			GraphSearch() = default;
 
 		protected:
-			inline virtual void AddChildren(Node* node) override
+			inline virtual bool IsSolution(Node* node) override
 			{
+				return IdenticalPoses(node->GetState().GetPose(), this->m_goal.GetPose());
+			}
+
+			inline virtual void Expand(Node* node) override
+			{
+				m_explored.insert(node->GetState());
+
 				for (auto& [childState, transitionCost] : m_propagator->GetNeighborStates(node->GetState())) {
 					// Create the child node
 					Scope<Node> childScope = makeScope<Node>(childState);
 					Node* child = childScope.get();
 					child->meta.pathCost = node->meta.pathCost + transitionCost;
-					child->meta.totalCost = child->meta.pathCost + m_heuristic->GetHeuristicValue(child->GetState(), this->m_goal);
+					child->meta.totalCost = child->meta.pathCost + m_heuristic->GetHeuristicValue(child->GetState());
 
 					// Check if the child node is in the frontier or explored set
 					Node* const* inFrontier = m_frontier.Find(child);
@@ -187,7 +190,8 @@ namespace Planner {
 						// Check if the node in frontier has a higher cost than the
 						// current path, and if so replace it by child and that they
 						// refer to the same continuous pose.
-						bool identicalPose = (*inFrontier)->GetState().GetPose() == node->GetState().GetPose();
+						// TODO FIXME check if a path with better cost exist between the two nodes if two poses are not identical?
+						bool identicalPose = IdenticalPoses((*inFrontier)->GetState().GetPose(), node->GetState().GetPose());
 						bool betterCost = (*inFrontier)->meta.totalCost > child->meta.totalCost;
 						if (identicalPose && betterCost) {
 							// Replace the node *inFrontier by the newly find better node.
@@ -198,6 +202,12 @@ namespace Planner {
 						}
 					}
 				}
+			}
+
+		private:
+			inline bool IdenticalPoses(const Pose2d& lhs, const Pose2d& rhs, double tol = 1e-3)
+			{
+				return (lhs.position - rhs.position).norm() < tol && abs(lhs.theta - rhs.theta) < tol * M_PI / 180.0;
 			}
 		};
 
@@ -229,6 +239,7 @@ namespace Planner {
 
 		std::unordered_set<Ref<PlanarPath>> GetGraphSearchExploredSet() const;
 		std::vector<Ref<PlanarPath>> GetGraphSearchPath() const;
+		double GetGraphSearchOptimalCost() const;
 
 	public:
 		/// @brief Distance to interpolate pose from the path

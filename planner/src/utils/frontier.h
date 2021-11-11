@@ -73,7 +73,7 @@ namespace Planner {
 		}
 
 		/// @brief Access the last element of the container.
-		T Top() const
+		const T& Top() const
 		{
 			return m_vec.back();
 		}

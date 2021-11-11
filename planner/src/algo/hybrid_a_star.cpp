@@ -79,7 +79,7 @@ namespace Planner {
 
 		// Randomly add a child using a Reeds-Shepp path with a
 		// probability which is function of the heuristic to the goal
-		double cost = m_heuristic->GetHeuristicValue(state, m_goalState);
+		double cost = m_heuristic->GetHeuristicValue(state);
 		if (cost < 10.0 || Random<double>::SampleUniform(0.0, 1.0) < 10.0 / (cost * cost)) {
 			State reedsShepp;
 			if (GetReedsSheppChild(state, reedsShepp, cost))
@@ -169,10 +169,8 @@ namespace Planner {
 
 	bool HybridAStar::Initialize(const Ref<StateValidatorOccupancyMap>& validator)
 	{
-		if (!validator || !validator->GetStateSpace()) {
-			isInitialized = false;
-			return false;
-		}
+		if (!validator || !validator->GetStateSpace())
+			return isInitialized = false;
 
 		m_validator = validator;
 		const auto& p = m_propagator->GetParameters();
@@ -195,8 +193,7 @@ namespace Planner {
 		m_propagator->Initialize(m_validator, heuristic, m_gvd);
 		m_graphSearch.Initialize(m_propagator, heuristic);
 
-		isInitialized = true;
-		return true;
+		return isInitialized = true;
 	}
 
 	Status HybridAStar::SearchPath()
@@ -278,5 +275,10 @@ namespace Planner {
 		for (auto& state : graphSearchPath)
 			paths.push_back(state.path);
 		return paths;
+	}
+
+	double HybridAStar::GetGraphSearchOptimalCost() const
+	{
+		return m_graphSearch.GetOptimalCost();
 	}
 }

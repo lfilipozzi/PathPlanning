@@ -72,6 +72,7 @@ PYBIND11_MODULE(pyplanning, m)
 		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation)
 		.def("get_graph_search_explored_set", &HybridAStar::GetGraphSearchExploredSet)
 		.def("get_graph_search_path", &HybridAStar::GetGraphSearchPath)
+		.def("get_graph_search_optimal_cost", &HybridAStar::GetGraphSearchOptimalCost)
 		.def("visualize_obstacle_heuristic", &HybridAStar::VisualizeObstacleHeuristic);
 
 	//     _____                           _

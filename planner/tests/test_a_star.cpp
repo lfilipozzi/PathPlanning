@@ -4,11 +4,11 @@
 #include "state_space/a_star_state_space_2d.h"
 
 namespace Planner {
-	class Test2DHeuristic : public AStarHeuristic<Point2i> {
+	class Test2DHeuristic : public AStarConcreteHeuristic<Point2i> {
 	public:
-		virtual double GetHeuristicValue(const Point2i& from, const Point2i& to) override
+		virtual double GetHeuristicValue(const Point2i& state) override
 		{
-			Point2i delta = from - to;
+			Point2i delta = state - m_goal;
 			return sqrtf(powf(delta.x(), 2) + powf(delta.y(), 2));
 		}
 	};

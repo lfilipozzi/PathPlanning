@@ -27,12 +27,36 @@ namespace Planner {
 	/// @brief Interface for an A* heuristic function.
 	template <typename State>
 	class AStarHeuristic {
+		template <typename S>
+		friend class AStarCombinedHeuristic;
+		template <typename S1, typename S2, typename Func>
+		friend class AStarHeuristicAdapter;
+		template <typename S, typename HashState, typename EqualState, bool GraphSearch>
+		friend class AStar;
+
 	public:
 		AStarHeuristic() = default;
 		virtual ~AStarHeuristic() = default;
 
 		/// @brief Heuristic function.
-		virtual double GetHeuristicValue(const State& from, const State& to) = 0;
+		virtual double GetHeuristicValue(const State& state) = 0;
+
+	protected:
+		/// @brief Set the goal of the heuristic.
+		virtual void SetGoal(const State& goal) = 0;
+	};
+
+	template <typename State>
+	class AStarConcreteHeuristic : public AStarHeuristic<State> {
+	public:
+		AStarConcreteHeuristic() = default;
+		virtual ~AStarConcreteHeuristic() = default;
+
+	protected:
+		virtual void SetGoal(const State& goal) override { m_goal = goal; }
+
+	protected:
+		State m_goal;
 	};
 
 	/// @brief Combine several admissible heuristics into an improved admissible
@@ -54,17 +78,48 @@ namespace Planner {
 			Add(std::forward<Args>(args)...);
 		}
 
-		virtual double GetHeuristicValue(const State& from, const State& to) override
+		virtual double GetHeuristicValue(const State& state) override
 		{
 			double value = -std::numeric_limits<double>::infinity();
 			for (auto& h : m_heuristics) {
-				value = std::max(value, h->GetHeuristicValue(from, to));
+				value = std::max(value, h->GetHeuristicValue(state));
 			}
 			return value;
 		}
 
+	protected:
+		virtual void SetGoal(const State& goal) override
+		{
+			for (auto& h : m_heuristics)
+				h->SetGoal(goal);
+		}
+
 	private:
 		std::vector<Ref<AStarHeuristic<State>>> m_heuristics;
+	};
+
+	/// @brief Adapt a heuristic for an A* search of type S1 to an A* search of
+	/// type S2.
+	template <typename S1, typename S2, typename Func>
+	class AStarHeuristicAdapter : public AStarHeuristic<S1> {
+	public:
+		AStarHeuristicAdapter(const Ref<AStarHeuristic<S2>>& heuristic, Func func) :
+			m_heuristic(heuristic), m_funcAdapter(func) { }
+
+		virtual double GetHeuristicValue(const S1& state) override
+		{
+			return m_heuristic->GetHeuristicValue(m_funcAdapter(state));
+		}
+
+	protected:
+		virtual void SetGoal(const S1& goal) override
+		{
+			m_heuristic->SetGoal(m_funcAdapter(goal));
+		}
+
+	private:
+		Ref<AStarHeuristic<S2>> m_heuristic;
+		Func m_funcAdapter;
 	};
 
 	/// @brief Implementation of the A* algorithm.
@@ -129,23 +184,36 @@ namespace Planner {
 		/// @brief Return the set of explored states.
 		const std::unordered_set<State, HashState, EqualState>& GetExploredStates() const { return m_explored; }
 
+		/// @brief Return the optimal cost
+		double GetOptimalCost() const
+		{
+			if (!m_solutionNode)
+				return std::numeric_limits<double>::infinity();
+			return m_solutionNode->meta.pathCost;
+		}
+
 		/// @Brief Return the state-propagator used by the algorithm.
 		const Ref<AStarStatePropagator<State>>& GetStatePropagator() const { return m_propagator; }
 		/// @brief Return the heuristic used by the algorithm
 		const Ref<AStarHeuristic<State>>& GetHeuristic() const { return m_heuristic; }
 
 		/// @brief Initialize A* search.
+		/// @param propagator Expand a given node.
+		/// @param heuristic Heuristic function to guide the search.
+		/// @note The following requirements must be met to ensure optimality of
+		/// the solution:
+		/// - Admissibility: the heuristic under-evaluate the path cost
+		/// - Consistency (for graph search only): \f$h(u) - h(v) \leq c(u,v)\f$
+		/// for all point \f$u\f$ and \f$v\f$ with \f$h\f$ the heuristic
+		/// function and \f$c(u,v)\f$ the path cost from \f$u\f$ to \f$v\f$.
 		bool Initialize(const Ref<AStarStatePropagator<State>>& propagator, const Ref<AStarHeuristic<State>>& heuristic)
 		{
-			if (!propagator || !heuristic) {
-				isInitialized = false;
-				return false;
-			}
+			if (!propagator || !heuristic)
+				return isInitialized = false;
 
 			m_propagator = propagator;
 			m_heuristic = heuristic;
-			isInitialized = true;
-			return true;
+			return isInitialized = true;
 		}
 
 		/// @copydoc Planner::PathPlanner::SearchPath
@@ -160,24 +228,18 @@ namespace Planner {
 
 			while (!m_frontier.Empty()) {
 				PP_INFO("Open: {0}, close: {1}", m_frontier.Size(), m_explored.size());
-
-				// Pop lowest-cost node of the frontier
 				auto node = m_frontier.Pop();
-
-				// Check if node is a solution
-				if (EqualState()(node->GetState(), this->m_goal)) {
+				if (IsSolution(node)) {
 					m_solutionNode = node;
 					return Status::Success;
 				}
-
-				m_explored.insert(node->GetState());
-
-				AddChildren(node);
+				Expand(node);
 			}
 			return Status::Failure;
 		}
 
 	protected:
+		/// @brief Initialize the search with the start pose.
 		inline virtual void InitializeSearch()
 		{
 			m_frontier.Clear();
@@ -188,17 +250,29 @@ namespace Planner {
 			m_rootNode = makeScope<Node>(this->m_init);
 			m_frontier.Push(m_rootNode.get());
 			m_explored.insert(m_rootNode->GetState());
+
+			m_heuristic->SetGoal(this->m_goal);
 		}
 
-		/// @brief Add the child of @node to the frontier and to @node
-		inline virtual void AddChildren(Node* node)
+		/// @brief Check if the node is a solution.
+		/// @return true is the node is a solution.
+		inline virtual bool IsSolution(Node* node)
 		{
+			return EqualState()(node->GetState(), this->m_goal);
+		}
+
+		/// @brief Add a node to the explored set, expand it, and push its
+		/// children to the frontier.
+		inline virtual void Expand(Node* node)
+		{
+			m_explored.insert(node->GetState());
+
 			for (auto& [childState, transitionCost] : m_propagator->GetNeighborStates(node->GetState())) {
 				// Create the child node
 				Scope<Node> childScope = makeScope<Node>(childState);
 				Node* child = childScope.get();
 				child->meta.pathCost = node->meta.pathCost + transitionCost;
-				child->meta.totalCost = child->meta.pathCost + m_heuristic->GetHeuristicValue(child->GetState(), this->m_goal);
+				child->meta.totalCost = child->meta.pathCost + m_heuristic->GetHeuristicValue(child->GetState());
 
 				// Check if the child node is in the frontier or explored set
 				if constexpr (GraphSearch) {
