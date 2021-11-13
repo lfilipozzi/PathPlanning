@@ -22,7 +22,8 @@ int main(int /*argc*/, char** /*argv*/)
 {
 	PP_INIT_LOGGER;
 
-	Planner::AStar<Planner::Point2i> search(
+	Planner::AStar<Planner::Point2i> search;
+	search.Initialize(
 		Planner::makeRef<Planner::AStarStatePropagator2D>(),
 		Planner::makeRef<Heuristic2D>());
 
@@ -68,10 +69,10 @@ int main()
 	Ref<ObstacleListOccupancyMap> map = makeRef<ObstacleListOccupancyMap>(0.1);
 	Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace, map);
 
-	HybridAStar hybridAStar(stateValidator);
+	HybridAStar hybridAStar;
 
 	Timer timer;
-	hybridAStar.Initialize();
+	hybridAStar.Initialize(stateValidator);
 	float initTime = timer.ElapsedMillis();
 
 	Pose2d start = { 0.0, 0.0, 0.0 };

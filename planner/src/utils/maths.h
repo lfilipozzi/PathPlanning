@@ -14,11 +14,5 @@ namespace Planner {
 				out += mod;
 			return out;
 		}
-
-		template <typename T>
-		T Clamp(T val, T lb, T ub)
-		{
-			return std::max(lb, std::min(val, ub));
-		}
 	}
 }

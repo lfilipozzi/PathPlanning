@@ -60,14 +60,14 @@ namespace Planner {
 		}
 	}
 
-	void CompositeShape::GetGridCellPositions(const OccupancyMap& map, const Pose2d pose, std::vector<GridCellPosition>& cells)
+	void CompositeShape::GetGridCellPositions(const OccupancyMap& map, const Pose2d& pose, std::vector<GridCellPosition>& cells)
 	{
 		for (auto& child : m_children) {
 			child->GetGridCellPositions(map, pose, cells);
 		}
 	}
 
-	void PolygonShape::GetGridCellPositions(const OccupancyMap& map, const Pose2d pose, std::vector<GridCellPosition>& cells)
+	void PolygonShape::GetGridCellPositions(const OccupancyMap& map, const Pose2d& pose, std::vector<GridCellPosition>& cells)
 	{
 		// Compute world position of vertices
 		std::vector<Point2d> vertices;

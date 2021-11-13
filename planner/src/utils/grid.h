@@ -14,12 +14,10 @@ namespace Planner {
 		int col = -1;
 
 		bool IsValid() const { return row >= 0 && col >= 0; }
+		bool IsAdjacentTo(const GridCellPosition& rhs) const;
+		bool IsDiagonalTo(const GridCellPosition& rhs) const;
 
 		std::vector<GridCellPosition> GetNeighbors(int rows, int columns) const;
-
-		bool IsAdjacentTo(const GridCellPosition& rhs) const;
-
-		bool IsDiagonalTo(const GridCellPosition& rhs) const;
 	};
 
 	bool operator==(const GridCellPosition& lhs, const GridCellPosition& rhs);
@@ -68,7 +66,7 @@ namespace Planner {
 		Grid(int rows, int columns, const T& val) :
 			rows(rows), columns(columns)
 		{
-			if(!(rows > 0 && columns > 0)) {
+			if (!(rows > 0 && columns > 0)) {
 				std::string msg("Invalid grid size: received ");
 				throw std::invalid_argument(msg + std::to_string(rows) + " x " + std::to_string(columns));
 			}

@@ -25,6 +25,13 @@ namespace Planner {
 		/// @brief Check whether the container is empty.
 		bool Empty() const { return m_vec.empty(); }
 
+		/// @brief Empty the container.
+		void Clear() noexcept
+		{
+			m_vec.clear();
+			m_set.clear();
+		}
+
 		/// @brief Insert an element in the container.
 		/// @return Returns a pair consisting of a pointer to the inserted
 		/// element (or to the element that prevented the insertion) and a bool
@@ -66,7 +73,7 @@ namespace Planner {
 		}
 
 		/// @brief Access the last element of the container.
-		T Top() const
+		const T& Top() const
 		{
 			return m_vec.back();
 		}

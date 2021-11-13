@@ -75,10 +75,9 @@ namespace Planner {
 		return heuristic;
 	}
 
-	double NonHolonomicHeuristic::GetHeuristicValue(const Pose2d& from, const Pose2d& to)
+	double NonHolonomicHeuristic::GetHeuristicValue(const Pose2d& state)
 	{
-		auto delta = to - from;
-		delta.theta = delta.WrapTheta();
+		auto delta = m_goal - state;
 
 		int i = (int)round((delta.x() + offsetX) / spatialResolution);
 		int j = (int)round((delta.y() + offsetY) / spatialResolution);
@@ -153,10 +152,10 @@ namespace Planner {
 		}
 	}
 
-	double ObstaclesHeuristic::GetHeuristicValue(const Pose2d& from, const Pose2d& to)
+	double ObstaclesHeuristic::GetHeuristicValue(const Pose2d& state)
 	{
-		auto euclidean = (to.position - from.position).norm();
-		auto cell = m_map->WorldPositionToGridCell(from.position);
+		auto euclidean = (m_goal.position - state.position).norm();
+		auto cell = m_map->WorldPositionToGridCell(state.position);
 		if (!cell.IsValid())
 			return euclidean;
 		if (!m_explored[cell.row][cell.col])

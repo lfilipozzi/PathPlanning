@@ -23,8 +23,8 @@ namespace Planner {
 		Ref<OccupancyMap>& GetOccupancyMap() { return m_map; }
 
 	public:
-		double minPathInterpolationDistance = 0.1;
-		double minSafeRadius = 1.0;
+		float minPathInterpolationDistance = 0.1f;
+		float minSafeRadius = 1.0f;
 
 	private:
 		Ref<OccupancyMap> m_map;

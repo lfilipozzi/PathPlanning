@@ -9,8 +9,10 @@ namespace Planner {
 	/// @brief Configuration space in the special Euclidean group SE(2).
 	class StateSpaceSE2 : public PlanarStateSpace {
 	public:
-		StateSpaceSE2(const std::array<Pose2d, 2>& bounds = { Pose2d(-100, -100, -M_PI), Pose2d(100, 100, M_PI) }) :
+		StateSpaceSE2(const std::array<Pose2d, 2>& bounds) :
 			PlanarStateSpace(bounds) { }
+		StateSpaceSE2(const Pose2d& lb, const Pose2d& ub) :
+			StateSpaceSE2(std::array<Pose2d, 2>({ lb, ub })) { }
 		~StateSpaceSE2() = default;
 
 		virtual double ComputeDistance(const Pose2d& from, const Pose2d& to) override

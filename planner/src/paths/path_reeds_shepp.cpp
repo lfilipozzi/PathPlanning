@@ -145,4 +145,11 @@ namespace Planner {
 	{
 		return m_pathSegment.ComputeCost(m_minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
 	}
+
+	Ref<PlanarPath> ReedsSheppConnection::Connect(const Pose2d& from, const Pose2d& to)
+	{
+		auto pathSegment = ReedsShepp::Solver::GetOptimalPath(from, to,
+			m_minTurningRadius, m_reverseCostMultiplier, m_forwardCostMultiplier, m_directionSwitchingCost);
+		return makeRef<PathReedsShepp>(from, pathSegment, m_minTurningRadius);
+	}
 }

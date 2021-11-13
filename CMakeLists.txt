@@ -10,6 +10,7 @@ if(LOG_WITH_SPDLOG)
 	add_compile_definitions(PP_ENABLE_LOG)
 	include_directories(${CMAKE_SOURCE_DIR}/external/spdlog/include)
 	add_library(logger ${CMAKE_SOURCE_DIR}/planner/src/core/log.cpp)
+	set_target_properties(logger PROPERTIES POSITION_INDEPENDENT_CODE ON)
 	set(logger_LIB logger)
 else()
 	message("Disable logging")
@@ -21,6 +22,14 @@ if(ENABLE_ASSERT)
 	message("Enable assertion")
 	add_compile_definitions(PP_ENABLE_ASSERT)
 endif()
+
+# Define build directory
+set(CMAKE_BUILD_DIR ${PROJECT_SOURCE_DIR}/build)
+set(LIBRARY_OUTPUT_PATH ${CMAKE_BUILD_DIR}/lib)
+message(STATUS "EXECUTABLE_OUTPUT_PATH: " ${EXECUTABLE_OUTPUT_PATH})
+message(STATUS "LIBRARY_OUTPUT_PATH: " ${LIBRARY_OUTPUT_PATH})
+message(STATUS "CMAKE_INSTALL_PREFIX: " ${CMAKE_INSTALL_PREFIX})
+file(MAKE_DIRECTORY ${LIBRARY_OUTPUT_PATH})
 
 include_directories(
 	${CMAKE_SOURCE_DIR}/planner/src
@@ -51,6 +60,7 @@ endif()
 add_library(pathPlanning
 	${CMAKE_SOURCE_DIR}/planner/src/algo/hybrid_a_star.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/algo/heuristics.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/algo/planar_a_star_grid.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/algo/smoother.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/geometry/2dplane.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/geometry/reeds_shepp.cpp
@@ -65,7 +75,10 @@ add_library(pathPlanning
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/state_validator_occupancy_map.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/utils/grid.cpp
 )
+set_target_properties(pathPlanning PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(pathPlanning flann ${logger_LIB})
+
+add_subdirectory(interfaces/python/src)
 
 add_executable(mainPathPlanning main.cpp)
 target_link_libraries(mainPathPlanning pathPlanning)

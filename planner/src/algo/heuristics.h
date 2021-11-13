@@ -6,7 +6,7 @@
 #include "utils/grid.h"
 
 namespace Planner {
-	class NonHolonomicHeuristic : public AStarHeuristic<Pose2d> {
+	class NonHolonomicHeuristic : public AStarConcreteHeuristic<Pose2d> {
 	public:
 		~NonHolonomicHeuristic();
 
@@ -15,7 +15,7 @@ namespace Planner {
 			double spatialResolution, double angularResolution, double minTurningRadius,
 			double reverseCostMultiplier, double forwardCostMultiplier, double directionSwitchingCost);
 
-		virtual double GetHeuristicValue(const Pose2d& from, const Pose2d& to) override;
+		virtual double GetHeuristicValue(const Pose2d& state) override;
 
 	protected:
 		NonHolonomicHeuristic(double spatialResolution, double angularResolution, double minTurningRadius,
@@ -34,7 +34,7 @@ namespace Planner {
 
 	class OccupancyMap;
 
-	class ObstaclesHeuristic : public AStarHeuristic<Pose2d> {
+	class ObstaclesHeuristic : public AStarConcreteHeuristic<Pose2d> {
 	private:
 		struct CompareCell {
 			bool operator()(const GridCell<float>& lhs, const GridCell<float>& rhs) const
@@ -62,7 +62,7 @@ namespace Planner {
 
 		void Update(const Pose2d& goal);
 
-		virtual double GetHeuristicValue(const Pose2d& from, const Pose2d& to) override;
+		virtual double GetHeuristicValue(const Pose2d& state) override;
 
 		void Visualize(const std::string& filename) const;
 

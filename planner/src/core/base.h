@@ -24,6 +24,28 @@ namespace Planner {
 
 }
 
+#define PP_CONCATENATE(arg1, arg2) PP_INTERNAL_CONCATENATE1(arg1, arg2)
+#define PP_INTERNAL_CONCATENATE1(arg1, arg2) PP_INTERNAL_CONCATENATE2(arg1, arg2) // Defer concatenation
+#define PP_INTERNAL_CONCATENATE2(arg1, arg2) arg1##arg2
+
+// Iterate over variadic macro
+// clang-format off
+#define PP_INTERNAL_FOR_EACH_1(WHAT, x, ...) WHAT(x)
+#define PP_INTERNAL_FOR_EACH_2(WHAT, x, ...) WHAT(x)PP_INTERNAL_FOR_EACH_1(WHAT, __VA_ARGS__)
+#define PP_INTERNAL_FOR_EACH_3(WHAT, x, ...) WHAT(x)PP_INTERNAL_FOR_EACH_2(WHAT, __VA_ARGS__)
+#define PP_INTERNAL_FOR_EACH_4(WHAT, x, ...) WHAT(x)PP_INTERNAL_FOR_EACH_3(WHAT, __VA_ARGS__)
+#define PP_INTERNAL_FOR_EACH_5(WHAT, x, ...) WHAT(x)PP_INTERNAL_FOR_EACH_4(WHAT, __VA_ARGS__)
+#define PP_INTERNAL_FOR_EACH_6(WHAT, x, ...) WHAT(x)PP_INTERNAL_FOR_EACH_5(WHAT, __VA_ARGS__)
+#define PP_INTERNAL_FOR_EACH_7(WHAT, x, ...) WHAT(x)PP_INTERNAL_FOR_EACH_6(WHAT, __VA_ARGS__)
+#define PP_INTERNAL_FOR_EACH_8(WHAT, x, ...) WHAT(x)PP_INTERNAL_FOR_EACH_7(WHAT, __VA_ARGS__)
+#define PP_INTERNAL_FOR_EACH_NARG(...) PP_INTERNAL_FOR_EACH_NARG_(__VA_ARGS__, PP_INTERNAL_FOR_EACH_RSEQ_N())
+#define PP_INTERNAL_FOR_EACH_NARG_(...) PP_INTERNAL_FOR_EACH_ARG_N(__VA_ARGS__)
+#define PP_INTERNAL_FOR_EACH_ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, N, ...) N
+#define PP_INTERNAL_FOR_EACH_RSEQ_N() 8, 7, 6, 5, 4, 3, 2, 1, 0
+#define PP_INTERNAL_FOR_EACH_(N, WHAT, ...) PP_CONCATENATE(PP_INTERNAL_FOR_EACH_, N) (WHAT, __VA_ARGS__)
+#define PP_FOR_EACH(WHAT, ...) PP_INTERNAL_FOR_EACH_(PP_INTERNAL_FOR_EACH_NARG(__VA_ARGS__), WHAT, __VA_ARGS__)
+// clang-format on
+
 // Platform detection
 #include "core/platform_detection.h"
 

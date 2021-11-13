@@ -15,39 +15,51 @@ namespace Planner {
 	{
 		// Validate bounds
 		Pose2d localState(m_map->WorldPositionToLocalPosition(state.position), state.theta);
-		if (!m_stateSpace->ValidateBounds(localState))
+		GridCellPosition cell = m_map->WorldPositionToGridCell(state.position);
+		if (!m_stateSpace->ValidateBounds(localState) || !m_map->IsInsideMap(cell))
 			return false;
 		// Check intersection with obstacles
-		GridCellPosition cell = m_map->WorldPositionToGridCell(state.position);
-		if (cell.IsValid()) {
-			float distance = m_map->GetObstacleDistanceMap()->GetDistanceToNearestObstacle(cell);
-			return distance >= minSafeRadius;
-		}
-		return false;
+		// TODO add offset
+		float distance = m_map->GetObstacleDistanceMap()->GetDistanceToNearestObstacle(cell);
+		return distance >= minSafeRadius;
 	}
 
 	bool StateValidatorOccupancyMap::IsPathValid(const PlanarPath& path, float* last)
 	{
+		const auto& bounds = m_stateSpace->bounds;
 		const double pathLength = path.GetLength();
+		if (pathLength == 0.0) {
+			if (last)
+				*last = 1.0f;
+			return IsStateValid(path.GetInitialState());
+		}
 
+		double lastValidLength = 0.0;
 		double length = 0.0;
 		while (length < pathLength) {
 			Pose2d state = path.Interpolate(length / pathLength);
+			GridCellPosition cell = m_map->WorldPositionToGridCell(state.position);
 
 			// Check current state
 			if (!IsStateValid(state)) {
 				if (last)
-					*last = length / pathLength;
+					*last = lastValidLength / pathLength;
 				return false;
 			}
+			lastValidLength = length;
+
 			// Update length
-			GridCellPosition cell = m_map->WorldPositionToGridCell(state.position);
-			if (cell.IsValid()) {
-				float distance = m_map->GetObstacleDistanceMap()->GetDistanceToNearestObstacle(cell);
-				length += std::max(distance - minSafeRadius, minPathInterpolationDistance);
-			} else {
-				length += minPathInterpolationDistance;
-			}
+			float distToMapBorder = std::min({
+				state.x() - bounds[0].x(),
+				bounds[1].x() - state.x(),
+				state.y() - bounds[0].y(),
+				bounds[1].y() - state.y(),
+			});
+			// TODO add offset
+			float distance = m_map->GetObstacleDistanceMap()->GetDistanceToNearestObstacle(cell);
+			float deltaLength = distance - minSafeRadius;
+			deltaLength = std::min(deltaLength, distToMapBorder);
+			length += std::max(deltaLength, minPathInterpolationDistance);
 		}
 
 		if (last)

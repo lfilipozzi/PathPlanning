@@ -23,10 +23,11 @@ namespace Planner {
 	/// the configuration space.
 	/// The A* search provides an optimal solution that is then smoothed by a
 	/// nonlinear optimization.
-	class HybridAStar : public PathPlanner<Pose2d> {
+	class HybridAStar : public PlanarPathPlanner {
 	public:
 		struct SearchParameters {
-			const double minTurningRadius = 1.0;
+			const double wheelbase = 2.6; // TODO add maxSteeringAngle to choose how to propagate bicycle model
+			const double minTurningRadius = 2.0;
 			const double directionSwitchingCost = 0.0;
 			const double reverseCostMultiplier = 1.0;
 			const double forwardCostMultiplier = 1.0;
@@ -144,32 +145,63 @@ namespace Planner {
 			State m_goalState;
 		};
 
-		/// @brief Adapter heuristic A* of Pose2d to heuristic A* for
-		/// HybrisAStar::State.
-		class HeuristicAdapter : public AStarHeuristic<State> {
+		class Adapter {
+		public:
+			const Pose2d& operator()(const State& state) { return state.GetPose(); }
+		};
+		/// @brief Adapter a heuristic for an A* search of Pose2d to an
+		/// heuristic for A* search of HybrisAStar::State.
+		class HeuristicAdapter : public AStarHeuristicAdapter<State, Pose2d, Adapter> {
 		public:
 			HeuristicAdapter(const Ref<AStarHeuristic<Pose2d>>& heuristic) :
-				m_heuristic(heuristic) { }
+				AStarHeuristicAdapter(heuristic, Adapter()) { }
+		};
 
-			inline virtual double GetHeuristicValue(const State& from, const State& to) override
+		/// @brief A* based graph search for Hybrid A*
+		class GraphSearch : public AStar<State, State::Hash, State::Equal, true> {
+		public:
+			GraphSearch() = default;
+
+		protected:
+			/// @copydoc Planner::AStar::IsSolution
+			inline virtual bool IsSolution(Node* node) override
 			{
-				return m_heuristic->GetHeuristicValue(from.GetPose(), to.GetPose());
+				return IdenticalPoses(node->GetState().GetPose(), this->m_goal.GetPose());
+			}
+
+			/// @copydoc Planner::AStar::ProcessPossibleShorterPath
+			inline virtual void ProcessPossibleShorterPath(Node* frontierNode, Scope<Node> childScope, Node* node) override
+			{
+				// TODO FIXME check if a path with better cost exist between the two nodes if two poses are not identical?
+				auto child = childScope.get();
+				bool identicalPose = IdenticalPoses(frontierNode->GetState().GetPose(), node->GetState().GetPose());
+				bool betterCost = frontierNode->meta.totalCost > child->meta.totalCost;
+				if (identicalPose && betterCost) {
+					// Replace the node in frontier by the newly find better node.
+					auto previousChildScope = frontierNode->GetParent()->ReplaceChild(frontierNode, std::move(childScope), false);
+					// Replace the node in the frontier by child
+					m_frontier.Remove(previousChildScope.get());
+					m_frontier.Push(child);
+				}
 			}
 
 		private:
-			Ref<AStarHeuristic<Pose2d>> m_heuristic;
+			inline bool IdenticalPoses(const Pose2d& lhs, const Pose2d& rhs, double tol = 1e-3)
+			{
+				return (lhs.position - rhs.position).norm() < tol && abs(lhs.theta - rhs.theta) < tol * M_PI / 180.0;
+			}
 		};
 
 	public:
-		HybridAStar(const Ref<StateValidatorOccupancyMap>& validator);
-		HybridAStar(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& parameters);
+		HybridAStar();
+		HybridAStar(const SearchParameters& parameters);
 		virtual ~HybridAStar() = default;
 
-		bool Initialize();
+		bool Initialize(const Ref<StateValidatorOccupancyMap>& validator);
 
 		virtual Status SearchPath() override;
 
-		virtual std::vector<Pose2d> GetPath() override { return m_path; }
+		virtual std::vector<Pose2d> GetPath() const override { return m_path; }
 
 		Ref<StateValidatorOccupancyMap>& GetStateValidator() { return m_validator; }
 
@@ -178,11 +210,17 @@ namespace Planner {
 		{
 			return const_cast<const StatePropagator&>(*m_propagator).GetParameters();
 		}
-		Smoother::Parameters GetSmootherParameters() { return m_smoother->GetParameters(); }
+		Smoother::Parameters GetSmootherParameters() { return m_smoother.GetParameters(); }
 		const Smoother::Parameters& GetSmootherParameters() const
 		{
-			return const_cast<const Smoother&>(*m_smoother).GetParameters();
+			return const_cast<const Smoother&>(m_smoother).GetParameters();
 		}
+
+		void VisualizeObstacleHeuristic(const std::string& filename) const;
+
+		std::unordered_set<Ref<PlanarPath>> GetGraphSearchExploredSet() const;
+		std::vector<Ref<PlanarPath>> GetGraphSearchPath() const;
+		double GetGraphSearchOptimalCost() const;
 
 	public:
 		/// @brief Distance to interpolate pose from the path
@@ -194,8 +232,8 @@ namespace Planner {
 		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
 		Ref<ObstaclesHeuristic> m_obstacleHeuristic;
 		Ref<GVD> m_gvd;
-		Scope<AStar<State, State::Hash, State::Equal>> m_aStarSearch;
-		Scope<Smoother> m_smoother;
+		GraphSearch m_graphSearch;
+		Smoother m_smoother;
 		std::vector<Pose2d> m_path;
 		bool isInitialized = false;
 	};

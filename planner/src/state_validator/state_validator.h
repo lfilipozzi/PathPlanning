@@ -42,9 +42,5 @@ namespace Planner {
 		Ref<StateSpace<State, Dimension, T>> m_stateSpace;
 	};
 
-	class PlanarStateValidator : public StateValidator<Pose2d, 3, double> {
-	public:
-		PlanarStateValidator(const Ref<PlanarStateSpace>& stateSpace) :
-			StateValidator(stateSpace) { }
-	};
+	using PlanarStateValidator = StateValidator<Pose2d, 3, double>;
 }

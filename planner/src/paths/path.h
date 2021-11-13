@@ -1,6 +1,7 @@
 #pragma once
 
 #include "geometry/2dplane.h"
+#include "core/base.h"
 
 namespace Planner {
 
@@ -55,5 +56,18 @@ namespace Planner {
 		double m_length = 0.0;
 	};
 
+	/// @brief Interface to generate path connecting different states.
+	template <typename State>
+	class PathConnection {
+	public:
+		PathConnection() = default;
+		virtual ~PathConnection() = default;
+
+		/// @brief Connect the two states.
+		virtual Ref<Path<State>> Connect(const State& from, const State& to) = 0;
+	};
+
 	using PlanarPath = Path<Pose2d>;
+	using PlanarPathConnection = PathConnection<Pose2d>;
+
 }

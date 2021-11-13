@@ -124,7 +124,7 @@ namespace Planner {
 			return Status::Failure;
 		}
 
-		virtual std::vector<Vertex> GetPath() override
+		virtual std::vector<Vertex> GetPath() const override
 		{
 			std::vector<Vertex> path;
 

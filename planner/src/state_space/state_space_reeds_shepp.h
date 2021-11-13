@@ -6,10 +6,11 @@
 namespace Planner {
 	class StateSpaceReedsShepp : public PlanarStateSpace {
 	public:
-		StateSpaceReedsShepp(const std::array<Pose2d, 2>& bounds = { Pose2d(-100, -100, -M_PI), Pose2d(100, 100, M_PI) },
-			double minTurningRadius = 1.0) :
+		StateSpaceReedsShepp(const std::array<Pose2d, 2>& bounds, double minTurningRadius = 1.0) :
 			PlanarStateSpace(bounds),
 			minTurningRadius(minTurningRadius) { }
+		StateSpaceReedsShepp(const Pose2d& lb, const Pose2d& ub, double minTurningRadius = 1.0) :
+			StateSpaceReedsShepp(std::array<Pose2d, 2>({ lb, ub }), minTurningRadius) { }
 		~StateSpaceReedsShepp() = default;
 
 		/// @brief Compute the shortest distance from the pose @from to @to

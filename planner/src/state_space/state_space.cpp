@@ -6,9 +6,9 @@ namespace Planner {
 		auto lb = bounds[0];
 		auto ub = bounds[1];
 		// clang-format off
-		state.x()   = std::max(lb.x(),   std::min(state.x(),   ub.x()));
-		state.y()   = std::max(lb.y(),   std::min(state.y(),   ub.y()));
-		state.theta = std::max(lb.theta, std::min(state.theta, ub.theta));
+		state.x()   = std::clamp(state.x(),   lb.x(),   ub.x());
+		state.y()   = std::clamp(state.y(),   lb.y(),   ub.y());
+		state.theta = std::clamp(state.theta, lb.theta, ub.theta);
 		// clang-format on
 	}
 

@@ -7,7 +7,7 @@
 namespace Planner {
 
 	bool Log::s_initialized = false;
-	Ref<spdlog::logger> Log::s_logger;
+	std::shared_ptr<spdlog::logger> Log::s_logger;
 
 	void Log::Init()
 	{
