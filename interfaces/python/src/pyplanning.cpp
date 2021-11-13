@@ -1,10 +1,12 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <pybind11/functional.h>
 
 #include "core/base.h"
 #include "algo/path_planner.h"
 #include "algo/hybrid_a_star.h"
+#include "algo/planar_a_star_grid.h"
 
 #include "geometry/2dplane.h"
 
@@ -25,6 +27,8 @@
 #include "state_validator/state_validator_free.h"
 #include "state_validator/state_validator_occupancy_map.h"
 #include "state_validator/gvd.h"
+
+#include "utils/grid.h"
 
 using namespace pybind11;
 using namespace Planner;
@@ -75,6 +79,58 @@ PYBIND11_MODULE(pyplanning, m)
 		.def("get_graph_search_optimal_cost", &HybridAStar::GetGraphSearchOptimalCost)
 		.def("visualize_obstacle_heuristic", &HybridAStar::VisualizeObstacleHeuristic);
 
+	struct GridPathPlannerWrapper : GridPathPlanner {
+		using GridPathPlanner::GridPathPlanner;
+		virtual Status SearchPath() override { PYBIND11_OVERRIDE_PURE(Status, GridPathPlanner, SearchPath); }
+		virtual std::vector<GridCellPosition> GetPath() const override { PYBIND11_OVERRIDE_PURE(std::vector<GridCellPosition>, GridPathPlanner, GetPath); }
+	};
+
+	class_<GridPathPlanner, GridPathPlannerWrapper>(m, "GridPathPlanner")
+		.def(init<>())
+		.def("search_path", &GridPathPlanner::SearchPath)
+		.def("get_path", &GridPathPlanner::GetPath)
+		.def("set_init_state", &GridPathPlanner::SetInitState)
+		.def("set_goal_state", &GridPathPlanner::SetGoalState);
+
+	struct PyPlanarAStarGrid : public PlanarAStarGrid {
+		using PlanarAStarGrid::PlanarAStarGrid;
+		const std::unordered_set<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>>& GetExploredStates() const { return m_explored; }
+	};
+
+	class_<PyPlanarAStarGrid, GridPathPlanner>(m, "PlanarAStarGrid")
+		.def(init<>())
+		.def<bool (PlanarAStarGrid::*)(
+			const Ref<OccupancyMap>&,
+			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&,
+			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&)>("initialize", &PlanarAStarGrid::Initialize)
+		.def("get_explored_states", &PyPlanarAStarGrid::GetExploredStates)
+		.def("get_optimal_cost", &PlanarAStarGrid::GetOptimalCost);
+
+	struct PyPlanarBidirectionalAStarGrid : public PlanarBidirectionalAStarGrid {
+		using PlanarBidirectionalAStarGrid::PlanarBidirectionalAStarGrid;
+		std::tuple<std::unordered_set<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>>,
+			std::unordered_set<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>>>
+		GetExploredStates()
+		{
+			std::unordered_set<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>> fExplored, rExplored;
+			auto [fExploredMap, rExploredMap] = PlanarBidirectionalAStarGrid::GetExploredStates();
+			for (auto kv : fExploredMap)
+				fExplored.insert(kv.first);
+			for (auto kv : rExploredMap)
+				rExplored.insert(kv.first);
+			return std::make_tuple(fExplored, rExplored);
+		}
+	};
+
+	class_<PyPlanarBidirectionalAStarGrid, GridPathPlanner>(m, "PlanarBidirectionalAStarGrid")
+		.def(init<>())
+		.def<bool (PlanarBidirectionalAStarGrid::*)(
+			const Ref<OccupancyMap>&,
+			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&,
+			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&)>("initialize", &PlanarBidirectionalAStarGrid::Initialize)
+		.def("get_explored_states", &PyPlanarBidirectionalAStarGrid::GetExploredStates)
+		.def("get_optimal_cost", &PlanarBidirectionalAStarGrid::GetOptimalCost);
+
 	//     _____                           _
 	//    / ____|                         | |
 	//   | |  __  ___  ___  _ __ ___   ___| |_ _ __ _   _
@@ -104,6 +160,12 @@ PYBIND11_MODULE(pyplanning, m)
 		.def(self - self)
 		.def(self == self)
 		.def(self != self);
+
+	class_<GridCellPosition>(m, "GridCellPosition")
+		.def(init<>())
+		.def(init<int, int>())
+		.def_readwrite("row", &GridCellPosition::row)
+		.def_readwrite("col", &GridCellPosition::col);
 
 	//    _____      _   _
 	//   |  __ \    | | | |
@@ -212,6 +274,7 @@ PYBIND11_MODULE(pyplanning, m)
 
 	class_<OccupancyMap, Ref<OccupancyMap>, OccupancyMapWrapper>(m, "OccupancyMap")
 		.def(init<float>())
+		.def("initialize_size", &OccupancyMap::InitializeSize)
 		.def("rows", &OccupancyMap::Rows)
 		.def("columns", &OccupancyMap::Columns)
 		.def("update", &OccupancyMap::Update)

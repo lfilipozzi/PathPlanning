@@ -31,7 +31,7 @@ namespace Planner {
 		friend class AStarCombinedHeuristic;
 		template <typename S1, typename S2, typename Func>
 		friend class AStarHeuristicAdapter;
-		template <typename S, typename HashState, typename EqualState, bool GraphSearch>
+		template <typename S, typename HashState, typename EqualState, bool GraphSearch, typename ExploredContainer>
 		friend class AStar;
 
 	public:
@@ -46,6 +46,8 @@ namespace Planner {
 		virtual void SetGoal(const State& goal) = 0;
 	};
 
+	/// @brief Base class for concrete implementation of an A* heuristic
+	/// function.
 	template <typename State>
 	class AStarConcreteHeuristic : public AStarHeuristic<State> {
 	public:
@@ -57,6 +59,23 @@ namespace Planner {
 
 	protected:
 		State m_goal;
+	};
+
+	/// @brief A* heuristic from function.
+	template <typename State, typename Func>
+	class AStarConcreteHeuristicFcn : public AStarConcreteHeuristic<State> {
+	public:
+		AStarConcreteHeuristicFcn(Func func) :
+			m_func(func) { }
+		virtual ~AStarConcreteHeuristicFcn() = default;
+
+		virtual double GetHeuristicValue(const State& state) override
+		{
+			return m_func(state, this->m_goal);
+		}
+
+	protected:
+		Func m_func;
 	};
 
 	/// @brief Combine several admissible heuristics into an improved admissible
@@ -122,20 +141,72 @@ namespace Planner {
 		Func m_funcAdapter;
 	};
 
+	/// @brief Node metadata used by A* star.
+	struct AStarNodeMetadata {
+		double pathCost = 0;
+		double totalCost = 0;
+	};
+	template <typename State>
+	using AStarNode = GenericNode<State, AStarNodeMetadata>;
+
+	/// @brief Implementation of an explored set for A* search using a
+	/// std::unordered_set.
+	template <typename State, typename HashState, typename EqualState>
+	class Explored : public std::unordered_set<State, HashState, EqualState> {
+	public:
+		Explored() = default;
+
+		/// @brief Empty the container.
+		inline void Clear() { this->clear(); }
+		/// @brief Insert a node in the container.
+		inline void Insert(AStarNode<State>* const node) { this->insert(node->GetState()); }
+		/// @brief Check if a node is in the container.
+		inline bool Contains(AStarNode<State>* const node) { return this->find(node->GetState()) != this->end(); }
+	};
+
+	/// @brief Implementation of an explored set for A* search using a
+	/// std::unordered_map.
+	template <typename State, typename HashState, typename EqualState>
+	class ExploredMap : public std::unordered_map<State, AStarNode<State>*, HashState, EqualState> {
+	public:
+		ExploredMap() = default;
+
+		/// @brief Empty the container.
+		inline void Clear() { this->clear(); }
+		/// @brief Insert a node in the container.
+		inline void Insert(AStarNode<State>* const node) { this->insert({ node->GetState(), node }); }
+		/// @brief Check if a node is in the container.
+		inline bool Contains(AStarNode<State>* const node) { return this->find(node->GetState()) != this->end(); }
+	};
+
+	/// @brief Implementation of a void explored set for A* search.
+	/// @note For use with A* tree search only.
+	template <typename State, typename HashState, typename EqualState>
+	class ExploredVoid {
+	public:
+		ExploredVoid() = default;
+
+		/// @brief Empty the container.
+		inline void Clear() { }
+		/// @brief Insert a node in the container.
+		inline void Insert(AStarNode<State>* const /*node*/) { }
+		/// @brief Check if a node is in the container.
+		inline bool Contains(AStarNode<State>* const /*node*/) { return false; }
+	};
+
 	/// @brief Implementation of the A* algorithm.
-	template <typename State, typename HashState = std::hash<State>, typename EqualState = std::equal_to<State>, bool GraphSearch = true>
+	template <
+		typename State,
+		typename HashState = std::hash<State>,
+		typename EqualState = std::equal_to<State>,
+		bool GraphSearch = true,
+		typename ExploredContainer = Explored<State, HashState, EqualState>>
 	class AStar : public PathPlanner<State> {
 		static_assert(std::is_copy_constructible<State>::value);
 
-	public:
-		/// @brief Node metadata used by A* star.
-		struct NodeMetadata {
-			double pathCost = 0;
-			double totalCost = 0;
-		};
-		using Node = GenericNode<State, NodeMetadata>;
-
 	protected:
+		using Node = AStarNode<State>;
+
 		struct CompareNode {
 			bool operator()(Node* lhs, Node* rhs) const
 			{
@@ -182,7 +253,7 @@ namespace Planner {
 		}
 
 		/// @brief Return the set of explored states.
-		const std::unordered_set<State, HashState, EqualState>& GetExploredStates() const { return m_explored; }
+		const ExploredContainer& GetExploredStates() const { return m_explored; }
 
 		/// @brief Return the optimal cost
 		double GetOptimalCost() const
@@ -227,7 +298,6 @@ namespace Planner {
 			InitializeSearch();
 
 			while (!m_frontier.Empty()) {
-				PP_INFO("Open: {0}, close: {1}", m_frontier.Size(), m_explored.size());
 				auto node = m_frontier.Pop();
 				if (IsSolution(node)) {
 					m_solutionNode = node;
@@ -243,13 +313,13 @@ namespace Planner {
 		inline virtual void InitializeSearch()
 		{
 			m_frontier.Clear();
-			m_explored.clear();
+			m_explored.Clear();
 			m_solutionNode = nullptr;
 			m_rootNode.reset();
 
 			m_rootNode = makeScope<Node>(this->m_init);
 			m_frontier.Push(m_rootNode.get());
-			m_explored.insert(m_rootNode->GetState());
+			m_explored.Insert(m_rootNode.get());
 
 			m_heuristic->SetGoal(this->m_goal);
 		}
@@ -265,7 +335,7 @@ namespace Planner {
 		/// children to the frontier.
 		inline virtual void Expand(Node* node)
 		{
-			m_explored.insert(node->GetState());
+			m_explored.Insert(node);
 
 			for (auto& [childState, transitionCost] : m_propagator->GetNeighborStates(node->GetState())) {
 				// Create the child node
@@ -277,7 +347,7 @@ namespace Planner {
 				// Check if the child node is in the frontier or explored set
 				if constexpr (GraphSearch) {
 					Node* const* inFrontier = m_frontier.Find(child);
-					bool inExplored = m_explored.find(child->GetState()) != m_explored.end();
+					bool inExplored = m_explored.Contains(child);
 					if (!inFrontier && !inExplored) {
 						// Add child to frontier and to the tree
 						m_frontier.Push(child);
@@ -285,13 +355,7 @@ namespace Planner {
 					} else if (inFrontier) {
 						// Check if the node in frontier has a higher cost than the
 						// current path, and if so replace it by child
-						if ((*inFrontier)->meta.totalCost > child->meta.totalCost) {
-							// Replace the node *inFrontier by the newly find better node.
-							auto previousChildScope = (*inFrontier)->GetParent()->ReplaceChild(*inFrontier, std::move(childScope), false);
-							// Replace the node in the frontier by child
-							m_frontier.Remove(previousChildScope.get());
-							m_frontier.Push(child);
-						}
+						ProcessPossibleShorterPath(*inFrontier, std::move(childScope), node);
 					}
 				} else {
 					// Add child to frontier and to the tree
@@ -301,12 +365,30 @@ namespace Planner {
 			}
 		}
 
+		/// @brief Update the frontier if a shorter path is found while
+		/// expanding a node.
+		/// @param frontierNode The node in the frontier with the same state as
+		/// @childScope.
+		/// @param childScope The node being added to the frontier.
+		/// @param node The node being expanded.
+		inline virtual void ProcessPossibleShorterPath(Node* frontierNode, Scope<Node> childScope, Node* /*node*/)
+		{
+			auto child = childScope.get();
+			if (frontierNode->meta.totalCost > child->meta.totalCost) {
+				// Replace the node in frontier by the newly find better node.
+				auto previousChildScope = frontierNode->GetParent()->ReplaceChild(frontierNode, std::move(childScope), false);
+				// Replace the node in the frontier by child
+				m_frontier.Remove(previousChildScope.get());
+				m_frontier.Push(child);
+			}
+		}
+
 	protected:
 		Ref<AStarStatePropagator<State>> m_propagator;
 		Ref<AStarHeuristic<State>> m_heuristic;
 
 		Frontier<Node*, CompareNode, HashNode, EqualNode> m_frontier;
-		std::unordered_set<State, HashState, EqualState> m_explored;
+		ExploredContainer m_explored;
 
 		Scope<Node> m_rootNode;
 		Node* m_solutionNode = nullptr;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "geometry/2dplane.h"
+#include "utils/grid.h"
 #include <vector>
 
 namespace Planner {
@@ -40,4 +41,5 @@ namespace Planner {
 	};
 
 	using PlanarPathPlanner = PathPlanner<Pose2d>;
+	using GridPathPlanner = PathPlanner<GridCellPosition>;
 }

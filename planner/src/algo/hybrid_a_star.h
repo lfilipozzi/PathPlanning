@@ -163,44 +163,25 @@ namespace Planner {
 			GraphSearch() = default;
 
 		protected:
+			/// @copydoc Planner::AStar::IsSolution
 			inline virtual bool IsSolution(Node* node) override
 			{
 				return IdenticalPoses(node->GetState().GetPose(), this->m_goal.GetPose());
 			}
 
-			inline virtual void Expand(Node* node) override
+			/// @copydoc Planner::AStar::ProcessPossibleShorterPath
+			inline virtual void ProcessPossibleShorterPath(Node* frontierNode, Scope<Node> childScope, Node* node) override
 			{
-				m_explored.insert(node->GetState());
-
-				for (auto& [childState, transitionCost] : m_propagator->GetNeighborStates(node->GetState())) {
-					// Create the child node
-					Scope<Node> childScope = makeScope<Node>(childState);
-					Node* child = childScope.get();
-					child->meta.pathCost = node->meta.pathCost + transitionCost;
-					child->meta.totalCost = child->meta.pathCost + m_heuristic->GetHeuristicValue(child->GetState());
-
-					// Check if the child node is in the frontier or explored set
-					Node* const* inFrontier = m_frontier.Find(child);
-					bool inExplored = m_explored.find(child->GetState()) != m_explored.end();
-					if (!inFrontier && !inExplored) {
-						// Add child to frontier and to the tree
-						m_frontier.Push(child);
-						node->AddChild(std::move(childScope));
-					} else if (inFrontier) {
-						// Check if the node in frontier has a higher cost than the
-						// current path, and if so replace it by child and that they
-						// refer to the same continuous pose.
-						// TODO FIXME check if a path with better cost exist between the two nodes if two poses are not identical?
-						bool identicalPose = IdenticalPoses((*inFrontier)->GetState().GetPose(), node->GetState().GetPose());
-						bool betterCost = (*inFrontier)->meta.totalCost > child->meta.totalCost;
-						if (identicalPose && betterCost) {
-							// Replace the node *inFrontier by the newly find better node.
-							auto previousChildScope = (*inFrontier)->GetParent()->ReplaceChild(*inFrontier, std::move(childScope), false);
-							// Replace the node in the frontier by child
-							m_frontier.Remove(previousChildScope.get());
-							m_frontier.Push(child);
-						}
-					}
+				// TODO FIXME check if a path with better cost exist between the two nodes if two poses are not identical?
+				auto child = childScope.get();
+				bool identicalPose = IdenticalPoses(frontierNode->GetState().GetPose(), node->GetState().GetPose());
+				bool betterCost = frontierNode->meta.totalCost > child->meta.totalCost;
+				if (identicalPose && betterCost) {
+					// Replace the node in frontier by the newly find better node.
+					auto previousChildScope = frontierNode->GetParent()->ReplaceChild(frontierNode, std::move(childScope), false);
+					// Replace the node in the frontier by child
+					m_frontier.Remove(previousChildScope.get());
+					m_frontier.Push(child);
 				}
 			}
 

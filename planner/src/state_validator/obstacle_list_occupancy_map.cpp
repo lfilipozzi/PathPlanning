@@ -28,7 +28,8 @@ namespace Planner {
 
 	bool ObstacleListOccupancyMap::AddObstacle(const Ref<Obstacle>& obstacle)
 	{
-		PP_ASSERT(m_occupancyMatrix, "Matrix not initialized");
+		if (!m_occupancyMatrix)
+			throw std::runtime_error("The size of the occupancy matrix has not been initialized");
 
 		auto id = FindSmallestIDAvailable(m_obstacleIDs);
 		if (m_obstacles.insert({ obstacle, id }).second) {
@@ -44,7 +45,8 @@ namespace Planner {
 
 	bool ObstacleListOccupancyMap::RemoveObstacle(const Ref<Obstacle>& obstacle)
 	{
-		PP_ASSERT(m_occupancyMatrix, "Matrix not initialized");
+		if (!m_occupancyMatrix)
+			throw std::runtime_error("The size of the occupancy matrix has not been initialized");
 
 		auto it = m_obstacles.find(obstacle);
 		if (it == m_obstacles.end())
@@ -60,7 +62,8 @@ namespace Planner {
 
 	bool ObstacleListOccupancyMap::IsOccupied(const GridCellPosition& cell)
 	{
-		PP_ASSERT(m_occupancyMatrix, "Matrix not initialized");
+		if (!m_occupancyMatrix)
+			throw std::runtime_error("The size of the occupancy matrix has not been initialized");
 
 		return (*m_occupancyMatrix)[cell.row][cell.col] >= 0;
 	}

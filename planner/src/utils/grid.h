@@ -14,12 +14,10 @@ namespace Planner {
 		int col = -1;
 
 		bool IsValid() const { return row >= 0 && col >= 0; }
+		bool IsAdjacentTo(const GridCellPosition& rhs) const;
+		bool IsDiagonalTo(const GridCellPosition& rhs) const;
 
 		std::vector<GridCellPosition> GetNeighbors(int rows, int columns) const;
-
-		bool IsAdjacentTo(const GridCellPosition& rhs) const;
-
-		bool IsDiagonalTo(const GridCellPosition& rhs) const;
 	};
 
 	bool operator==(const GridCellPosition& lhs, const GridCellPosition& rhs);
