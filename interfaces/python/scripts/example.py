@@ -13,29 +13,35 @@ state_space = nav.StateSpaceSE2(nav.Pose2d(-10,-10,-math.pi), nav.Pose2d(10,10,m
 map = nav.ObstacleListOccupancyMap(0.5)#0.1
 state_validator = nav.StateValidatorOccupancyMap(state_space, map)
 
+obstacle_positions = []
+
 shape = nav.RectangleShape(10.0, 1.0)
 obstacle = nav.Obstacle()
 obstacle.set_shape(shape)
 obstacle.set_pose(nav.Pose2d(2.0, 0.0, -math.pi / 4.0))
 map.add_obstacle(obstacle)
+obstacle_positions.append(obstacle.get_boundary_world_position())
 
 shape = nav.RectangleShape(10.0, 1.0)
 obstacle = nav.Obstacle()
 obstacle.set_shape(shape)
 obstacle.set_pose(nav.Pose2d(0.0, 7.0, -math.pi / 4.0))
 map.add_obstacle(obstacle)
+obstacle_positions.append(obstacle.get_boundary_world_position())
 
 shape = nav.RectangleShape(10.0, 1.0)
 obstacle = nav.Obstacle()
 obstacle.set_shape(shape)
 obstacle.set_pose(nav.Pose2d(-8.0, 5.0, math.pi / 2.0))
 map.add_obstacle(obstacle)
+obstacle_positions.append(obstacle.get_boundary_world_position())
 
 shape = nav.RectangleShape(14.0, 1.0)
 obstacle = nav.Obstacle()
 obstacle.set_shape(shape)
 obstacle.set_pose(nav.Pose2d(5.0, -5.0, 0.0))
 map.add_obstacle(obstacle)
+obstacle_positions.append(obstacle.get_boundary_world_position())
 
 gvd = nav.GVD(map)
 gvd.update()
@@ -73,6 +79,11 @@ x = [p.x() for p in path]
 y = [p.y() for p in path]
 _ = ax.plot(x, y, color='blue', linewidth = 2)
 
+for position in obstacle_positions:
+	x = [p.x() for p in position]
+	y = [p.y() for p in position]
+	_ = ax.fill(x, y, color='black')
 
 _ = ax.axis('equal')
+_ = ax.axis((-12,12,-12,12))
 fig.show()

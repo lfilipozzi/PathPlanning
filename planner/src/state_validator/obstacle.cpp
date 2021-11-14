@@ -60,24 +60,37 @@ namespace Planner {
 		}
 	}
 
-	void CompositeShape::GetGridCellPositions(const OccupancyMap& map, const Pose2d& pose, std::vector<GridCellPosition>& cells)
+	void CompositeShape::GetGridCellsPosition(const OccupancyMap& map, const Pose2d& pose, std::vector<GridCellPosition>& cells)
 	{
 		for (auto& child : m_children) {
-			child->GetGridCellPositions(map, pose, cells);
+			child->GetGridCellsPosition(map, pose, cells);
 		}
 	}
 
-	void PolygonShape::GetGridCellPositions(const OccupancyMap& map, const Pose2d& pose, std::vector<GridCellPosition>& cells)
+	void CompositeShape::GetVerticesPosition(const Pose2d& pose, std::vector<Point2d>& points)
+	{
+		for (auto& child : m_children) {
+			child->GetVerticesPosition(pose, points);
+		}
+	}
+
+	void PolygonShape::GetGridCellsPosition(const OccupancyMap& map, const Pose2d& pose, std::vector<GridCellPosition>& cells)
 	{
 		// Compute world position of vertices
 		std::vector<Point2d> vertices;
-		vertices.reserve(m_vertices.size());
-		for (int i = 0; i < m_vertices.size(); i++) {
-			vertices[i] = Eigen::Rotation2D(pose.theta) * m_vertices[i] + pose.position;
-		}
+		GetVerticesPosition(pose, vertices);
 
 		for (int i = 0; i < m_vertices.size(); i++)
 			RasterizeLine(map, vertices[i % m_vertices.size()], vertices[(i + 1) % m_vertices.size()], cells);
+	}
+
+	void PolygonShape::GetVerticesPosition(const Pose2d& pose, std::vector<Point2d>& points)
+	{
+		size_t size = points.size();
+		points.reserve(size + m_vertices.size());
+		for (auto& vertex : m_vertices) {
+			points.push_back(Eigen::Rotation2D(pose.theta) * vertex + pose.position);
+		}
 	}
 
 	RegularPolygonShape::RegularPolygonShape(double radius, int count)
@@ -108,10 +121,17 @@ namespace Planner {
 		}
 	}
 
-	std::vector<GridCellPosition> Obstacle::GetGridCellPositions(const OccupancyMap& map)
+	std::vector<GridCellPosition> Obstacle::GetBoundaryGridCellPosition(const OccupancyMap& map)
 	{
 		std::vector<GridCellPosition> cells;
-		m_shape->GetGridCellPositions(map, m_pose, cells);
+		m_shape->GetGridCellsPosition(map, m_pose, cells);
 		return cells;
+	}
+
+	std::vector<Point2d> Obstacle::GetBoundaryWorldPosition()
+	{
+		std::vector<Point2d> points;
+		m_shape->GetVerticesPosition(m_pose, points);
+		return points;
 	}
 }

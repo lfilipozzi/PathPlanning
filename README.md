@@ -2,6 +2,16 @@
 
 > :warning: **This project is still under development!**
 
+Implementation of various path-planning algorithms:
+- Rapidly exloring Random Tree (RRT)
+- RRT*
+- Hybrid A*
+- A* grid search
+
+![Hybrid A*](ressources/hybrid_a_star.png)
+
+This repository provides an interface to use these algorithms in python.
+
 Build
 =========
 Some dependencies are stored as submodules, to initialize them:

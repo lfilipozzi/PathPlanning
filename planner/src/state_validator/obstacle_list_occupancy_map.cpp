@@ -34,7 +34,7 @@ namespace Planner {
 		auto id = FindSmallestIDAvailable(m_obstacleIDs);
 		if (m_obstacles.insert({ obstacle, id }).second) {
 			m_obstacleIDs.insert(id);
-			for (auto& cell : obstacle->GetGridCellPositions(*this)) {
+			for (auto& cell : obstacle->GetBoundaryGridCellPosition(*this)) {
 				(*m_occupancyMatrix)[cell.row][cell.col] = id;
 				m_obstacleDistanceMap->SetObstacle(cell);
 			}
@@ -53,7 +53,7 @@ namespace Planner {
 			return false;
 		m_obstacleIDs.erase(it->second);
 		m_obstacles.erase(it);
-		for (auto& cell : obstacle->GetGridCellPositions(*this)) {
+		for (auto& cell : obstacle->GetBoundaryGridCellPosition(*this)) {
 			(*m_occupancyMatrix)[cell.row][cell.col] = -1;
 			m_obstacleDistanceMap->UnsetObstacle(cell);
 		}

@@ -302,13 +302,19 @@ PYBIND11_MODULE(pyplanning, m)
 	class_<Obstacle, Ref<Obstacle>>(m, "Obstacle")
 		.def(init<>())
 		.def("set_shape", &Obstacle::SetShape)
-		.def("set_pose", &Obstacle::SetPose);
+		.def("set_pose", &Obstacle::SetPose)
+		.def("get_boundary_grid_cell_position", &Obstacle::GetBoundaryGridCellPosition)
+		.def("get_boundary_world_position", &Obstacle::GetBoundaryWorldPosition);
 
 	struct ShapeWrapper : Shape {
 		using Shape::Shape;
-		virtual void GetGridCellPositions(const OccupancyMap& a, const Pose2d& b, std::vector<GridCellPosition>& c) override
+		virtual void GetGridCellsPosition(const OccupancyMap& a, const Pose2d& b, std::vector<GridCellPosition>& c) override
 		{
-			PYBIND11_OVERRIDE_PURE(void, Shape, GetGridCellPositions, a, b, c);
+			PYBIND11_OVERRIDE_PURE(void, Shape, GetGridCellsPosition, a, b, c);
+		}
+		virtual void GetVerticesPosition(const Pose2d& a, std::vector<Point2d>& b) override
+		{
+			PYBIND11_OVERRIDE_PURE(void, Shape, GetVerticesPosition, a, b);
 		}
 	};
 	class_<Shape, Ref<Shape>, ShapeWrapper>(m, "Shape")

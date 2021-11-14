@@ -15,13 +15,18 @@ namespace Planner {
 		virtual ~Shape() = default;
 
 		/// @brief Compute grid cells occupied by obstacle
-		/// @param[in] grid The grid.
+		/// @param[in] map The occupancy map.
 		/// @param[in] pose The obstacle pose.
 		/// @param[out] cells The cell positions.
-		virtual void GetGridCellPositions(const OccupancyMap& grid, const Pose2d& pose, std::vector<GridCellPosition>& cells) = 0;
+		virtual void GetGridCellsPosition(const OccupancyMap& map, const Pose2d& pose, std::vector<GridCellPosition>& cells) = 0;
+
+		/// @brief Compute position occupied by obstacle
+		/// @param[in] pose The obstacle pose.
+		/// @param[out] points The position of the vertices.
+		virtual void GetVerticesPosition(const Pose2d& pose, std::vector<Point2d>& points) = 0;
 
 	protected:
-		void RasterizeLine(const OccupancyMap& grid, const Point2d& p0, const Point2d& p1, std::vector<GridCellPosition>& line) const;
+		void RasterizeLine(const OccupancyMap& map, const Point2d& p0, const Point2d& p1, std::vector<GridCellPosition>& line) const;
 	};
 
 	class CompositeShape : public Shape {
@@ -29,8 +34,12 @@ namespace Planner {
 		CompositeShape() = default;
 
 		void Add(const Ref<Shape>& shape) { m_children.push_back(shape); }
-		/// @copydoc Planner::Shape::GetGridCellPositions
-		virtual void GetGridCellPositions(const OccupancyMap& grid, const Pose2d& pose, std::vector<GridCellPosition>& cells) override;
+
+		/// @copydoc Planner::Shape::GetGridCellsPosition
+		virtual void GetGridCellsPosition(const OccupancyMap& map, const Pose2d& pose, std::vector<GridCellPosition>& cells) override;
+
+		/// @copydoc Planner::Shape::GetVerticesPosition
+		virtual void GetVerticesPosition(const Pose2d& pose, std::vector<Point2d>& points) override;
 
 	private:
 		std::vector<Ref<Shape>> m_children;
@@ -41,8 +50,11 @@ namespace Planner {
 		PolygonShape(const std::vector<Point2d>& vertices) { m_vertices = vertices; }
 		PolygonShape(std::vector<Point2d>&& vertices) { m_vertices = vertices; }
 
-		/// @copydoc Planner::Shape::GetGridCellPositions
-		virtual void GetGridCellPositions(const OccupancyMap& grid, const Pose2d& pose, std::vector<GridCellPosition>& cells) override final;
+		/// @copydoc Planner::Shape::GetGridCellsPosition
+		virtual void GetGridCellsPosition(const OccupancyMap& grid, const Pose2d& pose, std::vector<GridCellPosition>& cells) override final;
+
+		/// @copydoc Planner::Shape::GetVerticesPosition
+		virtual void GetVerticesPosition(const Pose2d& pose, std::vector<Point2d>& points) override;
 
 	protected:
 		PolygonShape() = default;
@@ -80,7 +92,8 @@ namespace Planner {
 
 		void SetShape(const Ref<Shape>& shape) { m_shape = shape; }
 		void SetPose(const Pose2d& pose) { m_pose = pose; }
-		std::vector<GridCellPosition> GetGridCellPositions(const OccupancyMap& grid);
+		std::vector<GridCellPosition> GetBoundaryGridCellPosition(const OccupancyMap& map);
+		std::vector<Point2d> GetBoundaryWorldPosition();
 
 	private:
 		Ref<Shape> m_shape;
