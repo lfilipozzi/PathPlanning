@@ -69,6 +69,32 @@ PYBIND11_MODULE(pyplanning, m)
 		.def("set_init_state", &PlanarPathPlanner::SetInitState)
 		.def("set_goal_state", &PlanarPathPlanner::SetGoalState);
 
+	class_<HybridAStar::SearchParameters>(m, "HybridAStarSearchParameters")
+		.def(init<>())
+		.def(init<double, double, double, double, double, unsigned int, double, double>())
+		.def_readonly("wheelbase", &HybridAStar::SearchParameters::wheelbase)
+		.def_readonly("min_turning_radius", &HybridAStar::SearchParameters::minTurningRadius)
+		.def_readonly("direction_switching_cost", &HybridAStar::SearchParameters::directionSwitchingCost)
+		.def_readonly("reverse_cost_multiplier", &HybridAStar::SearchParameters::reverseCostMultiplier)
+		.def_readonly("forward_cost_multiplier", &HybridAStar::SearchParameters::forwardCostMultiplier)
+		.def_readonly("voronoi_cost_multiplier", &HybridAStar::SearchParameters::voronoiCostMultiplier)
+		.def_readonly("num_generated_motion", &HybridAStar::SearchParameters::numGeneratedMotion)
+		.def_readonly("spatial_resolution", &HybridAStar::SearchParameters::spatialResolution)
+		.def_readonly("angular_resolution", &HybridAStar::SearchParameters::angularResolution);
+
+	class_<Smoother::Parameters>(m, "HybridAStarSmootherParameters")
+		.def(init<float>())
+		.def_readwrite("step_tolerance", &Smoother::Parameters::stepTolerance)
+		.def_readwrite("max_iterations", &Smoother::Parameters::maxIterations)
+		.def_readwrite("learning_rate", &Smoother::Parameters::learningRate)
+		.def_readwrite("path_weight", &Smoother::Parameters::pathWeight)
+		.def_readwrite("smooth_weight", &Smoother::Parameters::smoothWeight)
+		.def_readwrite("voronoi_weight", &Smoother::Parameters::voronoiWeight)
+		.def_readwrite("collision_weight", &Smoother::Parameters::collisionWeight)
+		.def_readwrite("curvature_weight", &Smoother::Parameters::curvatureWeight)
+		.def_readwrite("collision_ratio", &Smoother::Parameters::collisionRatio)
+		.def_readonly("max_curvature", &Smoother::Parameters::maxCurvature);
+
 	class_<HybridAStar, PlanarPathPlanner>(m, "HybridAStar")
 		.def(init<>())
 		.def(init<const HybridAStar::SearchParameters&>())
@@ -77,6 +103,8 @@ PYBIND11_MODULE(pyplanning, m)
 		.def("get_graph_search_explored_set", &HybridAStar::GetGraphSearchExploredSet)
 		.def("get_graph_search_path", &HybridAStar::GetGraphSearchPath)
 		.def("get_graph_search_optimal_cost", &HybridAStar::GetGraphSearchOptimalCost)
+		.def("get_search_parameters", &HybridAStar::GetSearchParameters)
+		.def_property("smoother_parameters", &HybridAStar::GetSmootherParameters, &HybridAStar::SetSmootherParameters)
 		.def("visualize_obstacle_heuristic", &HybridAStar::VisualizeObstacleHeuristic);
 
 	struct GridPathPlannerWrapper : GridPathPlanner {

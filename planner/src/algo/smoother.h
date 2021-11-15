@@ -25,19 +25,19 @@ namespace Planner {
 			int maxIterations = 2000;
 
 			/// @brief Learning rate of the smoother.
-			float learningRate = 0.2f;
+			float learningRate = 0.01f;
 
 			/// @brief Weight on the error between the requested path and the
 			/// optimal path.
 			float pathWeight = 0.0f;
 			/// @brief Weight on the smoothing term
-			float smoothWeight = 4.0f;
+			float smoothWeight = 0.4f;
 			/// @brief Weight on the proximity to the Voronoi edge
-			float voronoiWeight = 0.2f;
+			float voronoiWeight = 0.02f;
 			/// @brief Weight on the proximity to obstacle
-			float collisionWeight = 0.002f;
+			float collisionWeight = 0.0002f;
 			/// @brief Weight on the curvature
-			float curvatureWeight = 4.0f;
+			float curvatureWeight = 0.4f;
 
 			/// @brief The points that are within a distance of @minCollisionDist *
 			/// (1 + @collisionRatio) will not be modified by the smoother where
@@ -73,7 +73,7 @@ namespace Planner {
 	private:
 		std::vector<State> Smooth(const std::vector<State>& path, Scope<std::unordered_set<int>> unsafeIndices);
 
-		Point2d CalculateCurvatureTerm(const Point2d& xim1, const Point2d& xi, const Point2d& xip1) const;
+		void CalculateCurvatureTerm(const Point2d& xim1, const Point2d& xi, const Point2d& xip1, Point2d& gim1, Point2d& gi, Point2d& gip1) const;
 		std::unordered_set<int> CheckPath(const std::vector<State>& path) const;
 
 	private:

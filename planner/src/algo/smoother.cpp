@@ -9,7 +9,7 @@ namespace Planner {
 
 	Point2d OrthogonalComplement(const Point2d& a, const Point2d& b)
 	{
-		return a - (a.x() * b.x() + a.y() * b.y()) * b / b.squaredNorm();
+		return a - a.dot(b) * b / b.squaredNorm();
 	}
 
 	Smoother::Smoother() :
@@ -50,11 +50,17 @@ namespace Planner {
 		int num = m_currentCount;
 
 		std::vector<State> currentPath = path;
+		std::vector<Point2d> gradients;
+		gradients.resize(currentPath.size());
 
 		const float unsafeRadius = m_validator->minSafeRadius * (1 + m_param.collisionRatio);
 		int count = 0;
 		float step = m_param.stepTolerance;
 		while (step >= m_param.stepTolerance && count < m_param.maxIterations) {
+			// Reset gradients
+			std::fill(gradients.begin(), gradients.end(), Point2d(0.0, 0.0));
+
+			// Compute gradients
 			for (int i = 2; i < num - 2; i++) {
 				// Do not modify this point if it is a cust point of if it is adjacent to a cusp point
 				if (currentPath[i - 2].direction != currentPath[i - 1].direction)
@@ -71,17 +77,16 @@ namespace Planner {
 					continue;
 
 				const Point2d& curr = currentPath[i].Position();
-				Point2d gradient = { 0.0, 0.0 };
 
 				// Original path term
-				gradient += m_param.pathWeight * (path[i].Position() - curr);
+				gradients[i] += m_param.pathWeight * (path[i].Position() - curr);
 
 				if (m_map->IsInsideMap(curr)) {
 					// Collision term
 					Point2d dirToClosestObs = curr - m_map->GridCellToWorldPosition(m_gvd->GetNearestObstacleCell(m_map->WorldPositionToGridCell(curr)));
 					float obstDist = dirToClosestObs.norm();
 					if (obstDist < unsafeRadius)
-						gradient -= m_param.collisionWeight * (obstDist - unsafeRadius) * dirToClosestObs / obstDist;
+						gradients[i] += m_param.collisionWeight * (obstDist - unsafeRadius) * dirToClosestObs / obstDist;
 
 					// Voronoi term
 					const auto& alpha = m_gvd->alpha;
@@ -98,22 +103,23 @@ namespace Planner {
 							float pvdv = (alpha / alphaPlusObstDist) * (obstDistMinusDMax * obstDistMinusDMax / dMaxSquared) * (obstDist / (obstDistPlusVoroDist * obstDistPlusVoroDist));
 							float pvdo = (alpha / alphaPlusObstDist) * (voroDist / obstDistPlusVoroDist) * (obstDistMinusDMax / dMaxSquared) * (-obstDistMinusDMax / alphaPlusObstDist - obstDistMinusDMax / obstDistPlusVoroDist + 2);
 
-							gradient -= m_param.voronoiWeight * (pvdo * dirToClosestObs / obstDist + pvdv * dirToClosestVoroEdge / voroDist);
+							gradients[i] += m_param.voronoiWeight * (pvdo * dirToClosestObs / obstDist + pvdv * dirToClosestVoroEdge / voroDist);
 						}
 					}
 				}
 
 				// Smoothing term
-				gradient -= m_param.smoothWeight * (currentPath[i - 2].Position() - 4 * currentPath[i - 1].Position() + 6 * curr - 4 * currentPath[i + 1].Position() + currentPath[i + 2].Position());
+				gradients[i] += m_param.smoothWeight * (currentPath[i - 2].Position() - 4 * currentPath[i - 1].Position() + 6 * curr - 4 * currentPath[i + 1].Position() + currentPath[i + 2].Position());
 
 				// Curvature term
-				gradient -= m_param.curvatureWeight * CalculateCurvatureTerm(currentPath[i - 1].Position(), currentPath[i].Position(), currentPath[i + 1].Position());
+				CalculateCurvatureTerm(currentPath[i - 1].Position(), currentPath[i].Position(), currentPath[i + 1].Position(), gradients[i - 1], gradients[i], gradients[i + 1]);
+			}
 
-				gradient /= m_param.collisionWeight + m_param.smoothWeight + m_param.voronoiWeight + m_param.pathWeight + m_param.curvatureWeight;
-
-				currentPath[i].Position() = curr + m_param.learningRate * gradient;
-
-				step = gradient.norm();
+			// Apply gradients
+			step = 0.0;
+			for (int i = 0; i < num; i++) {
+				currentPath[i].Position() = currentPath[i].Position() - m_param.learningRate * gradients[i];
+				step = std::max<float>(step, gradients[i].norm());
 			}
 
 			count++;
@@ -128,32 +134,60 @@ namespace Planner {
 		return currentPath;
 	}
 
-	Point2d Smoother::CalculateCurvatureTerm(const Point2d& xim1, const Point2d& xi, const Point2d& xip1) const
+	void Smoother::CalculateCurvatureTerm(const Point2d& xim1, const Point2d& xi, const Point2d& xip1, Point2d& gim1, Point2d& gi, Point2d& gip1) const
 	{
-		Point2d dxi = xi - xim1;
-		Point2d dxip1 = xip1 - xi;
+		Point2d deltaXi = xi - xim1;
+		Point2d deltaXip1 = xip1 - xi;
+		float deltaPhi = acos(std::clamp<float>((deltaXi.normalized().dot(deltaXip1.normalized())), -1.0f, 1.0f));
 
-		float dphi, ddphi;
-		Point2d p1, p2;
-		dphi = acos(std::clamp<float>((dxi.x() * dxip1.x() + dxi.y() * dxip1.y()) / (dxi.norm() * dxip1.norm()), -1.0f, 1.0f));
-		float k = dphi / dxi.norm();
-		if (k <= m_param.maxCurvature)
-			return { 0.0, 0.0 };
+		// The curvature is approximated by deltaPhi / norm_deltaXi
+		float kappa = deltaPhi / deltaXi.norm();
+		if (kappa <= m_param.maxCurvature) {
+			return;
+		}
 
-		ddphi = (float)(-1 / sqrt(1 - pow(cos(dphi), 2)));
-		float denom = xi.norm() * xip1.norm();
-		p1 = OrthogonalComplement(xi, -xip1) / denom;
-		p2 = OrthogonalComplement(-xip1, xi) / denom;
+		// The partial derivative of the curvature with respect to the point X
+		// is as follows:
+		// Dkappa_DX = 1 / norm_deltaXi * DdeltaPhi_DX - deltaPhi / norm_deltaXi^2 * Dnorm_deltaXi_DX
+		// * The first gradient term DdeltaPhi_DX can be computed as follows:
+		//   DdeltaPhi_DX = DdeltaPhi_DcosDeltaPhi * DcosDeltaPhi_DX according to the chain rule
+		//   * The scalar DdeltaPhi_DcosDeltaPhi is:
+		//     DdeltaPhi_DcosDeltaPhi = -1 / sqrt(1 - cos(deltaPhi)^2)
+		//   * To compute the gradient term DcosDeltaPhi_DX, we use the chain rule
+		//     DcosDeltaPhi_DX = DdeltaXi_DX * DcosDeltaPhi_DdeltaXi + DdeltaXip1_DX * DcosDeltaPhi_DdeltaXip1
+		//     where DdeltaXi_DX = -I for X = xim1, I for X = xi, and 0 for X = xip1
+		//     and DdeltaXip1_DX = 0 for X = xim1, -I for X = xi, and I for X = xip1
+		//     * Using the following equality:
+		//     cosDeltaPhi = deltaXi . deltaXip1 / (norm_deltaXi * norm_deltaXip1), we have:
+		//     * DcosDeltaPhi_DdeltaXi = 1 / norm_deltaXip1 * (D(deltaXi . deltaXip1)_DdeltaXi * 1/norm_deltaXi
+		//                             + (deltaXi . deltaXip1) * D(1/norm_deltaXi)_DdeltaXi)
+		//                             = 1 / norm_deltaXip1 * (deltaXip1 / norm_deltaXi
+		//                             - (deltaXi . deltaXip1) / norm_deltaXi^3 * deltaXi)
+		//                             = 1 / (norm_deltaXi * norm_deltaXip1) * (deltaXip1
+		//                             - (deltaXi . deltaXip1) / norm_deltaXi^2 * deltaXi)
+		//     * Similarly DcosDeltaPhi_DdeltaXi = 1 / (norm_deltaXi * norm_deltaXip1) * (deltaXi
+		//                             - (deltaXi . deltaXip1) / norm_deltaXip1^2 * deltaXip1)
+		// * The second gradient Dnorm_deltaXi_DX can be computed as follows:
+		//   Dnorm_deltaXi_DX = DdeltaXi_DX * Dnorm_deltaXi_DdeltaXi according to the chain rule
+		//   and Dnorm_deltaXi_DdeltaXi = deltaXi / norm_deltaXi
+		// clang-format off
+		float denominator = deltaXi.norm() * deltaXip1.norm();
+		Point2d DcosDeltaPhi_DdeltaXi   = OrthogonalComplement(deltaXip1, deltaXi  ) / denominator;
+		Point2d DcosDeltaPhi_DdeltaXip1 = OrthogonalComplement(deltaXi,   deltaXip1) / denominator;
+		float DdeltaPhi_DcosDeltaPhi = -1.0f / sqrt(1.0f - std::pow(cos(deltaPhi), 2));
+		float coef1 = 1 / deltaXi.norm() * DdeltaPhi_DcosDeltaPhi;
+		Point2d coef2 = deltaPhi / deltaXi.squaredNorm() * deltaXi.normalized();
+		Point2d DcosDeltaPhi_Dxim1 = -DcosDeltaPhi_DdeltaXi;
+		Point2d DcosDeltaPhi_Dxi   =  DcosDeltaPhi_DdeltaXi - DcosDeltaPhi_DdeltaXip1;
+		Point2d DcosDeltaPhi_Dxip1 =  DcosDeltaPhi_DdeltaXip1;
+		Point2d Dkappa_Dxim1 = coef1 * DcosDeltaPhi_Dxim1 + coef2;
+		Point2d Dkappa_Dxi   = coef1 * DcosDeltaPhi_Dxi   - coef2;
+		Point2d Dkappa_Dxip1 = coef1 * DcosDeltaPhi_Dxip1;
 
-		float coeff1 = -1 / dxi.norm() * ddphi;
-		float coeff2 = dphi / dxi.squaredNorm();
-
-		Point2d ki, kim1, kip1;
-		ki = coeff1 * (-p1 - p2) - coeff2 * Point2d(1.0, 1.0);
-		kim1 = coeff1 * p2 + coeff2 * Point2d(1.0, 1.0);
-		kip1 = coeff1 * p1;
-
-		return (k - m_param.maxCurvature) * (0.25f * kim1 + 0.5f * ki + 0.25f * kip1);
+		gim1 += m_param.curvatureWeight * (kappa - m_param.maxCurvature) * Dkappa_Dxim1;
+		gi += m_param.curvatureWeight   * (kappa - m_param.maxCurvature) * Dkappa_Dxi;
+		gip1 += m_param.curvatureWeight * (kappa - m_param.maxCurvature) * Dkappa_Dxip1;
+		// clang-format on
 	}
 
 	std::unordered_set<int> Smoother::CheckPath(const std::vector<State>& path) const

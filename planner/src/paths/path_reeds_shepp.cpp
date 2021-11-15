@@ -134,7 +134,7 @@ namespace Planner {
 		for (const auto& motion : m_pathSegment.m_motions) {
 			if (!motion.IsValid())
 				break;
-			length += motion.length;
+			length += motion.length * m_minTurningRadius;
 			if (ratio * m_length <= length)
 				return motion.direction;
 		}

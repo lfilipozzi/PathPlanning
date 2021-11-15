@@ -205,16 +205,15 @@ namespace Planner {
 
 		Ref<StateValidatorOccupancyMap>& GetStateValidator() { return m_validator; }
 
-		SearchParameters GetSearchParameters() { return m_propagator->GetParameters(); }
 		const SearchParameters& GetSearchParameters() const
 		{
 			return const_cast<const StatePropagator&>(*m_propagator).GetParameters();
 		}
-		Smoother::Parameters GetSmootherParameters() { return m_smoother.GetParameters(); }
 		const Smoother::Parameters& GetSmootherParameters() const
 		{
 			return const_cast<const Smoother&>(m_smoother).GetParameters();
 		}
+		void SetSmootherParameters(const Smoother::Parameters& param) { m_smoother.SetParameters(param); }
 
 		void VisualizeObstacleHeuristic(const std::string& filename) const;
 

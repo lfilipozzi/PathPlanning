@@ -178,7 +178,7 @@ namespace Planner {
 
 		// Initialize Voronoi field and smoother
 		m_gvd = makeRef<GVD>(m_validator->GetOccupancyMap());
-		m_smoother.Initialize(m_validator, m_gvd, p.minTurningRadius);
+		m_smoother.Initialize(m_validator, m_gvd, 1.0 / p.minTurningRadius);
 
 		// Initialize heuristic
 		m_nonHoloHeuristic = NonHolonomicHeuristic::Build(m_validator->GetStateSpace()->bounds,
@@ -215,41 +215,30 @@ namespace Planner {
 		m_graphSearch.SetGoalState(goalState);
 		auto status = m_graphSearch.SearchPath();
 
-		// // FIXME fix smoother and uncomment
-		// // Process path before smoothing
-		// const auto& graphSearchPath = m_graphSearch.GetPath();
-		// std::vector<Smoother::State> nonSmoothPath;
-		// double totalPathLength = 0;
-		// for (auto& state : graphSearchPath)
-		// 	totalPathLength += state.path->GetLength();
-		// nonSmoothPath.reserve(totalPathLength / pathInterpolation);
-		// for (auto& state : graphSearchPath) {
-		// 	const auto& pathLength = state.path->GetLength();
-		// 	double length = 0.0;
-		// 	while (length < pathLength) {
-		// 		nonSmoothPath.push_back({ state.path->Interpolate(length / pathLength),
-		// 			state.path->GetDirection(length / pathLength) });
-		// 		length += pathInterpolation;
-		// 	}
-		// }
-		//
-		// // Smooth the path
-		// auto smoothPath = m_smoother.Smooth(nonSmoothPath);
-		//
-		// // Save the result
-		// m_path.reserve(smoothPath.size());
-		// for (auto& state : smoothPath) {
-		// 	m_path.push_back(state.pose);
-		// }
-
-		const auto& aStarPath = m_graphSearch.GetPath();
-		for (auto& state : aStarPath) {
+		// Process path before smoothing
+		const auto& graphSearchPath = m_graphSearch.GetPath();
+		std::vector<Smoother::State> nonSmoothPath;
+		double totalPathLength = 0;
+		for (auto& state : graphSearchPath)
+			totalPathLength += state.path->GetLength();
+		nonSmoothPath.reserve(totalPathLength / pathInterpolation);
+		for (auto& state : graphSearchPath) {
 			const auto& pathLength = state.path->GetLength();
 			double length = 0.0;
 			while (length < pathLength) {
-				m_path.push_back(state.path->Interpolate(length / pathLength));
+				nonSmoothPath.push_back({ state.path->Interpolate(length / pathLength),
+					state.path->GetDirection(length / pathLength) });
 				length += pathInterpolation;
 			}
+		}
+
+		// Smooth the path
+		auto smoothPath = m_smoother.Smooth(nonSmoothPath);
+
+		// Save the result
+		m_path.reserve(smoothPath.size());
+		for (auto& state : smoothPath) {
+			m_path.push_back(state.pose);
 		}
 
 		return status;
