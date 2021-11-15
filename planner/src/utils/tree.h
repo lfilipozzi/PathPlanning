@@ -11,7 +11,13 @@ namespace Planner {
 	/// @brief Tree of T node.
 	/// @details This tree allows operation such as finding a nearest neighbor
 	/// to a node in the tree, rewiring the tree.
-	template <typename Vertex, unsigned int Dimensions, typename Metadata = VoidClass, class Hash = std::hash<Vertex>, typename VertexType = double>
+	template <
+		typename Vertex,
+		unsigned int Dimensions,
+		typename Metadata = VoidClass,
+		typename Hash = std::hash<Vertex>,
+		typename Equal = std::equal_to<Vertex>,
+		typename VertexType = double>
 	class Tree {
 	public:
 		using Node = GenericNode<Vertex, Metadata>;
@@ -149,7 +155,7 @@ namespace Planner {
 	private:
 		const unsigned int m_dimensions = Dimensions;
 
-		std::unordered_map<Vertex, Node*, Hash> m_exploredNodeMap;
+		std::unordered_map<Vertex, Node*, Hash, Equal> m_exploredNodeMap;
 		flann::Index<flann::L2_Simple<VertexType>> m_kdTree;
 
 		Scope<Node> m_rootNode;

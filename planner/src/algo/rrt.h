@@ -46,7 +46,12 @@ namespace Planner {
 	};
 
 	/// @brief Implementation of the Rapidly-exploring Random Trees (RRT).
-	template <typename Vertex, unsigned int Dimensions, class Hash = std::hash<Vertex>, typename VertexType = double>
+	template <
+		typename Vertex,
+		unsigned int Dimensions,
+		typename Hash = std::hash<Vertex>,
+		typename Equal = std::equal_to<Vertex>,
+		typename VertexType = double>
 	class RRT : public PathPlanner<Vertex> {
 	public:
 		/// @brief Constructor.
@@ -113,7 +118,7 @@ namespace Planner {
 		RRTParameters m_parameters;
 		Ref<RRTStateSpace<Vertex>> m_stateSpace;
 
-		Tree<Vertex, Dimensions, VoidClass, Hash, VertexType> m_tree;
-		typename Tree<Vertex, Dimensions, VoidClass, Hash, VertexType>::Node* m_solutionNode = nullptr;
+		Tree<Vertex, Dimensions, VoidClass, Hash, Equal, VertexType> m_tree;
+		typename Tree<Vertex, Dimensions, VoidClass, Hash, Equal, VertexType>::Node* m_solutionNode = nullptr;
 	};
 }

@@ -51,7 +51,12 @@ namespace Planner {
 		double optimalSolutionTolerance = 1;
 	};
 
-	template <typename Vertex, unsigned int Dimensions, class Hash = std::hash<Vertex>, typename VertexType = double>
+	template <
+		typename Vertex,
+		unsigned int Dimensions,
+		typename Hash = std::hash<Vertex>,
+		typename Equal = std::equal_to<Vertex>,
+		typename VertexType = double>
 	class RRTStar : public PathPlanner<Vertex> {
 	private:
 		/// @brief Node metadata used by RRT star.
@@ -152,7 +157,7 @@ namespace Planner {
 		RRTStarParameters m_parameters;
 		Ref<RRTStarStateSpace<Vertex>> m_stateSpace;
 
-		Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType> m_tree;
-		typename Tree<Vertex, Dimensions, NodeMetadata, Hash, VertexType>::Node* m_solutionNode = nullptr;
+		Tree<Vertex, Dimensions, NodeMetadata, Hash, Equal, VertexType> m_tree;
+		typename Tree<Vertex, Dimensions, NodeMetadata, Hash, Equal, VertexType>::Node* m_solutionNode = nullptr;
 	};
 }
