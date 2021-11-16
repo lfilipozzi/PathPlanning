@@ -62,7 +62,7 @@ using namespace Planner;
 
 int main()
 {
-	PP_INIT_LOGGER;
+	PP_INIT;
 
 	std::array<Pose2d, 2> bounds = { Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) };
 	Ref<StateSpaceReedsShepp> stateSpace = makeRef<StateSpaceReedsShepp>(bounds);
@@ -92,6 +92,8 @@ int main()
 
 	PP_INFO("Init: {} ms", initTime);
 	PP_INFO("Search: {} ms", searchTime);
+
+	PP_END;
 
 	return 0;
 }
