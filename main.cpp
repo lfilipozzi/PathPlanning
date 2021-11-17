@@ -200,7 +200,6 @@ int Main(int /*argc*/, char** /*argv*/)
 int main(int argc, char** argv)
 {
 	PP_INIT;
-	auto out =  Main(argc, argv);
-	PP_END;
+	auto out = Main(argc, argv);
 	return out;
 }

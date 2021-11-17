@@ -39,7 +39,6 @@ int main()
 {
 	PP_INIT;
 	Planner::TestAStar();
-	PP_END;
 
 	return 0;
 }

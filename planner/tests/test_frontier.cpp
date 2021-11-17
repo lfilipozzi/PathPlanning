@@ -51,6 +51,4 @@ int main()
 	assert((bool)frontier.Find({ 1, 2 }) == true);
 	auto test = frontier.Find({ 0, 2 });
 	assert(test->first == 1 && test->second == 2);
-
-	PP_END;
 }

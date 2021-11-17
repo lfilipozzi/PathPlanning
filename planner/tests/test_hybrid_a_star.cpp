@@ -40,7 +40,6 @@ int main()
 {
 	PP_INIT;
 	Planner::TestHybridAStar();
-	PP_END;
 
 	return 0;
 }

@@ -162,7 +162,6 @@ int main()
 	Planner::TestGetNearestNodes();
 	Planner::TestGetNearestNode();
 	Planner::TestReparent();
-	PP_END;
 
 	return 0;
 }

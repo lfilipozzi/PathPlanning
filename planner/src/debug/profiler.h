@@ -28,9 +28,9 @@ namespace Planner {
 		std::string name;
 	};
 
-    /// @brief Profiler
-    /// @details Create a JSON file that keep trace information. The file can be 
-    /// read using chrome://tracing.
+	/// @brief Profiler
+	/// @details Create a JSON file that keep trace information. The file can be
+	/// read using chrome://tracing.
 	class Profiler : public Singleton<Profiler> {
 		friend class Singleton<Profiler>;
 
@@ -43,14 +43,17 @@ namespace Planner {
 		Profiler(const Profiler& other) = delete;
 		Profiler(Profiler&& other) = delete;
 
-		void BeginSession(const std::string& name, const std::string& filepath = "profiling.json");
-
-		void EndSession();
-
 		void WriteProfile(const ProfilingResult& result);
 
 	private:
-		Profiler() = default;
+		Profiler()
+		{
+			BeginSession("Runtime");
+		}
+
+		void BeginSession(const std::string& name, const std::string& filepath = "profiling.json");
+
+		void EndSession();
 
 		void WriteHeader();
 		void WriteFooter();
@@ -62,7 +65,7 @@ namespace Planner {
 		std::ofstream m_outputStream;
 	};
 
-    /// @brief Timer used for profiling
+	/// @brief Timer used for profiling
 	class ProfilingTimer {
 	public:
 		ProfilingTimer(const char* name) :
@@ -142,17 +145,15 @@ namespace Planner {
 		#define PP_FUNC_SIG "PP_FUNC_SIG unknown!"
 	#endif
 
-	#define PP_PROFILE_BEGIN_SESSION(...) ::Planner::Profiler::Get().BeginSession(__VA_ARGS__)
-	#define PP_PROFILE_END_SESSION() ::Planner::Profiler::Get().EndSession()
-	#define PP_PROFILE_SCOPE_LINE2(name, line)                                                                \
+	#define PP_INIT_PROFILER ::Planner::Profiler::Init()
+	#define PP_PROFILE_INTERNAL_SCOPE_LINE2(name, line)                                                       \
 		constexpr auto fixedName##line = ::Planner::ProfilerUtilities::CleanupOutputString(name, "__cdecl "); \
 		::Planner::ProfilingTimer timer##line(fixedName##line.Data)
-	#define PP_PROFILE_SCOPE_LINE(name, line) PP_PROFILE_SCOPE_LINE2(name, line)
-	#define PP_PROFILE_SCOPE(name) PP_PROFILE_SCOPE_LINE(name, __LINE__)
+	#define PP_PROFILE_INTERNAL_SCOPE_LINE(name, line) PP_PROFILE_INTERNAL_SCOPE_LINE2(name, line)
+	#define PP_PROFILE_SCOPE(name) PP_PROFILE_INTERNAL_SCOPE_LINE(name, __LINE__)
 	#define PP_PROFILE_FUNCTION() PP_PROFILE_SCOPE(PP_FUNC_SIG)
 #else
-	#define PP_PROFILE_BEGIN_SESSION(...)
-	#define PP_PROFILE_END_SESSION()
+	#define PP_INIT_PROFILER
 	#define PP_PROFILE_SCOPE(name)
 	#define PP_PROFILE_FUNCTION()
 #endif

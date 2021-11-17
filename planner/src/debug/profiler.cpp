@@ -9,9 +9,9 @@ namespace Planner {
 	{
 		std::lock_guard lock(m_mutex);
 		if (m_currentSession) {
-			// If there is already a current session, then close it before 
+			// If there is already a current session, then close it before
 			// beginning new one. Subsequent profiling output meant for the
-			// original session will end up in the newly opened session 
+			// original session will end up in the newly opened session
 			// instead.  That's better than having badly formatted
 			// profiling output.
 			if (Log::GetLogger()) {

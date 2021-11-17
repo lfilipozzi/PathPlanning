@@ -69,8 +69,6 @@ namespace Planner {
 #include "core/assert.h"
 #include "debug/profiler.h"
 
-#define PP_INIT \
+#define PP_INIT     \
 	PP_INIT_LOGGER; \
-	PP_PROFILE_BEGIN_SESSION("Runtime");
-#define PP_END \
-	PP_PROFILE_END_SESSION();
+	PP_INIT_PROFILER;

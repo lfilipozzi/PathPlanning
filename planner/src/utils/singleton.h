@@ -1,4 +1,6 @@
 #pragma once
+
+#include <memory>
 #include <mutex>
 
 namespace Planner {
@@ -11,7 +13,7 @@ namespace Planner {
 		static T& Get()
 		{
 			if (!m_instance_ptr) {
-				m_instance_ptr = new T();
+				m_instance_ptr = std::unique_ptr<T>(new T());
 			}
 			return *m_instance_ptr;
 		}
@@ -26,20 +28,15 @@ namespace Planner {
 		static void Release()
 		{
 			if (m_instance_ptr) {
-				delete m_instance_ptr;
-				m_instance_ptr = nullptr;
+				m_instance_ptr.reset();
 			}
 		}
 
 	protected:
 		Singleton() { }
-		~Singleton()
-		{
-			delete m_instance_ptr;
-			m_instance_ptr = nullptr;
-		}
+		~Singleton() = default;
 
-		static T* m_instance_ptr;
+		static std::unique_ptr<T> m_instance_ptr;
 
 	private:
 		Singleton(const Singleton&) = delete;
@@ -47,7 +44,7 @@ namespace Planner {
 	};
 
 	template <class T>
-	T* Singleton<T>::m_instance_ptr = nullptr;
+	std::unique_ptr<T> Singleton<T>::m_instance_ptr = nullptr;
 
 	/// @brief Singleton template for classes whose constructor have arguments.
 	template <class T>
@@ -56,7 +53,7 @@ namespace Planner {
 		/// @brief Provide global access to the only instance of this class.
 		static T& Get()
 		{
-			assert(m_instance_ptr != nullptr);
+			assert(m_instance_ptr);
 			return *m_instance_ptr;
 		}
 
@@ -64,28 +61,23 @@ namespace Planner {
 		template <typename... Args>
 		static void Init(Args... args)
 		{
-			assert(m_instance_ptr == nullptr);
-			m_instance_ptr = new T(std::forward<Args>(args)...);
+			assert(!m_instance_ptr);
+			m_instance_ptr = std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 		}
 
 		/// @brief Provide global access to release/delete the instance.
 		static void Release()
 		{
 			if (m_instance_ptr) {
-				delete m_instance_ptr;
-				m_instance_ptr = nullptr;
+				m_instance_ptr.reset();
 			}
 		}
 
 	protected:
 		SingletonInit() { }
-		~SingletonInit()
-		{
-			delete m_instance_ptr;
-			m_instance_ptr = nullptr;
-		}
+		~SingletonInit() = default;
 
-		static T* m_instance_ptr;
+		static std::unique_ptr<T> m_instance_ptr;
 
 	private:
 		SingletonInit(const SingletonInit&) = delete;
@@ -93,7 +85,7 @@ namespace Planner {
 	};
 
 	template <class T>
-	T* SingletonInit<T>::m_instance_ptr = nullptr;
+	std::unique_ptr<T> SingletonInit<T>::m_instance_ptr = nullptr;
 
 	/// @brief Thread safe singleton template.
 	template <class T>
@@ -111,7 +103,7 @@ namespace Planner {
 				// Check to see if a previous thread has already initialised an
 				// instance in the time it took to acquire a lock.
 				if (!m_instance_ptr) {
-					m_instance_ptr = new T();
+					m_instance_ptr = std::unique_ptr<T>(new T());
 				}
 			}
 			return *m_instance_ptr;
@@ -122,20 +114,15 @@ namespace Planner {
 		{
 			std::lock_guard<std::mutex> lock(m_constructed);
 			if (m_instance_ptr) {
-				delete m_instance_ptr;
-				m_instance_ptr = nullptr;
+				m_instance_ptr.reset();
 			}
 		}
 
 	protected:
 		SingletonThreadSafe() { }
-		~SingletonThreadSafe()
-		{
-			delete m_instance_ptr;
-			m_instance_ptr = nullptr;
-		}
+		~SingletonThreadSafe() = default;
 
-		static T* m_instance_ptr;
+		static std::unique_ptr<T> m_instance_ptr;
 		static std::mutex m_constructed;
 
 	private:
@@ -146,5 +133,5 @@ namespace Planner {
 	template <class T>
 	std::mutex SingletonThreadSafe<T>::m_constructed;
 	template <class T>
-	T* SingletonThreadSafe<T>::m_instance_ptr = nullptr;
+	std::unique_ptr<T> SingletonThreadSafe<T>::m_instance_ptr = nullptr;
 }

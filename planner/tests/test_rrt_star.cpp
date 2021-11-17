@@ -32,7 +32,6 @@ int main()
 {
 	PP_INIT;
 	Planner::TestRRTStarPath();
-	PP_END;
 
 	return 0;
 }

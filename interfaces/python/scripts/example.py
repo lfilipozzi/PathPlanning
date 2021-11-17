@@ -76,22 +76,25 @@ for path in graph_search_explored:
 	poses = [path.interpolate(ratio) for ratio in ratios]
 	x = [p.x() for p in poses]
 	y = [p.y() for p in poses]
-	_ = ax.plot(x, y, color='gray', linewidth = 0.5)
+	_ = ax.plot(x, y, color='gray', linewidth = 0.5, label='_')
 	#x = [path.get_initial_state().x(), path.get_final_state().x()]
 	#y = [path.get_initial_state().y(), path.get_final_state().y()]
 	#_ = ax.scatter(x, y, color='gray')
 
 graph_search_path = algo.get_graph_search_path()
+x = []
+y = []
 for path in graph_search_path:
 	poses = [path.interpolate(ratio) for ratio in ratios]
-	x = [p.x() for p in poses]
-	y = [p.y() for p in poses]
-	graph_search_line = ax.plot(x, y, color='orange', linewidth = 2, label='Graph search solution')
+	x += [p.x() for p in poses]
+	y += [p.y() for p in poses]
+
+_ = ax.plot(x, y, color='orange', linewidth = 2, label='Graph search solution')
 
 path = algo.get_path()
 x = [p.x() for p in path]
 y = [p.y() for p in path]
-solution_line = ax.plot(x, y, color='blue', linewidth = 2, label='Hybrid A* solution')
+_ = ax.plot(x, y, color='blue', linewidth = 2, label='Hybrid A* solution')
 
 for position in obstacle_positions:
 	x = [p.x() for p in position]
@@ -100,5 +103,5 @@ for position in obstacle_positions:
 
 _ = ax.axis('equal')
 _ = ax.axis((-12,12,-12,12))
-ax.legend(handles=[graph_search_line, solution_line])
+_ = ax.legend()
 fig.show()

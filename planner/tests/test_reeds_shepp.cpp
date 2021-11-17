@@ -299,7 +299,5 @@ int main()
 	goal = { 0.0, 3.0, 0.2 };
 	Planner::Test(start, goal, { optimalWord });
 
-	PP_END;
-
 	return 0;
 }
