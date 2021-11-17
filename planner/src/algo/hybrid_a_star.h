@@ -166,12 +166,16 @@ namespace Planner {
 			/// @copydoc Planner::AStar::IsSolution
 			inline virtual bool IsSolution(Node* node) override
 			{
+				PP_PROFILE_FUNCTION();
+
 				return IdenticalPoses(node->GetState().GetPose(), this->m_goal.GetPose());
 			}
 
 			/// @copydoc Planner::AStar::ProcessPossibleShorterPath
 			inline virtual void ProcessPossibleShorterPath(Node* frontierNode, Scope<Node> childScope, Node* node) override
 			{
+				PP_PROFILE_FUNCTION();
+
 				// TODO FIXME check if a path with better cost exist between the two nodes if two poses are not identical?
 				auto child = childScope.get();
 				bool identicalPose = IdenticalPoses(frontierNode->GetState().GetPose(), node->GetState().GetPose());

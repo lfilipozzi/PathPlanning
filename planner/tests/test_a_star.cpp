@@ -37,8 +37,9 @@ namespace Planner {
 
 int main()
 {
-	PP_INIT_LOGGER;
+	PP_INIT;
 	Planner::TestAStar();
+	PP_END;
 
 	return 0;
 }

@@ -30,8 +30,9 @@ namespace Planner {
 
 int main()
 {
-	PP_INIT_LOGGER;
+	PP_INIT;
 	Planner::TestRRTStarPath();
+	PP_END;
 
 	return 0;
 }

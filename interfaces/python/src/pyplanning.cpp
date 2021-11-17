@@ -35,13 +35,19 @@ using namespace Planner;
 
 void Initialize()
 {
-	PP_INIT_LOGGER;
+	PP_INIT;
+}
+
+void CleanUp()
+{
+	PP_END;
 }
 
 PYBIND11_MODULE(pyplanning, m)
 {
 
 	m.def("initialize", &Initialize);
+	m.def("cleanup", &CleanUp);
 
 	//             _                  _ _   _
 	//       /\   | |                (_) | | |

@@ -154,7 +154,7 @@ namespace Planner {
 
 int main()
 {
-	PP_INIT_LOGGER;
+	PP_INIT;
 	Planner::TestNodeGetDepth();
 	Planner::TestNodeIsDescendantOf();
 	Planner::TestNodeIsAncestorOf();
@@ -162,6 +162,7 @@ int main()
 	Planner::TestGetNearestNodes();
 	Planner::TestGetNearestNode();
 	Planner::TestReparent();
+	PP_END;
 
 	return 0;
 }

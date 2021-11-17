@@ -290,6 +290,8 @@ namespace Planner {
 		/// @copydoc Planner::PathPlanner::SearchPath
 		virtual Status SearchPath() override
 		{
+			PP_PROFILE_FUNCTION();
+
 			if (!isInitialized) {
 				PP_ERROR("The algorithm has not been initialized successfully.");
 				return Status::Failure;
@@ -312,6 +314,8 @@ namespace Planner {
 		/// @brief Initialize the search with the start pose.
 		inline virtual void InitializeSearch()
 		{
+			PP_PROFILE_FUNCTION();
+
 			m_frontier.Clear();
 			m_explored.Clear();
 			m_solutionNode = nullptr;
@@ -328,6 +332,8 @@ namespace Planner {
 		/// @return true is the node is a solution.
 		inline virtual bool IsSolution(Node* node)
 		{
+			PP_PROFILE_FUNCTION();
+
 			return EqualState()(node->GetState(), this->m_goal);
 		}
 
@@ -335,6 +341,8 @@ namespace Planner {
 		/// children to the frontier.
 		inline virtual void Expand(Node* node)
 		{
+			PP_PROFILE_FUNCTION();
+
 			m_explored.Insert(node);
 
 			for (auto& [childState, transitionCost] : m_propagator->GetNeighborStates(node->GetState())) {
@@ -373,6 +381,8 @@ namespace Planner {
 		/// @param node The node being expanded.
 		inline virtual void ProcessPossibleShorterPath(Node* frontierNode, Scope<Node> childScope, Node* /*node*/)
 		{
+			PP_PROFILE_FUNCTION();
+
 			auto child = childScope.get();
 			if (frontierNode->meta.totalCost > child->meta.totalCost) {
 				// Replace the node in frontier by the newly find better node.

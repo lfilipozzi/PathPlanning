@@ -32,6 +32,8 @@ namespace Planner {
 
 	std::vector<Smoother::State> Smoother::Smooth(const std::vector<State>& path)
 	{
+		PP_PROFILE_FUNCTION();
+
 		if (!isInitialized) {
 			PP_ERROR("The algorithm has not been initialized successfully.");
 			return std::vector<Smoother::State>();
@@ -42,6 +44,8 @@ namespace Planner {
 
 	std::vector<Smoother::State> Smoother::Smooth(const std::vector<State>& path, Scope<std::unordered_set<int>> unsafeIndices)
 	{
+		PP_PROFILE_FUNCTION();
+
 		if (path.size() < 5) {
 			return path;
 		}
@@ -57,6 +61,8 @@ namespace Planner {
 		int count = 0;
 		float step = m_param.stepTolerance;
 		while (step >= m_param.stepTolerance && count < m_param.maxIterations) {
+			PP_PROFILE_SCOPE("Smoothing iteration");
+
 			// Reset gradients
 			std::fill(gradients.begin(), gradients.end(), Point2d(0.0, 0.0));
 
@@ -192,6 +198,8 @@ namespace Planner {
 
 	std::unordered_set<int> Smoother::CheckPath(const std::vector<State>& path) const
 	{
+		PP_PROFILE_FUNCTION();
+
 		std::unordered_set<int> unsafeIndices;
 
 		int count = path.size();

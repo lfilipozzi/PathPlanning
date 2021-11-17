@@ -29,7 +29,7 @@ namespace Planner {
 
 int main()
 {
-	PP_INIT_LOGGER;
+	PP_INIT;
 
 	Planner::ReedsShepp::PathWords optimalWord;
 	Planner::Pose2d start;
@@ -298,6 +298,8 @@ int main()
 	start = { 0.0, 0.0, 0.0 };
 	goal = { 0.0, 3.0, 0.2 };
 	Planner::Test(start, goal, { optimalWord });
+
+	PP_END;
 
 	return 0;
 }

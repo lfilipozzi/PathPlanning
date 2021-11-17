@@ -1,17 +1,24 @@
 #pragma once
 
 #include "core/base.h"
-#include "utils/singleton.h"
 
 #include <random>
 
 namespace Planner {
 
 	template <typename T>
-	class Random : public Singleton<Random<T>> {
-		friend class Singleton<Random<T>>;
-
+	class Random {
 	public:
+		static void Init()
+		{
+			if (!s_randomDevice) {
+				s_randomDevice = makeScope<std::random_device>();
+				s_engine = makeScope<std::mt19937_64>((*s_randomDevice)());
+				s_uniformDistribution = std::uniform_real_distribution<T>(0.0, std::nextafter(1.0, std::numeric_limits<T>::max()));
+				s_gaussianDistribution = std::normal_distribution<T>(0.0, 1.0);
+			}
+		}
+
 		/// @brief Sample uniformly on the interval [lb, ub].
 		static T SampleUniform(T lb, T ub)
 		{
@@ -27,15 +34,7 @@ namespace Planner {
 		}
 
 	private:
-		Random()
-		{
-			if (!s_randomDevice) {
-				s_randomDevice = makeScope<std::random_device>();
-				s_engine = makeScope<std::mt19937_64>((*s_randomDevice)());
-				s_uniformDistribution = std::uniform_real_distribution<T>(0.0, std::nextafter(1.0, std::numeric_limits<T>::max()));
-				s_gaussianDistribution = std::normal_distribution<T>(0.0, 1.0);
-			}
-		}
+		Random() = default;
 
 	private:
 		inline static Scope<std::random_device> s_randomDevice;

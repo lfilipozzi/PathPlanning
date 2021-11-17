@@ -4,7 +4,7 @@
 
 int main()
 {
-	PP_INIT_LOGGER;
+	PP_INIT;
 
 	auto compare = [](std::pair<int, int> lhs, std::pair<int, int> rhs) { return lhs.first < rhs.first; };
 	auto hash = [](const std::pair<int, int>& pair) { std::hash<int> hasher; return hasher(pair.second); };
@@ -51,4 +51,6 @@ int main()
 	assert((bool)frontier.Find({ 1, 2 }) == true);
 	auto test = frontier.Find({ 0, 2 });
 	assert(test->first == 1 && test->second == 2);
+
+	PP_END;
 }
