@@ -13,7 +13,7 @@ namespace Planner {
 		static T& Get()
 		{
 			if (!m_instance_ptr) {
-				m_instance_ptr = std::unique_ptr<T>(new T());
+				Init();
 			}
 			return *m_instance_ptr;
 		}
@@ -21,7 +21,9 @@ namespace Planner {
 		/// @brief Initialize the only instance of the class.
 		static void Init()
 		{
-			Get();
+			if (!m_instance_ptr) {
+				m_instance_ptr = std::unique_ptr<T>(new T());
+			}
 		}
 
 		/// @brief Provide global access to release/delete the instance.

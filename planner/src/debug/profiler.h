@@ -10,8 +10,6 @@
 	#include <mutex>
 
 	#include "core/base.h"
-// 	#include "core/log.h"
-// 	#include "core/assert.h"
 	#include "utils/singleton.h"
 
 namespace Planner {

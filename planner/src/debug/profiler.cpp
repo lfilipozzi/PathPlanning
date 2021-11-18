@@ -14,11 +14,9 @@ namespace Planner {
 			// original session will end up in the newly opened session
 			// instead.  That's better than having badly formatted
 			// profiling output.
-			if (Log::GetLogger()) {
-				PP_ERROR(
-					"Profiler::BeginSession('{0}') when session '{1}' already open.",
-					name, m_currentSession->name);
-			}
+			PP_ERROR(
+				"Profiler::BeginSession('{0}') when session '{1}' already open.",
+				name, m_currentSession->name);
 			InternalEndSession();
 		}
 		m_outputStream.open(filepath);
@@ -26,10 +24,7 @@ namespace Planner {
 			m_currentSession = new ProfilingSession({ name });
 			WriteHeader();
 		} else {
-			if (Log::GetLogger()) {
-				// Edge case: BeginSession() might be before Log::Init()
-				PP_ERROR("Profiler could not open results file '{0}'.", filepath);
-			}
+			PP_ERROR("Profiler could not open results file '{0}'.", filepath);
 		}
 	}
 
