@@ -11,11 +11,13 @@ namespace Planner {
 		Pose2d to = from;
 
 		// Compute angle between center of curvature, center, and rear wheel
-		double beta = atan(m_rearToCenter * tan(steering) / m_wheelbase);
+		double tanSteering = tan(steering);
+		double beta = atan(m_rearToCenter * tanSteering / m_wheelbase);
+		double cosBeta = cos(beta);
 		// Change in yaw angle per distance traveled
-		double DthetaDdist = cos(beta) * tan(steering) / m_wheelbase;
+		double DthetaDdist = cosBeta * tanSteering / m_wheelbase;
 		// Increase the distance if the point defining the position is not the rear axle
-		dist = dist / cos(beta);
+		dist = dist / cosBeta;
 		// Update pose
 		if (abs(DthetaDdist) > 1e-9) {
 			to.theta += dist * DthetaDdist;

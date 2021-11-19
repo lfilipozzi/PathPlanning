@@ -47,20 +47,16 @@ namespace Planner {
 		};
 	}
 
-	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPath(const Ref<PlanarNonHolonomicPath>& path) const
+	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPath(Ref<PlanarNonHolonomicPath>&& path) const
 	{
-		PP_PROFILE_FUNCTION();
-
 		State state;
-		state.discrete = DiscretizePose(path->GetFinalState());
 		state.path = path;
+		state.discrete = DiscretizePose(state.path->GetFinalState());
 		return state;
 	}
 
 	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPose(Pose2d pose) const
 	{
-		PP_PROFILE_FUNCTION();
-
 		State state;
 		state.discrete = DiscretizePose(pose);
 		state.path = makeRef<PathConstantSteer>(m_model, pose);
@@ -141,8 +137,7 @@ namespace Planner {
 	{
 		PP_PROFILE_FUNCTION();
 
-		auto path = makeRef<PathConstantSteer>(m_model, state.GetPose(), delta, m_param.spatialResolution * 1.5, direction);
-		child = CreateStateFromPath(path);
+		child = CreateStateFromPath(makeRef<PathConstantSteer>(m_model, state.GetPose(), delta, m_param.spatialResolution * 1.5, direction));
 
 		// Validate transition
 		float lastValidRatio;
@@ -157,12 +152,12 @@ namespace Planner {
 
 		// Compute transition cost
 		double pathCost;
-		switch (path->GetDirection(0.0)) {
+		switch (child.path->GetDirection(0.0)) {
 		case Direction::Forward:
-			pathCost = m_param.forwardCostMultiplier * path->GetLength();
+			pathCost = m_param.forwardCostMultiplier * child.path->GetLength();
 			break;
 		case Direction::Backward:
-			pathCost = m_param.reverseCostMultiplier * path->GetLength();
+			pathCost = m_param.reverseCostMultiplier * child.path->GetLength();
 			break;
 		default:
 			pathCost = 0.0;
@@ -183,13 +178,14 @@ namespace Planner {
 			m_param.minTurningRadius, m_param.reverseCostMultiplier,
 			m_param.forwardCostMultiplier, m_param.directionSwitchingCost);
 		auto path = makeRef<PathReedsShepp>(from, pathSegment, m_param.minTurningRadius);
-		child = CreateStateFromPath(path);
-		if (!m_validator->IsPathValid(*child.path))
+		if (!m_validator->IsPathValid(*path))
 			return false;
-
-		// Compute transition cost
 		double pathCost = path->ComputeCost(m_param.directionSwitchingCost,
 			m_param.reverseCostMultiplier, m_param.forwardCostMultiplier);
+
+		child = CreateStateFromPath(std::move(path));
+
+		// Compute transition cost
 		double switchingCost = GetDirectionSwitchingCost(*state.path, *child.path);
 		double voronoiCost = GetVoronoiCost(*child.path);
 		cost = pathCost + switchingCost + voronoiCost;

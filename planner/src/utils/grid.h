@@ -71,28 +71,20 @@ namespace Planner {
 				throw std::invalid_argument(msg + std::to_string(rows) + " x " + std::to_string(columns));
 			}
 
-			m_data = new T*[rows];
-			for (unsigned int i = 0; i < rows; ++i) {
-				m_data[i] = new T[columns];
-				for (unsigned int j = 0; j < rows; ++j) {
-					m_data[i][j] = val;
-				}
-			}
+			m_data = new T[rows * columns];
+			for (unsigned int i = 0; i < rows * columns; ++i)
+				m_data[i] = val;
 		}
 
 		virtual ~Grid()
 		{
-			for (unsigned int i = 0; i < rows; i++) {
-				delete[] m_data[i];
-			}
 			delete[] m_data;
 		}
 
 		Grid(const Grid& other) = delete;
 		Grid& operator=(const Grid&) = delete;
 
-		T*& operator[](int i) { return m_data[i]; }
-		T* const& operator[](int i) const { return m_data[i]; }
+		T* operator[](int i) const { return m_data + i * columns; }
 
 		std::vector<GridCellPosition> GetNeighbors(const GridCellPosition& cell) const
 		{
@@ -103,6 +95,6 @@ namespace Planner {
 		const int rows, columns;
 
 	protected:
-		T** m_data = nullptr;
+		T* m_data = nullptr;
 	};
 }

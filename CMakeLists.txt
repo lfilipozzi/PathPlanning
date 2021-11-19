@@ -84,7 +84,7 @@ set(PATH_PLANNNING_SRC
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/state_validator_occupancy_map.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/utils/grid.cpp
 )
-if(ENABLE_LOGGING)
+if(ENABLE_PROFILING)
 	set(PATH_PLANNNING_SRC ${PATH_PLANNNING_SRC}
 		${CMAKE_SOURCE_DIR}/planner/src/debug/profiler.cpp
 	)

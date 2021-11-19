@@ -96,7 +96,7 @@ namespace Planner {
 			Pose2i DiscretizePose(const Pose2d& pose) const;
 
 			/// @brief Create an augmented state from a path.
-			State CreateStateFromPath(const Ref<PlanarNonHolonomicPath>& path) const;
+			State CreateStateFromPath(Ref<PlanarNonHolonomicPath>&& path) const;
 
 			/// @brief Create an augmented state from a pose.
 			State CreateStateFromPose(Pose2d pose) const;
