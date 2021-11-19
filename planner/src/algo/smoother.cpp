@@ -32,6 +32,8 @@ namespace Planner {
 
 	Smoother::Status Smoother::Smooth(const std::vector<Pose2d>& path, const std::unordered_set<int>& cuspIndices)
 	{
+		PP_PROFILE_FUNCTION();
+
 		Status status = Status::Failure;
 
 		if (!isInitialized) {
@@ -81,6 +83,8 @@ namespace Planner {
 		int count = -1;
 		float step = m_param.stepTolerance;
 		while (true) {
+			PP_PROFILE_SCOPE("Smoothing iteration");
+
 			count++;
 			if (count >= m_param.maxIterations) {
 				status = Status::MaxIteration;

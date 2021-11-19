@@ -3,31 +3,35 @@
 #ifdef PP_ENABLE_LOG
 
 	#include "core/base.h"
+	#include "utils/singleton.h"
 	#include <spdlog/spdlog.h>
 	#include <memory>
 
 namespace Planner {
 
-	///@brief Logging system
-	class Log {
-	public:
-		static void Init();
+	/// @brief Logging system
+	class Log : public Singleton<Log>, public spdlog::logger {
+		friend class Singleton<Log>;
 
-		inline static std::shared_ptr<spdlog::logger>& GetLogger() { return s_logger; }
+	public:
+		~Log() = default;
 
 	private:
-		static bool s_initialized;
-		static std::shared_ptr<spdlog::logger> s_logger;
+		Log() :
+			spdlog::logger(CreateLogger()) { }
+
+		/// @brief Define the logger and create the list of sink associated to it.
+		static spdlog::logger&& CreateLogger();
 	};
 
 }
 
 	#define PP_INIT_LOGGER ::Planner::Log::Init()
-	#define PP_TRACE(...) ::Planner::Log::GetLogger()->trace(__VA_ARGS__)
-	#define PP_INFO(...) ::Planner::Log::GetLogger()->info(__VA_ARGS__)
-	#define PP_WARN(...) ::Planner::Log::GetLogger()->warn(__VA_ARGS__)
-	#define PP_ERROR(...) ::Planner::Log::GetLogger()->error(__VA_ARGS__)
-	#define PP_CRITICAL(...) ::Planner::Log::GetLogger()->critical(__VA_ARGS__)
+	#define PP_TRACE(...) ::Planner::Log::Get().trace(__VA_ARGS__)
+	#define PP_INFO(...) ::Planner::Log::Get().info(__VA_ARGS__)
+	#define PP_WARN(...) ::Planner::Log::Get().warn(__VA_ARGS__)
+	#define PP_ERROR(...) ::Planner::Log::Get().error(__VA_ARGS__)
+	#define PP_CRITICAL(...) ::Planner::Log::Get().critical(__VA_ARGS__)
 #else
 	#define PP_INIT_LOGGER
 	#define PP_TRACE(...)

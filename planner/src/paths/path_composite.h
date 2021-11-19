@@ -13,8 +13,9 @@ namespace Planner {
 		struct PathInfo {
 			double initLength = 0;
 			double finalLength = 0;
-			
-			PathInfo(double init, double final) : initLength(init), finalLength(final) { };
+
+			PathInfo(double init, double final) :
+				initLength(init), finalLength(final) {};
 		};
 
 		using Paths = std::vector<std::pair<PathInfo, Ref<BasePath>>>;
@@ -71,10 +72,10 @@ namespace Planner {
 		{
 			double length = ratio * this->m_length;
 			auto it = std::upper_bound(m_paths.begin(), m_paths.end(), length,
-				[](double length, const std::pair<PathInfo, Ref<BasePath>>& pair){
+				[](double length, const std::pair<PathInfo, Ref<BasePath>>& pair) {
 					return length < pair.first.finalLength;
 				});
-			
+
 			if (it == m_paths.end())
 				return { it, 1.0 };
 			double pathLength = it->second->GetLength();

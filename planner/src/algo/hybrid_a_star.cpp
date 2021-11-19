@@ -38,6 +38,8 @@ namespace Planner {
 
 	Pose2i HybridAStar::StatePropagator::DiscretizePose(const Pose2d& pose) const
 	{
+		PP_PROFILE_FUNCTION();
+
 		return {
 			static_cast<int>(pose.x() / m_param.spatialResolution),
 			static_cast<int>(pose.y() / m_param.spatialResolution),
@@ -47,6 +49,8 @@ namespace Planner {
 
 	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPath(const Ref<PlanarNonHolonomicPath>& path) const
 	{
+		PP_PROFILE_FUNCTION();
+
 		State state;
 		state.discrete = DiscretizePose(path->GetFinalState());
 		state.path = path;
@@ -55,6 +59,8 @@ namespace Planner {
 
 	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPose(Pose2d pose) const
 	{
+		PP_PROFILE_FUNCTION();
+
 		State state;
 		state.discrete = DiscretizePose(pose);
 		state.path = makeRef<PathConstantSteer>(m_model, pose);
@@ -63,6 +69,8 @@ namespace Planner {
 
 	std::vector<std::tuple<HybridAStar::State, double>> HybridAStar::StatePropagator::GetNeighborStates(const State& state)
 	{
+		PP_PROFILE_FUNCTION();
+
 		std::vector<std::tuple<State, double>> neighbors;
 		neighbors.reserve(2 * m_deltas.size());
 		for (double delta : m_deltas) {
@@ -101,6 +109,8 @@ namespace Planner {
 
 	double HybridAStar::StatePropagator::GetVoronoiCost(const PlanarNonHolonomicPath& path) const
 	{
+		PP_PROFILE_FUNCTION();
+
 		float voronoiCost = 0.0;
 		bool inside = true;
 		float interpLength = 0.1;
@@ -129,6 +139,8 @@ namespace Planner {
 
 	bool HybridAStar::StatePropagator::GetConstantSteerChild(const State& state, double delta, Direction direction, State& child, double& cost) const
 	{
+		PP_PROFILE_FUNCTION();
+
 		auto path = makeRef<PathConstantSteer>(m_model, state.GetPose(), delta, m_param.spatialResolution * 1.5, direction);
 		child = CreateStateFromPath(path);
 
@@ -163,6 +175,8 @@ namespace Planner {
 
 	bool HybridAStar::StatePropagator::GetReedsSheppChild(const State& state, State& child, double& cost) const
 	{
+		PP_PROFILE_FUNCTION();
+
 		const auto& from = state.GetPose();
 		const auto& to = m_goalState.GetPose();
 		auto pathSegment = ReedsShepp::Solver::GetOptimalPath(from, to,
@@ -191,6 +205,8 @@ namespace Planner {
 
 	bool HybridAStar::Initialize(const Ref<StateValidatorOccupancyMap>& validator)
 	{
+		PP_PROFILE_FUNCTION();
+
 		if (!validator || !validator->GetStateSpace())
 			return isInitialized = false;
 
@@ -220,6 +236,8 @@ namespace Planner {
 
 	Status HybridAStar::SearchPath()
 	{
+		PP_PROFILE_FUNCTION();
+
 		// TODO create stats saving status of each step (graph search + optimization, number of iteration...)
 
 		if (!isInitialized) {
@@ -242,6 +260,8 @@ namespace Planner {
 		std::vector<Pose2d> graphSearchPath;
 		std::unordered_set<int> cuspIndices;
 		{
+			PP_PROFILE_SCOPE("Process graph search path");
+
 			// Generate composite path
 			auto path = makeRef<PlanarNonHolonomicCompositePath>();
 			const auto& states = m_graphSearch.GetPath();
@@ -270,7 +290,7 @@ namespace Planner {
 			}
 
 			// Sample points
- 			graphSearchPath = path->Interpolate(ratios);
+			graphSearchPath = path->Interpolate(ratios);
 		}
 
 		// Smooth the path

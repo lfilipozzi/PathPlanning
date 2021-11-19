@@ -35,7 +35,7 @@ using namespace Planner;
 
 void Initialize()
 {
-	PP_INIT_LOGGER;
+	PP_INIT;
 }
 
 PYBIND11_MODULE(pyplanning, m)

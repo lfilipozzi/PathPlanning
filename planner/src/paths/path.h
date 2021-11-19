@@ -73,7 +73,8 @@ namespace Planner {
 	class PlanarNonHolonomicPath : public PlanarPath {
 	public:
 		PlanarNonHolonomicPath() = default;
-		PlanarNonHolonomicPath(Pose2d init, double length = 0.0) : PlanarPath(init, length) { }
+		PlanarNonHolonomicPath(Pose2d init, double length = 0.0) :
+			PlanarPath(init, length) { }
 
 		/// @brief Return the direction of the path
 		virtual Direction GetDirection(double ratio) const = 0;

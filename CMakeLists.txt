@@ -4,8 +4,8 @@ project(pathPlanning)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(LOG_WITH_SPDLOG "Log error with spdlog" ON)
-if(LOG_WITH_SPDLOG)
+option(ENABLE_LOGGING "Log with spdlog" ON)
+if(ENABLE_LOGGING)
 	message("Enable logging")
 	add_compile_definitions(PP_ENABLE_LOG)
 	include_directories(${CMAKE_SOURCE_DIR}/external/spdlog/include)
@@ -15,6 +15,14 @@ if(LOG_WITH_SPDLOG)
 else()
 	message("Disable logging")
 	set(logger_LIB)
+endif()
+
+if(ENABLE_LOGGING)
+	option(ENABLE_PROFILING "Enable profiling" ON)
+	if(ENABLE_PROFILING)
+		message("Enable profiling")
+		add_compile_definitions(PP_ENABLE_PROFILING)
+	endif()
 endif()
 
 option(ENABLE_ASSERT "Enable assertion" ON)
@@ -57,7 +65,7 @@ else()
 	message(FATAL_ERROR "Cannot find required flann libraries")
 endif()
 
-add_library(pathPlanning
+set(PATH_PLANNNING_SRC
 	${CMAKE_SOURCE_DIR}/planner/src/algo/hybrid_a_star.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/algo/heuristics.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/algo/planar_a_star_grid.cpp
@@ -76,6 +84,12 @@ add_library(pathPlanning
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/state_validator_occupancy_map.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/utils/grid.cpp
 )
+if(ENABLE_LOGGING)
+	set(PATH_PLANNNING_SRC ${PATH_PLANNNING_SRC}
+		${CMAKE_SOURCE_DIR}/planner/src/debug/profiler.cpp
+	)
+endif()
+add_library(pathPlanning ${PATH_PLANNNING_SRC})
 set_target_properties(pathPlanning PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(pathPlanning flann ${logger_LIB})
 

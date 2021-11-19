@@ -67,3 +67,8 @@ namespace Planner {
 
 #include "core/log.h"
 #include "core/assert.h"
+#include "debug/profiler.h"
+
+#define PP_INIT     \
+	PP_INIT_LOGGER; \
+	PP_INIT_PROFILER;
