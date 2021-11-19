@@ -53,7 +53,7 @@ namespace Planner {
 		/// algorithm.
 		struct State {
 			/// @brief Path connecting the previous state to the current state.
-			Ref<PlanarPath> path;
+			Ref<PlanarNonHolonomicPath> path;
 			/// @brief Discretized state.
 			Pose2i discrete;
 
@@ -96,7 +96,7 @@ namespace Planner {
 			Pose2i DiscretizePose(const Pose2d& pose) const;
 
 			/// @brief Create an augmented state from a path.
-			State CreateStateFromPath(const Ref<PlanarPath>& path) const;
+			State CreateStateFromPath(const Ref<PlanarNonHolonomicPath>& path) const;
 
 			/// @brief Create an augmented state from a pose.
 			State CreateStateFromPose(Pose2d pose) const;
@@ -115,7 +115,8 @@ namespace Planner {
 			const SearchParameters& GetParameters() const { return m_param; }
 
 		private:
-			double GetTransitionCost(const PlanarPath& path) const;
+			double GetDirectionSwitchingCost(const PlanarNonHolonomicPath& parentPath, const PlanarNonHolonomicPath& childPath) const;
+			double GetVoronoiCost(const PlanarNonHolonomicPath& path) const;
 
 			/// @brief Update state assuming constant steer angle and bicycle
 			/// kinematic model.
@@ -217,8 +218,8 @@ namespace Planner {
 
 		void VisualizeObstacleHeuristic(const std::string& filename) const;
 
-		std::unordered_set<Ref<PlanarPath>> GetGraphSearchExploredSet() const;
-		std::vector<Ref<PlanarPath>> GetGraphSearchPath() const;
+		std::unordered_set<Ref<PlanarNonHolonomicPath>> GetGraphSearchExploredSet() const;
+		std::vector<Ref<PlanarNonHolonomicPath>> GetGraphSearchPath() const;
 		double GetGraphSearchOptimalCost() const;
 
 	public:
@@ -226,6 +227,8 @@ namespace Planner {
 		float pathInterpolation = 0.1f;
 
 	private:
+		bool isInitialized = false;
+
 		Ref<StateValidatorOccupancyMap> m_validator;
 		Ref<StatePropagator> m_propagator;
 		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
@@ -233,7 +236,7 @@ namespace Planner {
 		Ref<GVD> m_gvd;
 		GraphSearch m_graphSearch;
 		Smoother m_smoother;
+
 		std::vector<Pose2d> m_path;
-		bool isInitialized = false;
 	};
 }

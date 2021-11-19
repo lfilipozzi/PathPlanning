@@ -17,6 +17,14 @@ namespace Planner {
 	/// proximity to the Voronoi edge, and curvature.
 	class Smoother {
 	public:
+		enum Status {
+			MaxIteration = 0,
+			StepTolerance,
+			PathSize,
+			Failure = -1,
+			Collision = -2,
+		};
+
 		struct Parameters {
 			/// @brief Lower bound on the size of a step. If the solver attempts to
 			/// take a step that is smaller than StepTolerance, the iterations end.
@@ -51,30 +59,24 @@ namespace Planner {
 				maxCurvature(maxCurvature) { }
 		};
 
-		struct State {
-			Pose2d pose;
-			Direction direction;
-
-			Point2d& Position() { return pose.position; }
-			const Point2d& Position() const { return pose.position; }
-		};
-
 	public:
 		Smoother();
 
+		/// @brief Initialize the algorithm.
 		bool Initialize(const Ref<StateValidatorOccupancyMap>& validator, const Ref<GVD>& gvd, float maxCurvature);
 
-		std::vector<State> Smooth(const std::vector<State>& path);
+		/// @brief Smooth the path and return the status of the optimization.
+		Status Smooth(const std::vector<Pose2d>& path, const std::unordered_set<int>& cuspIndices = std::unordered_set<int>());
+		/// @brief Return the path
+		const std::vector<Pose2d>& GetPath() const { return m_currentPath; }
 
 		Parameters GetParameters() { return m_param; }
 		const Parameters& GetParameters() const { return m_param; }
 		void SetParameters(const Parameters& param) { m_param = param; }
 
 	private:
-		std::vector<State> Smooth(const std::vector<State>& path, Scope<std::unordered_set<int>> unsafeIndices);
-
 		void CalculateCurvatureTerm(const Point2d& xim1, const Point2d& xi, const Point2d& xip1, Point2d& gim1, Point2d& gi, Point2d& gip1) const;
-		std::unordered_set<int> CheckPath(const std::vector<State>& path) const;
+		bool IsPathSafe() const;
 
 	private:
 		bool isInitialized = false;
@@ -84,6 +86,6 @@ namespace Planner {
 		Ref<OccupancyMap> m_map;
 		Ref<GVD> m_gvd;
 
-		int m_currentCount;
+		std::vector<Pose2d> m_currentPath;
 	};
 }

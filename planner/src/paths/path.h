@@ -2,6 +2,7 @@
 
 #include "geometry/2dplane.h"
 #include "core/base.h"
+#include <set>
 
 namespace Planner {
 
@@ -34,22 +35,21 @@ namespace Planner {
 		/// @brief Interpolate a state along the path.
 		virtual State Interpolate(double ratio) const = 0;
 
+		/// @overload
+		std::vector<State> Interpolate(const std::vector<double>& ratios) const
+		{
+			std::vector<State> states;
+			states.reserve(ratios.size());
+			for (double r : ratios)
+				states.push_back(Interpolate(r));
+			return states;
+		}
+
 		/// @brief Truncate the path
 		virtual void Truncate(double ratio) = 0;
 
 		/// @brief Return the length of the path.
 		double GetLength() const { return m_length; }
-
-		/// @brief Return the direction of the path
-		virtual Direction GetDirection(double ratio) const = 0;
-
-		/// @brief Compute the cost associated to the path.
-		/// @details The cost penalizes the distance traveled with a cost
-		/// multiplier @forwardCostMultiplier for forward motion, and
-		/// @reverseCostMultiplier for reverse motion. An additional cost is
-		/// added when switching the direction of motionwith cost
-		/// @directionSwitchingCost.
-		virtual double ComputeCost(double directionSwitchingCost, double reverseCostMultiplier, double forwardCostMultiplier) const = 0;
 
 	protected:
 		State m_init, m_final;
@@ -69,5 +69,20 @@ namespace Planner {
 
 	using PlanarPath = Path<Pose2d>;
 	using PlanarPathConnection = PathConnection<Pose2d>;
+
+	class PlanarNonHolonomicPath : public PlanarPath {
+	public:
+		PlanarNonHolonomicPath() = default;
+		PlanarNonHolonomicPath(Pose2d init, double length = 0.0) : PlanarPath(init, length) { }
+
+		/// @brief Return the direction of the path
+		virtual Direction GetDirection(double ratio) const = 0;
+
+		/// @brief Return the ratio of cusp points.
+		virtual std::set<double> GetCuspPointRatios() const
+		{
+			return std::set<double>();
+		}
+	};
 
 }

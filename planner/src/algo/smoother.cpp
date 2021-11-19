@@ -30,56 +30,78 @@ namespace Planner {
 		return true;
 	}
 
-	std::vector<Smoother::State> Smoother::Smooth(const std::vector<State>& path)
+	Smoother::Status Smoother::Smooth(const std::vector<Pose2d>& path, const std::unordered_set<int>& cuspIndices)
 	{
+		Status status = Status::Failure;
+
 		if (!isInitialized) {
 			PP_ERROR("The algorithm has not been initialized successfully.");
-			return std::vector<Smoother::State>();
+			return status = Status::Failure;
 		}
 
-		return Smooth(path, nullptr);
-	}
-
-	std::vector<Smoother::State> Smoother::Smooth(const std::vector<State>& path, Scope<std::unordered_set<int>> unsafeIndices)
-	{
 		if (path.size() < 5) {
-			return path;
+			m_currentPath = path;
+			if (!IsPathSafe())
+				return status = Status::Failure;
+			return status = Status::PathSize;
 		}
 
-		m_currentCount = path.size();
-		int num = m_currentCount;
+		const int num = path.size();
 
-		std::vector<State> currentPath = path;
+		// List indices of points to optimize
+		std::vector<int> indices;
+		indices.reserve(num);
+		for (int i = 0; i < num - 4; i++) {
+			if (cuspIndices.find(i + 4) != cuspIndices.end()) {
+				i += 3;
+				continue;
+			}
+			if (cuspIndices.find(i + 3) != cuspIndices.end()) {
+				i += 2;
+				continue;
+			}
+			if (cuspIndices.find(i + 2) != cuspIndices.end()) {
+				i += 1;
+				continue;
+			}
+			if (cuspIndices.find(i + 1) != cuspIndices.end()) {
+				continue;
+			}
+			if (cuspIndices.find(i) != cuspIndices.end()) {
+				continue;
+			}
+			indices.push_back(i + 2);
+		}
+
+		m_currentPath = path;
 		std::vector<Point2d> gradients;
-		gradients.resize(currentPath.size());
+		gradients.resize(num);
 
 		const float unsafeRadius = m_validator->minSafeRadius * (1 + m_param.collisionRatio);
-		int count = 0;
+		int count = -1;
 		float step = m_param.stepTolerance;
-		while (step >= m_param.stepTolerance && count < m_param.maxIterations) {
+		while (true) {
+			count++;
+			if (count >= m_param.maxIterations) {
+				status = Status::MaxIteration;
+				break;
+			}
+			if (step < m_param.stepTolerance) {
+				status = Status::StepTolerance;
+				break;
+			}
+
 			// Reset gradients
 			std::fill(gradients.begin(), gradients.end(), Point2d(0.0, 0.0));
 
 			// Compute gradients
-			for (int i = 2; i < num - 2; i++) {
-				// Do not modify this point if it is a cust point of if it is adjacent to a cusp point
-				if (currentPath[i - 2].direction != currentPath[i - 1].direction)
-					continue;
-				if (currentPath[i - 1].direction != currentPath[i].direction)
-					continue;
-				if (currentPath[i].direction != currentPath[i + 1].direction)
-					continue;
-				if (currentPath[i + 1].direction != currentPath[i + 2].direction)
-					continue;
+			for (int i : indices) {
+				PP_ASSERT(i >= 2 && i < num - 2, "Invalid index");
 
-				// Do not modify this point if it is unsafe
-				if (unsafeIndices ? unsafeIndices->find(i) != unsafeIndices->end() : false)
-					continue;
-
-				const Point2d& curr = currentPath[i].Position();
+				const Point2d& curr = m_currentPath[i].position;
 
 				// Original path term
-				gradients[i] += m_param.pathWeight * (path[i].Position() - curr);
+				gradients[i] += m_param.pathWeight * (path[i].position - curr);
 
 				if (m_map->IsInsideMap(curr)) {
 					// Collision term
@@ -109,29 +131,26 @@ namespace Planner {
 				}
 
 				// Smoothing term
-				gradients[i] += m_param.smoothWeight * (currentPath[i - 2].Position() - 4 * currentPath[i - 1].Position() + 6 * curr - 4 * currentPath[i + 1].Position() + currentPath[i + 2].Position());
+				gradients[i] += m_param.smoothWeight * (m_currentPath[i - 2].position - 4 * m_currentPath[i - 1].position + 6 * curr - 4 * m_currentPath[i + 1].position + m_currentPath[i + 2].position);
 
 				// Curvature term
-				CalculateCurvatureTerm(currentPath[i - 1].Position(), currentPath[i].Position(), currentPath[i + 1].Position(), gradients[i - 1], gradients[i], gradients[i + 1]);
+				CalculateCurvatureTerm(m_currentPath[i - 1].position, m_currentPath[i].position, m_currentPath[i + 1].position, gradients[i - 1], gradients[i], gradients[i + 1]);
 			}
 
 			// Apply gradients
 			step = 0.0;
 			for (int i = 0; i < num; i++) {
-				currentPath[i].Position() = currentPath[i].Position() - m_param.learningRate * gradients[i];
+				m_currentPath[i].position = m_currentPath[i].position - m_param.learningRate * gradients[i];
 				step = std::max<float>(step, gradients[i].norm());
 			}
-
-			count++;
 		}
 
-		if (!unsafeIndices) {
-			Scope<std::unordered_set<int>> unsafe = makeScope<std::unordered_set<int>>(CheckPath(currentPath));
-			if (unsafe->size() > 0)
-				currentPath = Smooth(currentPath, std::move(unsafe));
-		}
+		// TODO update value of theta for each pose
 
-		return currentPath;
+		if (!IsPathSafe())
+			status = Status::Failure;
+
+		return status;
 	}
 
 	void Smoother::CalculateCurvatureTerm(const Point2d& xim1, const Point2d& xi, const Point2d& xip1, Point2d& gim1, Point2d& gi, Point2d& gip1) const
@@ -185,38 +204,19 @@ namespace Planner {
 		Point2d Dkappa_Dxip1 = coef1 * DcosDeltaPhi_Dxip1;
 
 		gim1 += m_param.curvatureWeight * (kappa - m_param.maxCurvature) * Dkappa_Dxim1;
-		gi += m_param.curvatureWeight   * (kappa - m_param.maxCurvature) * Dkappa_Dxi;
+		gi   += m_param.curvatureWeight * (kappa - m_param.maxCurvature) * Dkappa_Dxi;
 		gip1 += m_param.curvatureWeight * (kappa - m_param.maxCurvature) * Dkappa_Dxip1;
 		// clang-format on
 	}
 
-	std::unordered_set<int> Smoother::CheckPath(const std::vector<State>& path) const
+	bool Smoother::IsPathSafe() const
 	{
-		std::unordered_set<int> unsafeIndices;
-
-		int count = path.size();
-
-		for (int i = 2; i < count - 2; i++) {
-			if (path[i - 2].direction != path[i - 1].direction)
-				continue;
-			if (path[i - 1].direction != path[i].direction)
-				continue;
-			if (path[i].direction != path[i + 1].direction)
-				continue;
-			if (path[i + 1].direction != path[i + 2].direction)
-				continue;
-
-			auto& currPos = path[i].Position();
-			auto& prevPos = path[i - 1].Position();
-			auto displacement = 0.25f * (currPos - prevPos) + 0.75f * (currPos - currPos);
-			float pathOrientation = atan2(displacement.y(), displacement.x());
-
-			if (!m_validator->IsStateValid({ currPos, pathOrientation })) {
-				unsafeIndices.insert(i);
-				unsafeIndices.insert(i - 1);
+		for (auto& pose : m_currentPath) {
+			if (!m_validator->IsStateValid(pose)) {
+				return false;
 			}
 		}
 
-		return unsafeIndices;
+		return true;
 	}
 }

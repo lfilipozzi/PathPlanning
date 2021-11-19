@@ -217,24 +217,32 @@ PYBIND11_MODULE(pyplanning, m)
 		using PlanarPath::PlanarPath;
 		virtual Pose2d Interpolate(double ratio) const override { PYBIND11_OVERRIDE_PURE(Pose2d, PlanarPath, Interpolate, ratio); }
 		virtual void Truncate(double ratio) override { PYBIND11_OVERRIDE_PURE(void, PlanarPath, Truncate, ratio); }
-		virtual Direction GetDirection(double ratio) const override { PYBIND11_OVERRIDE_PURE(Direction, PlanarPath, GetDirection, ratio); }
-		virtual double ComputeCost(double a, double b, double c) const override { PYBIND11_OVERRIDE_PURE(double, PlanarPath, ComputeCost, a, b, c); }
 	};
 
 	class_<PlanarPath, Ref<PlanarPath>, PlanarPathWrapper>(m, "PlanarPath")
 		.def(init<>())
 		.def("get_initial_state", &PlanarPath::GetInitialState)
 		.def("get_final_state", &PlanarPath::GetFinalState)
-		.def("interpolate", &PlanarPath::Interpolate)
+		.def<Pose2d (PlanarPath::*)(double) const>("interpolate", &PlanarPath::Interpolate)
+		.def<std::vector<Pose2d> (PlanarPath::*)(const std::vector<double>&) const>("interpolate", &PlanarPath::Interpolate)
 		.def("truncate", &PlanarPath::Truncate)
-		.def("get_length", &PlanarPath::GetLength)
-		.def("get_direction", &PlanarPath::GetDirection)
-		.def("compute_cost", &PlanarPath::ComputeCost);
+		.def("get_length", &PlanarPath::GetLength);
 
-	class_<PathReedsShepp, Ref<PathReedsShepp>, PlanarPath>(m, "PathReedsShepp")
-		.def(init<const Pose2d&, ReedsShepp::PathSegment, double>());
+	struct PlanarNonHolonomicPathWrapper : PlanarPathWrapper, virtual PlanarNonHolonomicPath {
+		using PlanarNonHolonomicPath::PlanarNonHolonomicPath;
+		virtual Direction GetDirection(double ratio) const override { PYBIND11_OVERRIDE_PURE(Direction, PlanarNonHolonomicPath, GetDirection, ratio); }
+		virtual std::set<double> GetCuspPointRatios() const override { PYBIND11_OVERRIDE(std::set<double>, PlanarNonHolonomicPath, GetCuspPointRatios); }
+	};
 
-	class_<PathConstantSteer, Ref<PathConstantSteer>, PlanarPath>(m, "PathConstantSteer")
+	class_<PlanarNonHolonomicPath, Ref<PlanarNonHolonomicPath>, PlanarPath, PlanarNonHolonomicPathWrapper>(m, "PlanarNonHolonomicPath")
+		.def("get_direction", &PlanarNonHolonomicPath::GetDirection)
+		.def("get_cusp_point_ratios", &PlanarNonHolonomicPath::GetCuspPointRatios);
+
+	class_<PathReedsShepp, Ref<PathReedsShepp>, PlanarNonHolonomicPath>(m, "PathReedsShepp")
+		.def(init<const Pose2d&, ReedsShepp::PathSegment, double>())
+		.def_property("min_turning_radius", &PathReedsShepp::GetMinTurningRadius, nullptr);
+
+	class_<PathConstantSteer, Ref<PathConstantSteer>, PlanarNonHolonomicPath>(m, "PathConstantSteer")
 		.def(init<const Ref<KinematicBicycleModel>&, const Pose2d&, double, double, Direction>())
 		.def_property("steering", &PathConstantSteer::GetSteeringAngle, nullptr);
 

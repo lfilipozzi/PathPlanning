@@ -6,9 +6,9 @@
 
 namespace Planner {
 
-	enum class Status {
-		Success,
-		Failure,
+	enum Status {
+		Success = 0,
+		Failure = -1,
 	};
 
 	/// @brief Solve path planning problems.

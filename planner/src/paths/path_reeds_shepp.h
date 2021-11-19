@@ -4,18 +4,29 @@
 #include "geometry/reeds_shepp.h"
 
 namespace Planner {
-	class PathReedsShepp : public PlanarPath {
+	class PathReedsShepp : public PlanarNonHolonomicPath {
 	public:
 		PathReedsShepp(const Pose2d& init, const ReedsShepp::PathSegment& pathSegment, double minTurningRadius);
 
 		/// @copydoc Planner::Path::Interpolate
 		virtual Pose2d Interpolate(double ratio) const override;
+		using PlanarNonHolonomicPath::Interpolate;
 		/// @copydoc Planer::Path::Truncate
 		virtual void Truncate(double ratio) override;
-		/// @copydoc Planner::Path::GetDirection
+		/// @copydoc Planer::PlanarNonHolonomicPath::GetCuspPointRatios
+		virtual std::set<double> GetCuspPointRatios() const override;
+		/// @copydoc Planner::PlanarNonHolonomicPath::GetDirection
 		virtual Direction GetDirection(double ratio) const override;
-		/// @copydoc Planner::Path::ComputeCost
-		virtual double ComputeCost(double directionSwitchingCost, double reverseCostMultiplier, double forwardCostMultiplier) const override;
+
+		/// @brief Compute the cost associated to the path.
+		/// @details The cost penalizes the distance traveled with a cost
+		/// multiplier @forwardCostMultiplier for forward motion, and
+		/// @reverseCostMultiplier for reverse motion. An additional cost is
+		/// added when switching the direction of motionwith cost
+		/// @directionSwitchingCost.
+		double ComputeCost(double directionSwitchingCost, double reverseCostMultiplier, double forwardCostMultiplier) const;
+
+		double GetMinTurningRadius() const { return m_minTurningRadius; }
 
 	private:
 		Pose2d Straight(const Pose2d& start, Direction direction, double length) const;
