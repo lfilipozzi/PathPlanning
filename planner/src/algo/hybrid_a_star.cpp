@@ -32,8 +32,10 @@ namespace Planner {
 		const Ref<AStarHeuristic<State>>& heuristic, const Ref<GVD>& gvd)
 	{
 		m_validator = stateValidator;
+		m_occupancyMap = m_validator->GetOccupancyMap();
 		m_heuristic = heuristic;
 		m_gvd = gvd;
+		m_voroFieldDiagResolution = m_gvd->resolution * std::sqrt(2.0);
 	}
 
 	Pose2i HybridAStar::StatePropagator::DiscretizePose(const Pose2d& pose) const
@@ -108,28 +110,16 @@ namespace Planner {
 		PP_PROFILE_FUNCTION();
 
 		float voronoiCost = 0.0;
-		bool inside = true;
-		float interpLength = 0.1;
-		{
-			const double pathLength = path.GetLength();
-			double length = 0.0;
-			float positionCost;
-			while (length < pathLength) {
-				// Get cost
-				if (m_gvd->GetPathCost(path.Interpolate(length / pathLength).position, positionCost)) {
-					voronoiCost += positionCost;
-				} else {
-					inside = false;
-				}
-				// Update length
-				length += interpLength;
-			}
-
-			voronoiCost *= interpLength;
-			if (!inside) {
-				PP_WARN("Requesting path cost outside of the map");
-			}
+		float interpLength = m_voroFieldDiagResolution;
+		const double pathLength = path.GetLength();
+		for (double length = 0.0; length < pathLength; length += interpLength) {
+			auto position = path.Interpolate(length / pathLength).position;
+			auto cell = m_occupancyMap->WorldPositionToGridCell(position, false);
+			PP_ASSERT(m_occupancyMap->IsInsideMap(cell), "The cell is not inside the occupancy map");
+			voronoiCost = m_gvd->GetPathCost(cell);
 		}
+
+		voronoiCost *= interpLength;
 		return m_param.voronoiCostMultiplier * voronoiCost;
 	}
 

@@ -139,8 +139,10 @@ namespace Planner {
 		private:
 			SearchParameters m_param;
 			Ref<StateValidatorOccupancyMap> m_validator;
+			Ref<OccupancyMap> m_occupancyMap;
 			Ref<AStarHeuristic<State>> m_heuristic;
 			Ref<GVD> m_gvd;
+			float m_voroFieldDiagResolution;
 			Ref<KinematicBicycleModel> m_model;
 			std::vector<double> m_deltas;
 			State m_goalState;

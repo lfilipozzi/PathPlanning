@@ -13,6 +13,8 @@ namespace Planner {
 
 	bool StateValidatorOccupancyMap::IsStateValid(const Pose2d& state)
 	{
+		PP_PROFILE_FUNCTION();
+
 		// Validate bounds
 		Pose2d localState(m_map->WorldPositionToLocalPosition(state.position), state.theta);
 		GridCellPosition cell = m_map->WorldPositionToGridCell(state.position);
@@ -26,6 +28,8 @@ namespace Planner {
 
 	bool StateValidatorOccupancyMap::IsPathValid(const PlanarPath& path, float* last)
 	{
+		PP_PROFILE_FUNCTION();
+
 		const auto& bounds = m_stateSpace->bounds;
 		const double pathLength = path.GetLength();
 		if (pathLength == 0.0) {
@@ -38,7 +42,6 @@ namespace Planner {
 		double length = 0.0;
 		while (length < pathLength) {
 			Pose2d state = path.Interpolate(length / pathLength);
-			GridCellPosition cell = m_map->WorldPositionToGridCell(state.position);
 
 			// Check current state
 			if (!IsStateValid(state)) {
@@ -56,6 +59,7 @@ namespace Planner {
 				bounds[1].y() - state.y(),
 			});
 			// TODO add offset
+			GridCellPosition cell = m_map->WorldPositionToGridCell(state.position);
 			float distance = m_map->GetObstacleDistanceMap()->GetDistanceToNearestObstacle(cell);
 			float deltaLength = distance - minSafeRadius;
 			deltaLength = std::min(deltaLength, distToMapBorder);

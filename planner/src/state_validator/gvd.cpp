@@ -29,6 +29,8 @@ namespace Planner {
 
 	void GVD::ObstacleDistanceMap::Update()
 	{
+		PP_PROFILE_FUNCTION();
+
 		while (!m_open.empty()) {
 			const auto s = m_open.top().position;
 			m_open.pop();
@@ -197,6 +199,8 @@ namespace Planner {
 
 	void GVD::VoronoiDistanceMap::Update()
 	{
+		PP_PROFILE_FUNCTION();
+
 		while (!m_open.empty()) {
 			const auto s = m_open.top().position;
 			m_open.pop();
@@ -261,6 +265,8 @@ namespace Planner {
 
 	void GVD::PathCostMap::Update(const ObstacleDistanceMap& obstacleMap, const VoronoiDistanceMap& voronoiMap)
 	{
+		PP_PROFILE_FUNCTION();
+
 		for (int r = 0; r < rows; r++) {
 			for (int c = 0; c < columns; c++) {
 				auto obstDist = obstacleMap.GetDistanceToNearestObstacle(r, c);
@@ -287,6 +293,8 @@ namespace Planner {
 
 	void GVD::Update()
 	{
+		PP_PROFILE_FUNCTION();
+
 		m_obstacleMap->Update();
 		m_voronoiMap->Update();
 		m_pathCostMap.Update(*m_obstacleMap, *m_voronoiMap);
@@ -330,6 +338,8 @@ namespace Planner {
 
 	bool GVD::GetPathCost(const Point2d& position, float& cost) const
 	{
+		PP_PROFILE_FUNCTION();
+
 		auto cell = m_occupancyMap->WorldPositionToGridCell(position, false);
 		if (!m_occupancyMap->IsInsideMap(cell))
 			return false;

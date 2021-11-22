@@ -25,7 +25,7 @@ obstacle_positions.append(obstacle.get_boundary_world_position())
 shape = nav.RectangleShape(10.0, 1.0)
 obstacle = nav.Obstacle()
 obstacle.set_shape(shape)
-obstacle.set_pose(nav.Pose2d(0.0, 7.0, -math.pi / 4.0))
+obstacle.set_pose(nav.Pose2d(0.0, 7.5, -math.pi / 4.0))
 map.add_obstacle(obstacle)
 obstacle_positions.append(obstacle.get_boundary_world_position())
 
