@@ -49,7 +49,7 @@ namespace Planner {
 		};
 	}
 
-	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPath(Ref<PlanarNonHolonomicPath>&& path) const
+	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPath(Ref<PathNonHolonomicSE2Base>&& path) const
 	{
 		State state;
 		state.path = path;
@@ -97,7 +97,7 @@ namespace Planner {
 		return neighbors;
 	}
 
-	double HybridAStar::StatePropagator::GetDirectionSwitchingCost(const PlanarNonHolonomicPath& parentPath, const PlanarNonHolonomicPath& childPath) const
+	double HybridAStar::StatePropagator::GetDirectionSwitchingCost(const PathNonHolonomicSE2Base& parentPath, const PathNonHolonomicSE2Base& childPath) const
 	{
 		double switchingCost = 0.0;
 		if (parentPath.GetDirection(1.0) != childPath.GetDirection(0.0))
@@ -105,7 +105,7 @@ namespace Planner {
 		return switchingCost;
 	}
 
-	double HybridAStar::StatePropagator::GetVoronoiCost(const PlanarNonHolonomicPath& path) const
+	double HybridAStar::StatePropagator::GetVoronoiCost(const PathNonHolonomicSE2Base& path) const
 	{
 		PP_PROFILE_FUNCTION();
 
@@ -249,7 +249,7 @@ namespace Planner {
 			PP_PROFILE_SCOPE("Process graph search path");
 
 			// Generate composite path
-			auto path = makeRef<PlanarNonHolonomicCompositePath>();
+			auto path = makeRef<PathSE2CompositeNonHolonomic>();
 			const auto& states = m_graphSearch.GetPath();
 			path->Reserve(states.size());
 			for (auto& state : states)
@@ -297,19 +297,19 @@ namespace Planner {
 		m_obstacleHeuristic->Visualize(filename);
 	}
 
-	std::unordered_set<Ref<PlanarNonHolonomicPath>> HybridAStar::GetGraphSearchExploredSet() const
+	std::unordered_set<Ref<PathNonHolonomicSE2Base>> HybridAStar::GetGraphSearchExploredSet() const
 	{
 		const auto& exploredStates = m_graphSearch.GetExploredStates();
-		std::unordered_set<Ref<PlanarNonHolonomicPath>> exploredPaths;
+		std::unordered_set<Ref<PathNonHolonomicSE2Base>> exploredPaths;
 		for (auto& state : exploredStates)
 			exploredPaths.insert(state.path);
 		return exploredPaths;
 	}
 
-	std::vector<Ref<PlanarNonHolonomicPath>> HybridAStar::GetGraphSearchPath() const
+	std::vector<Ref<PathNonHolonomicSE2Base>> HybridAStar::GetGraphSearchPath() const
 	{
 		const auto& graphSearchPath = m_graphSearch.GetPath();
-		std::vector<Ref<PlanarNonHolonomicPath>> paths;
+		std::vector<Ref<PathNonHolonomicSE2Base>> paths;
 		for (auto& state : graphSearchPath)
 			paths.push_back(state.path);
 		return paths;

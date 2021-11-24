@@ -4,7 +4,7 @@
 
 namespace Planner {
 
-	class PathR2 : public Path<Point2d> {
+	class PathR2 : public PathR2Base {
 	public:
 		PathR2(const Point2d& from, const Point2d& to);
 
@@ -19,7 +19,7 @@ namespace Planner {
 		PathConnectionR2() = default;
 
 		/// @copydoc Planner::PathConnection::Connect
-		virtual Ref<Path<Point2d>> Connect(const Point2d& from, const Point2d& to) override;
+		virtual Ref<PathR2Base> Connect(const Point2d& from, const Point2d& to) override;
 	};
 
 }

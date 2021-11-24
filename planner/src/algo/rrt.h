@@ -151,5 +151,6 @@ namespace Planner {
 		TreeNode* m_solutionNode = nullptr;
 	};
 
-	using PlanarRRT = RRT<Point2d, 2>;// TODO replace by pose2d
+	using RRTR2 = RRT<Point2d, 2>;
+// 	using RRTSE2 = RRT<Pose2d, 3>;
 }

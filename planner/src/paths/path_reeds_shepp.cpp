@@ -3,7 +3,7 @@
 
 namespace Planner {
 	PathReedsShepp::PathReedsShepp(const Pose2d& init, const ReedsShepp::PathSegment& pathSegment, double minTurningRadius) :
-		PlanarNonHolonomicPath(init, pathSegment.GetLength(minTurningRadius)),
+		PathNonHolonomicSE2Base(init, pathSegment.GetLength(minTurningRadius)),
 		m_pathSegment(pathSegment), m_minTurningRadius(minTurningRadius)
 	{
 		m_final = Interpolate(1.0);
@@ -171,7 +171,7 @@ namespace Planner {
 		return m_pathSegment.ComputeCost(m_minTurningRadius, reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost);
 	}
 
-	Ref<PlanarPath> PathConnectionReedsShepp::Connect(const Pose2d& from, const Pose2d& to)
+	Ref<PathSE2Base> PathConnectionReedsShepp::Connect(const Pose2d& from, const Pose2d& to)
 	{
 		auto pathSegment = ReedsShepp::Solver::GetOptimalPath(from, to,
 			m_minTurningRadius, m_reverseCostMultiplier, m_forwardCostMultiplier, m_directionSwitchingCost);

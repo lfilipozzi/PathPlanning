@@ -67,14 +67,17 @@ namespace Planner {
 		virtual Ref<Path<State>> Connect(const State& from, const State& to) = 0;
 	};
 
-	using PlanarPath = Path<Pose2d>;
-	using PlanarPathConnection = PathConnection<Pose2d>;
+	using PathR2Base = Path<Point2d>;
+	using PathSE2Base = Path<Pose2d>;
+	using PathConnectionR2Base = PathConnection<Point2d>;
+	using PathConnectionSE2Base = PathConnection<Pose2d>;
 
-	class PlanarNonHolonomicPath : public PlanarPath {
+	template <typename State>
+	class PathNonHolonomic : public Path<State> {
 	public:
-		PlanarNonHolonomicPath() = default;
-		PlanarNonHolonomicPath(Pose2d init, double length = 0.0) :
-			PlanarPath(init, length) { }
+		PathNonHolonomic() = default;
+		PathNonHolonomic(Pose2d init, double length = 0.0) :
+			Path<State>(init, length) { }
 
 		/// @brief Return the direction of the path
 		virtual Direction GetDirection(double ratio) const = 0;
@@ -85,5 +88,7 @@ namespace Planner {
 			return std::set<double>();
 		}
 	};
+
+	using PathNonHolonomicSE2Base = PathNonHolonomic<Pose2d>;
 
 }

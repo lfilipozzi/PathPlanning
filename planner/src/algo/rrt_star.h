@@ -176,5 +176,6 @@ namespace Planner {
 		TreeNode* m_solutionNode = nullptr;
 	};
 
-	using PlanarRRTStar = RRTStar<Point2d, 2>;// TODO replace by pose2d
+	using RRTStarR2 = RRTStar<Point2d, 2>;
+// 	using RRTStarSE2 = RRTStar<Pose2d, 3>;
 }

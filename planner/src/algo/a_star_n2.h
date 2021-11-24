@@ -10,9 +10,9 @@ namespace Planner {
 	class OccupancyMap;
 
 	/// @brief State propagator for planar A* grid search.
-	class PlanarAStarStatePropagator : public AStarStatePropagator<GridCellPosition> {
+	class AStarStatePropagatorN2 : public AStarStatePropagator<GridCellPosition> {
 	public:
-		PlanarAStarStatePropagator(const Ref<OccupancyMap>& map,
+		AStarStatePropagatorN2(const Ref<OccupancyMap>& map,
 			const std::function<double(const GridCellPosition&, const GridCellPosition&)>& pathCostFcn);
 
 		/// @copydoc Planner::AStarStatePropagator::GetNeighborStates
@@ -23,14 +23,14 @@ namespace Planner {
 		std::function<double(const GridCellPosition&, const GridCellPosition&)> m_pathCostFcn;
 	};
 
-	using PlanarAStarHeuristic = AStarConcreteHeuristicFcn<GridCellPosition, std::function<double(const GridCellPosition&, const GridCellPosition&)>>;
+	using AStarHeuristicN2 = AStarConcreteHeuristicFcn<GridCellPosition, std::function<double(const GridCellPosition&, const GridCellPosition&)>>;
 
 	/// @brief Path planner using an A* search over a grid.
-	class PlanarAStarGrid : public AStar<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>, true> {
+	class AStarN2 : public AStar<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>, true> {
 		using AStarDeclType = AStar<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>, true>;
 
 	public:
-		PlanarAStarGrid() = default;
+		AStarN2() = default;
 
 		/// @brief Initialize the search.
 		/// @param map The occupancy map.
@@ -48,11 +48,11 @@ namespace Planner {
 	};
 
 	/// @brief Path planner using a bidirectional A* search over a grid.
-	class PlanarBidirectionalAStarGrid : public BidirectionalAStar<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>, true> {
+	class BidirectionalAStarN2 : public BidirectionalAStar<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>, true> {
 		using AStarDeclType = BidirectionalAStar<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>, true>;
 
 	public:
-		PlanarBidirectionalAStarGrid() = default;
+		BidirectionalAStarN2() = default;
 
 		/// @brief Initialize the search.
 		/// @param map The occupancy map.

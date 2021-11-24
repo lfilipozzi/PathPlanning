@@ -3,7 +3,7 @@
 
 namespace Planner {
 	PathR2::PathR2(const Point2d& from, const Point2d& to) :
-		Path<Point2d>(from, (to - from).norm())
+		PathR2Base(from, (to - from).norm())
 	{
 		m_final = to;
 	}
@@ -21,7 +21,7 @@ namespace Planner {
 		m_length *= ratio;
 	}
 
-	Ref<Path<Point2d>> PathConnectionR2::Connect(const Point2d& from, const Point2d& to)
+	Ref<PathR2Base> PathConnectionR2::Connect(const Point2d& from, const Point2d& to)
 	{
 		return makeRef<PathR2>(from, to);
 	}

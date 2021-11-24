@@ -6,13 +6,13 @@
 namespace Planner {
 
 	/// @brief Planar state space
-	class PlanarStateSpace : public StateSpace<Pose2d, 3, double> {
+	class StateSpaceSE2 : public StateSpace<Pose2d, 3, double> {
 	public:
-		PlanarStateSpace(const std::array<Pose2d, 2>& bounds) :
+		StateSpaceSE2(const std::array<Pose2d, 2>& bounds) :
 			StateSpace(bounds) { }
-		PlanarStateSpace(const Pose2d& lb, const Pose2d& ub) :
-			PlanarStateSpace(std::array<Pose2d, 2>({ lb, ub })) { }
-		virtual ~PlanarStateSpace() = default;
+		StateSpaceSE2(const Pose2d& lb, const Pose2d& ub) :
+			StateSpaceSE2(std::array<Pose2d, 2>({ lb, ub })) { }
+		virtual ~StateSpaceSE2() = default;
 
 		/// @copydoc StateSpace::EnforceBounds
 		virtual void EnforceBounds(Pose2d& state) override final;

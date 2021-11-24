@@ -48,7 +48,7 @@ int Main(int /*argc*/, char** /*argv*/)
 
 	#include "algo/hybrid_a_star.h"
 	#include "geometry/2dplane.h"
-	#include "state_space/planar_state_space.h"
+	#include "state_space/state_space_se2.h"
 	#include "state_validator/state_validator_occupancy_map.h"
 	#include "state_validator/obstacle_list_occupancy_map.h"
 
@@ -61,7 +61,7 @@ using namespace Planner;
 int Main(int /*argc*/, char** /*argv*/)
 {
 	std::array<Pose2d, 2> bounds = { Pose2d(-10, -10, -M_PI), Pose2d(10, 10, M_PI) };
-	Ref<PlanarStateSpace> stateSpace = makeRef<PlanarStateSpace>(bounds);
+	Ref<StateSpaceSE2> stateSpace = makeRef<StateSpaceSE2>(bounds);
 	Ref<ObstacleListOccupancyMap> map = makeRef<ObstacleListOccupancyMap>(0.1);
 	Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace, map);
 
@@ -117,11 +117,11 @@ int Main(int argc, char** argv)
 
 #elif MODE == 3
 
-	#include "state_space/planar_state_space.h"
+	#include "state_space/state_space_se2.h"
 
 int Main(int /*argc*/, char** /*argv*/)
 {
-	Planner::PlanarStateSpace stateSpace;
+	Planner::StateSpaceSE2 stateSpace;
 
 	auto sample = stateSpace.SampleUniform();
 	PP_INFO("x: {}; y: {}; theta: {}", sample.x(), sample.y(), sample.theta * 180.0 * M_1_PI);

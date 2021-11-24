@@ -6,13 +6,13 @@
 namespace Planner {
 
 	/// @brief State-space of 2D point
-	class StateSpacePoint2d : public StateSpace<Point2d, 2, double> {
+	class StateSpaceR2 : public StateSpace<Point2d, 2, double> {
 	public:
-		StateSpacePoint2d(const std::array<Point2d, 2>& bounds) :
+		StateSpaceR2(const std::array<Point2d, 2>& bounds) :
 			StateSpace(bounds) { }
-		StateSpacePoint2d(const Point2d& lb, const Point2d& ub) :
+		StateSpaceR2(const Point2d& lb, const Point2d& ub) :
 			StateSpace(std::array<Point2d, 2>({ lb, ub })) { }
-		virtual ~StateSpacePoint2d() = default;
+		virtual ~StateSpaceR2() = default;
 
 		/// @copydoc StateSpace::EnforceBounds
 		virtual void EnforceBounds(Point2d& state) override final;

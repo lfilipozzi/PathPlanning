@@ -30,5 +30,5 @@ namespace Planner {
 		}
 	};
 
-	using PlanarStateValidatorFree = StateValidatorFree<Pose2d, 3, double>;
+	using StateValidatorSE2Free = StateValidatorFree<Pose2d, 3, double>;
 }

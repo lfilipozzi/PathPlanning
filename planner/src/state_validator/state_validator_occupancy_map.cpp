@@ -1,10 +1,10 @@
 #include "state_validator/state_validator_occupancy_map.h"
 #include "state_validator/occupancy_map.h"
-#include "state_space/planar_state_space.h"
+#include "state_space/state_space_se2.h"
 
 namespace Planner {
-	StateValidatorOccupancyMap::StateValidatorOccupancyMap(const Ref<PlanarStateSpace>& stateSpace, const Ref<OccupancyMap>& map) :
-		PlanarStateValidator(stateSpace)
+	StateValidatorOccupancyMap::StateValidatorOccupancyMap(const Ref<StateSpaceSE2>& stateSpace, const Ref<OccupancyMap>& map) :
+		StateValidatorSE2Base(stateSpace)
 	{
 		m_map = map;
 		float width = stateSpace->bounds[1].position.x() - stateSpace->bounds[0].position.x();
@@ -25,7 +25,7 @@ namespace Planner {
 		return distance >= minSafeRadius;
 	}
 
-	bool StateValidatorOccupancyMap::IsPathValid(const PlanarPath& path, float* last)
+	bool StateValidatorOccupancyMap::IsPathValid(const PathSE2Base& path, float* last)
 	{
 		PP_PROFILE_FUNCTION();
 

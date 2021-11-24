@@ -3,7 +3,7 @@
 
 namespace Planner {
 	PathSE2::PathSE2(const Pose2d& from, const Pose2d& to) :
-		PlanarPath(from, (to.position - from.position).norm())
+		PathSE2Base(from, (to.position - from.position).norm())
 	{
 		m_final = to;
 	}
@@ -22,7 +22,7 @@ namespace Planner {
 		m_length *= ratio;
 	}
 
-	Ref<PlanarPath> PathConnectionSE2::Connect(const Pose2d& from, const Pose2d& to)
+	Ref<PathSE2Base> PathConnectionSE2::Connect(const Pose2d& from, const Pose2d& to)
 	{
 		return makeRef<PathSE2>(from, to);
 	}

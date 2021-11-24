@@ -9,7 +9,7 @@ import pyplanning as nav
 
 nav.initialize()
 
-state_space = nav.PlanarStateSpace(nav.Pose2d(-10,-10,-math.pi), nav.Pose2d(10,10,math.pi))
+state_space = nav.StateSpaceSE2(nav.Pose2d(-10,-10,-math.pi), nav.Pose2d(10,10,math.pi))
 map = nav.ObstacleListOccupancyMap(0.1)
 state_validator = nav.StateValidatorOccupancyMap(state_space, map)
 

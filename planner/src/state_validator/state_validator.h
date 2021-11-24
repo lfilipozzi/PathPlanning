@@ -42,5 +42,6 @@ namespace Planner {
 		Ref<StateSpace<State, Dimension, T>> m_stateSpace;
 	};
 
-	using PlanarStateValidator = StateValidator<Pose2d, 3, double>;
+	using StateValidatorR2Base = StateValidator<Point2d, 2, double>;
+	using StateValidatorSE2Base = StateValidator<Pose2d, 3, double>;
 }

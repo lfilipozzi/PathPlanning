@@ -2,18 +2,18 @@
 #include "algo/rrt.h"
 #include "geometry/2dplane.h"
 #include "paths/path_r2.h"
-#include "state_space/state_space_point2d.h"
+#include "state_space/state_space_r2.h"
 #include "state_validator/state_validator_free.h"
 
 namespace Planner {
 	void TestRRTPath()
 	{
 		std::array<Point2d, 2> bounds = { Point2d(0, 0), Point2d(5, 5) };
-		auto stateSpace = makeRef<StateSpacePoint2d>(bounds);
+		auto stateSpace = makeRef<StateSpaceR2>(bounds);
 		auto stateValidator = makeRef<StateValidatorFree<Point2d, 2, double>>(stateSpace);
 		auto pathConnection = makeRef<PathConnectionR2>();
 
-		PlanarRRT rrt(stateSpace, stateValidator, pathConnection);
+		RRTR2 rrt(stateSpace, stateValidator, pathConnection);
 		RRTParameters parameters;
 		rrt.SetParameters(parameters);
 

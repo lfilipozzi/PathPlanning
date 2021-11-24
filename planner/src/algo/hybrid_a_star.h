@@ -23,7 +23,7 @@ namespace Planner {
 	/// the configuration space.
 	/// The A* search provides an optimal solution that is then smoothed by a
 	/// nonlinear optimization.
-	class HybridAStar : public PlanarPathPlanner {
+	class HybridAStar : public PathPlannerSE2Base {
 	public:
 		struct SearchParameters {
 			const double wheelbase = 2.6; // TODO add maxSteeringAngle to choose how to propagate bicycle model
@@ -53,7 +53,7 @@ namespace Planner {
 		/// algorithm.
 		struct State {
 			/// @brief Path connecting the previous state to the current state.
-			Ref<PlanarNonHolonomicPath> path;
+			Ref<PathNonHolonomicSE2Base> path;
 			/// @brief Discretized state.
 			Pose2i discrete;
 
@@ -96,7 +96,7 @@ namespace Planner {
 			Pose2i DiscretizePose(const Pose2d& pose) const;
 
 			/// @brief Create an augmented state from a path.
-			State CreateStateFromPath(Ref<PlanarNonHolonomicPath>&& path) const;
+			State CreateStateFromPath(Ref<PathNonHolonomicSE2Base>&& path) const;
 
 			/// @brief Create an augmented state from a pose.
 			State CreateStateFromPose(Pose2d pose) const;
@@ -115,8 +115,8 @@ namespace Planner {
 			const SearchParameters& GetParameters() const { return m_param; }
 
 		private:
-			double GetDirectionSwitchingCost(const PlanarNonHolonomicPath& parentPath, const PlanarNonHolonomicPath& childPath) const;
-			double GetVoronoiCost(const PlanarNonHolonomicPath& path) const;
+			double GetDirectionSwitchingCost(const PathNonHolonomicSE2Base& parentPath, const PathNonHolonomicSE2Base& childPath) const;
+			double GetVoronoiCost(const PathNonHolonomicSE2Base& path) const;
 
 			/// @brief Update state assuming constant steer angle and bicycle
 			/// kinematic model.
@@ -224,8 +224,8 @@ namespace Planner {
 
 		void VisualizeObstacleHeuristic(const std::string& filename) const;
 
-		std::unordered_set<Ref<PlanarNonHolonomicPath>> GetGraphSearchExploredSet() const;
-		std::vector<Ref<PlanarNonHolonomicPath>> GetGraphSearchPath() const;
+		std::unordered_set<Ref<PathNonHolonomicSE2Base>> GetGraphSearchExploredSet() const;
+		std::vector<Ref<PathNonHolonomicSE2Base>> GetGraphSearchPath() const;
 		double GetGraphSearchOptimalCost() const;
 
 	public:

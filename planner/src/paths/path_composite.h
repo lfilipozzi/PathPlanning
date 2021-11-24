@@ -89,12 +89,12 @@ namespace Planner {
 		Paths m_paths;
 	};
 
-	class PlanarNonHolonomicCompositePath : public PathComposite<Pose2d, PlanarNonHolonomicPath> {
+	class PathSE2CompositeNonHolonomic : public PathComposite<Pose2d, PathNonHolonomicSE2Base> {
 	public:
-		/// @copydoc Planner::Path::GetCuspPointRatios
+		/// @copydoc Planner::PathNonHolonomic::GetCuspPointRatios
 		virtual std::set<double> GetCuspPointRatios() const override;
 
-		/// @copydoc Planner::PlanarNonHolonomicPath::GetDirection
+		/// @copydoc Planner::PathNonHolonomic::GetDirection
 		virtual Direction GetDirection(double ratio) const override;
 	};
 }

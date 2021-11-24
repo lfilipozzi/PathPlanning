@@ -1,15 +1,15 @@
-#include "algo/planar_a_star_grid.h"
+#include "algo/a_star_n2.h"
 #include "state_validator/occupancy_map.h"
 
 namespace Planner {
 	class OccupancyMap;
 
-	PlanarAStarStatePropagator::PlanarAStarStatePropagator(const Ref<OccupancyMap>& map,
+	AStarStatePropagatorN2::AStarStatePropagatorN2(const Ref<OccupancyMap>& map,
 		const std::function<double(const GridCellPosition&, const GridCellPosition&)>& pathCostFcn) :
 		m_map(map),
 		m_pathCostFcn(pathCostFcn) { }
 
-	std::vector<std::tuple<GridCellPosition, double>> PlanarAStarStatePropagator::GetNeighborStates(const GridCellPosition& cell)
+	std::vector<std::tuple<GridCellPosition, double>> AStarStatePropagatorN2::GetNeighborStates(const GridCellPosition& cell)
 	{
 		auto cellNeighbors = cell.GetNeighbors(m_map->Rows(), m_map->Columns());
 
@@ -27,21 +27,21 @@ namespace Planner {
 		return neighbors;
 	}
 
-	bool PlanarAStarGrid::Initialize(const Ref<OccupancyMap>& map,
+	bool AStarN2::Initialize(const Ref<OccupancyMap>& map,
 		const std::function<double(const GridCellPosition&, const GridCellPosition&)>& pathCostFcn,
 		const std::function<double(const GridCellPosition&, const GridCellPosition&)>& heuristicFcn)
 	{
-		auto propagator = makeRef<PlanarAStarStatePropagator>(map, pathCostFcn);
-		auto heuristic = makeRef<PlanarAStarHeuristic>(heuristicFcn);
+		auto propagator = makeRef<AStarStatePropagatorN2>(map, pathCostFcn);
+		auto heuristic = makeRef<AStarHeuristicN2>(heuristicFcn);
 		return AStarDeclType::Initialize(propagator, heuristic);
 	}
 
-	bool PlanarBidirectionalAStarGrid::Initialize(const Ref<OccupancyMap>& map,
+	bool BidirectionalAStarN2::Initialize(const Ref<OccupancyMap>& map,
 		const std::function<double(const GridCellPosition&, const GridCellPosition&)>& pathCostFcn,
 		const std::function<double(const GridCellPosition&, const GridCellPosition&)>& heuristicFcn)
 	{
-		auto propagator = makeRef<PlanarAStarStatePropagator>(map, pathCostFcn);
-		auto heuristic = makeRef<PlanarAStarHeuristic>(heuristicFcn);
+		auto propagator = makeRef<AStarStatePropagatorN2>(map, pathCostFcn);
+		auto heuristic = makeRef<AStarHeuristicN2>(heuristicFcn);
 		auto [fHeuristic, rHeuristic] = AStarDeclType::GetAverageHeuristicPair(heuristic, heuristic);
 		return AStarDeclType::Initialize(propagator, propagator, fHeuristic, rHeuristic);
 	}

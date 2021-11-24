@@ -17,7 +17,7 @@ namespace Planner {
 		typename Metadata = VoidClass,
 		typename Hash = std::hash<Vertex>,
 		typename Equal = std::equal_to<Vertex>,
-		typename VertexType = double>
+		typename DataType = double>
 	class Tree {
 	public:
 		using Node = GenericNode<Vertex, Metadata>;
@@ -46,7 +46,7 @@ namespace Planner {
 		{
 			m_rootNode = makeScope<Node>(start);
 			m_exploredNodeMap.insert({ start, m_rootNode.get() });
-			m_kdTree.buildIndex(flann::Matrix<VertexType>((VertexType*)&(m_rootNode->GetState()), 1, m_dimensions));
+			m_kdTree.buildIndex(flann::Matrix<DataType>((DataType*)&(m_rootNode->GetState()), 1, m_dimensions));
 			return m_rootNode.get();
 		}
 
@@ -62,11 +62,11 @@ namespace Planner {
 			if (nn == 0)
 				return nodes;
 
-			flann::Matrix<VertexType> query;
-			query = flann::Matrix<VertexType>((VertexType*)&state, 1, sizeof(state) / sizeof(VertexType));
+			flann::Matrix<DataType> query;
+			query = flann::Matrix<DataType>((DataType*)&state, 1, sizeof(state) / sizeof(DataType));
 
 			flann::Matrix<int> indices(new int[query.rows * nn], query.rows, nn);
-			flann::Matrix<VertexType> dists(new VertexType[query.rows * nn], query.rows, nn);
+			flann::Matrix<DataType> dists(new DataType[query.rows * nn], query.rows, nn);
 			int n = m_kdTree.knnSearch(query, indices, dists, nn, flann::SearchParams());
 
 			nodes.reserve(n);
@@ -87,11 +87,11 @@ namespace Planner {
 		/// @return The nearest node to @state.
 		Node* GetNearestNode(const Vertex& state)
 		{
-			flann::Matrix<VertexType> query;
-			query = flann::Matrix<VertexType>((VertexType*)&state, 1, sizeof(state) / sizeof(VertexType));
+			flann::Matrix<DataType> query;
+			query = flann::Matrix<DataType>((DataType*)&state, 1, sizeof(state) / sizeof(DataType));
 
 			flann::Matrix<int> indices(new int[query.rows], query.rows, 1);
-			flann::Matrix<VertexType> dists(new VertexType[query.rows], query.rows, 1);
+			flann::Matrix<DataType> dists(new DataType[query.rows], query.rows, 1);
 			m_kdTree.knnSearch(query, indices, dists, 1, flann::SearchParams());
 
 			Vertex point = (Vertex)m_kdTree.getPoint(indices[0][0]);
@@ -125,7 +125,7 @@ namespace Planner {
 			Node* newNode = source->AddChild(makeScope<Node>(target));
 
 			// Add the node to the map and k-d tree
-			m_kdTree.addPoints(flann::Matrix<VertexType>((VertexType*)&(newNode->GetState()), 1, m_dimensions));
+			m_kdTree.addPoints(flann::Matrix<DataType>((DataType*)&(newNode->GetState()), 1, m_dimensions));
 			m_exploredNodeMap.insert({ newNode->GetState(), newNode });
 
 			return newNode;
@@ -149,7 +149,7 @@ namespace Planner {
 		{
 			m_exploredNodeMap.clear();
 			// TODO allow chaning metric used by KD_tree
-			m_kdTree = flann::Index<flann::L2_Simple<VertexType>>(flann::KDTreeSingleIndexParams());
+			m_kdTree = flann::Index<flann::L2_Simple<DataType>>(flann::KDTreeSingleIndexParams());
 			m_rootNode.reset();
 		}
 
@@ -157,7 +157,7 @@ namespace Planner {
 		const unsigned int m_dimensions = Dimensions;
 
 		std::unordered_map<Vertex, Node*, Hash, Equal> m_exploredNodeMap;
-		flann::Index<flann::L2_Simple<VertexType>> m_kdTree;
+		flann::Index<flann::L2_Simple<DataType>> m_kdTree;
 
 		Scope<Node> m_rootNode;
 	};

@@ -54,7 +54,7 @@ def heuristic_fcn(state, goal):
 init = nav.GridCellPosition(1, 1)
 goal = nav.GridCellPosition(35, 35)
 
-algo_uni = nav.PlanarAStarGrid();
+algo_uni = nav.AStarN2();
 algo_uni.set_init_state(init)
 algo_uni.set_goal_state(goal)
 algo_uni.initialize(map, path_cost_fcn, heuristic_fcn)
@@ -91,35 +91,35 @@ fig1, ax = plt.subplots()
 _ = ax.matshow(image, cmap=cmap, norm=norm, origin='lower')
 fig1.show()
 
-#algo_bi = nav.PlanarBidirectionalAStarGrid();
-#algo_bi.set_init_state(init)
-#algo_bi.set_goal_state(goal)
-#algo_bi.initialize(map, path_cost_fcn, heuristic_fcn)
-#algo_bi.search_path()
+algo_bi = nav.BidirectionalAStarN2();
+algo_bi.set_init_state(init)
+algo_bi.set_goal_state(goal)
+algo_bi.initialize(map, path_cost_fcn, heuristic_fcn)
+algo_bi.search_path()
 
-#path = algo_bi.get_path()
-#(explored_forward, explored_reverse) = algo_bi.get_explored_states();
+path = algo_bi.get_path()
+(explored_forward, explored_reverse) = algo_bi.get_explored_states();
 
-#nrows = map.rows();
-#ncols = map.columns()
-#image = np.zeros((ncols, nrows))
+nrows = map.rows();
+ncols = map.columns()
+image = np.zeros((ncols, nrows))
 
-#for cell in explored_forward:
-	#image[cell.col][cell.row] = EXPLORED_FORWARD_COLOR
+for cell in explored_forward:
+	image[cell.col][cell.row] = EXPLORED_FORWARD_COLOR
 
-#for cell in explored_reverse:
-	#if image[cell.col][cell.row] != EXPLORED_FORWARD_COLOR:
-		#image[cell.col][cell.row] = EXPLORED_REVERSE_COLOR
-	#else:
-		#image[cell.col][cell.row] = EXPLORED_COLOR
+for cell in explored_reverse:
+	if image[cell.col][cell.row] != EXPLORED_FORWARD_COLOR:
+		image[cell.col][cell.row] = EXPLORED_REVERSE_COLOR
+	else:
+		image[cell.col][cell.row] = EXPLORED_COLOR
 
-#for cell in path:
-	#image[cell.col][cell.row] = PATH_COLOR
+for cell in path:
+	image[cell.col][cell.row] = PATH_COLOR
 
-#for cells in obstacle_cells:
-	#for cell in cells:
-		#image[cell.col][cell.row] = OBSTACLE_COLOR;
+for cells in obstacle_cells:
+	for cell in cells:
+		image[cell.col][cell.row] = OBSTACLE_COLOR;
 
-#fig2, ax = plt.subplots()
-#_ = ax.matshow(image, cmap=cmap, norm=norm, origin='lower')
-#fig2.show()
+fig2, ax = plt.subplots()
+_ = ax.matshow(image, cmap=cmap, norm=norm, origin='lower')
+fig2.show()
