@@ -106,6 +106,13 @@ namespace std {
 	};
 
 	template <typename T>
+	struct equal_to<Planner::Point2<T>> {
+		bool operator()(const Planner::Point2<T>& lhs, const Planner::Point2<T>& rhs) const {
+			return lhs.x() == rhs.x() && lhs.y() == rhs.y();
+		}
+	};
+
+	template <typename T>
 	struct hash<Planner::Pose2<T>> {
 		std::size_t operator()(const Planner::Pose2<T>& pose) const
 		{
@@ -113,6 +120,13 @@ namespace std {
 			HashCombine(seed, pose.position);
 			HashCombine(seed, pose.WrapTheta());
 			return seed;
+		}
+	};
+
+	template <typename T>
+	struct equal_to<Planner::Pose2<T>> {
+		bool operator()(const Planner::Pose2<T>& lhs, const Planner::Pose2<T>& rhs) const {
+			return lhs.position == rhs.position && lhs.WrapTheta() == rhs.WrapTheta();
 		}
 	};
 }

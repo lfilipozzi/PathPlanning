@@ -26,9 +26,9 @@ namespace Planner {
 		double m_minTurningRadius = 1;
 	};
 
-	class ReedsSheppConnection : public PlanarPathConnection {
+	class PathConnectionReedsShepp : public PlanarPathConnection {
 	public:
-		ReedsSheppConnection(double minTurningRadius = 1.0, double directionSwitchingCost = 0.0,
+		PathConnectionReedsShepp(double minTurningRadius = 1.0, double directionSwitchingCost = 0.0,
 			double reverseCostMultiplier = 1.0, double forwardCostMultiplier = 1.0) :
 			m_minTurningRadius(minTurningRadius),
 			m_directionSwitchingCost(directionSwitchingCost),

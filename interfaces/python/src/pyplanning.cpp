@@ -13,12 +13,12 @@
 #include "models/kinematic_bicycle_model.h"
 
 #include "paths/path.h"
+#include "paths/path_se2.h"
 #include "paths/path_reeds_shepp.h"
 #include "paths/path_constant_steer.h"
 
 #include "state_space/state_space.h"
-#include "state_space/state_space_reeds_shepp.h"
-#include "state_space/state_space_se2.h"
+#include "state_space/planar_state_space.h"
 
 #include "state_validator/occupancy_map.h"
 #include "state_validator/obstacle_list_occupancy_map.h"
@@ -231,6 +231,9 @@ PYBIND11_MODULE(pyplanning, m)
 		.def("get_direction", &PlanarPath::GetDirection)
 		.def("compute_cost", &PlanarPath::ComputeCost);
 
+	class_<PathSE2, Ref<PathSE2>, PlanarPath>(m, "PathSE2")
+		.def(init<const Pose2d&, const Pose2d&>());
+
 	class_<PathReedsShepp, Ref<PathReedsShepp>, PlanarPath>(m, "PathReedsShepp")
 		.def(init<const Pose2d&, ReedsShepp::PathSegment, double>());
 
@@ -241,17 +244,20 @@ PYBIND11_MODULE(pyplanning, m)
 	class_<KinematicBicycleModel, Ref<KinematicBicycleModel>>(m, "KinematicBicycleModel")
 		.def(init<double, double>());
 
-	struct PathConnectionWrapper : PlanarPathConnection {
+	struct PlanarPathConnectionWrapper : PlanarPathConnection {
 		using PlanarPathConnection::PlanarPathConnection;
 		virtual Ref<Path<Pose2d>> Connect(const Pose2d& from, const Pose2d& to) override { PYBIND11_OVERRIDE_PURE(Ref<Path<Pose2d>>, PlanarPathConnection, Connect, from, to); }
 	};
 
-	class_<PlanarPathConnection, Ref<PlanarPathConnection>, PathConnectionWrapper>(m, "PlanarPathConnection")
+	class_<PlanarPathConnection, Ref<PlanarPathConnection>, PlanarPathConnectionWrapper>(m, "PlanarPathConnection")
 		.def(init<>())
 		.def("connect", &PlanarPathConnection::Connect);
 
-	class_<ReedsSheppConnection, Ref<ReedsSheppConnection>, PlanarPathConnection>(m, "ReedsSheppConnection")
+	class_<PathConnectionSE2, Ref<PathConnectionSE2>, PlanarPathConnection>(m, "PathConnectionSE2")
 		.def(init<>());
+
+	class_<PathConnectionReedsShepp, Ref<PathConnectionReedsShepp>, PlanarPathConnection>(m, "PathConnectionReedsShepp")
+		.def(init<double, double, double, double>());
 
 	//     _____ _        _        _____
 	//    / ____| |      | |      / ____|
@@ -262,29 +268,14 @@ PYBIND11_MODULE(pyplanning, m)
 	//                                  | |
 	//                                  |_|
 
-	struct PlanarStateSpaceWrapper : PlanarStateSpace {
-		using PlanarStateSpace::PlanarStateSpace;
-		virtual double ComputeDistance(const Pose2d& a, const Pose2d& b) override { PYBIND11_OVERRIDE_PURE(double, PlanarStateSpace, ComputeDistance, a, b); }
-	};
-
-	class_<PlanarStateSpace, Ref<PlanarStateSpace>, PlanarStateSpaceWrapper>(m, "PlanarStateSpace")
+	class_<PlanarStateSpace, Ref<PlanarStateSpace>>(m, "PlanarStateSpace")
 		.def(init<const std::array<Pose2d, 2>&>())
 		.def(init<const Pose2d&, const Pose2d&>())
-		.def("compute_distance)", &PlanarStateSpace::ComputeDistance)
 		.def("enforce_bounds", &PlanarStateSpace::EnforceBounds)
 		.def("validate_bounds", &PlanarStateSpace::ValidateBounds)
 		.def("sample_uniform", &PlanarStateSpace::SampleUniform)
 		.def("sample_gaussian", &PlanarStateSpace::SampleGaussian)
 		.def_readonly("bounds", &PlanarStateSpace::bounds);
-
-	class_<StateSpaceReedsShepp, Ref<StateSpaceReedsShepp>, PlanarStateSpace>(m, "StateSpaceReedsShepp")
-		.def(init<const std::array<Pose2d, 2>&, double>())
-		.def(init<const Pose2d&, const Pose2d&, double>())
-		.def_readonly("min_turning_radius", &StateSpaceReedsShepp::minTurningRadius);
-
-	class_<StateSpaceSE2, Ref<StateSpaceSE2>, PlanarStateSpace>(m, "StateSpaceSE2")
-		.def(init<const std::array<Pose2d, 2>&>())
-		.def(init<const Pose2d&, const Pose2d&>());
 
 	//   __      __   _ _     _       _
 	//   \ \    / /  | (_)   | |     | |

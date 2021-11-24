@@ -1,15 +1,20 @@
 #include "core/base.h"
 #include "algo/rrt.h"
 #include "geometry/2dplane.h"
-#include "state_space/rrt_state_space_2d.h"
+#include "paths/path_r2.h"
+#include "state_space/state_space_point2d.h"
+#include "state_validator/state_validator_free.h"
 
 namespace Planner {
 	void TestRRTPath()
 	{
-		auto stateSpace = Planner::makeRef<RRTStateSpace2D>();
+		std::array<Point2d, 2> bounds = { Point2d(0, 0), Point2d(5, 5) };
+		auto stateSpace = makeRef<StateSpacePoint2d>(bounds);
+		auto stateValidator = makeRef<StateValidatorFree<Point2d, 2, double>>(stateSpace);
+		auto pathConnection = makeRef<PathConnectionR2>();
 
-		Planner::RRT<Point2d, 2> rrt(stateSpace);
-		Planner::RRTParameters parameters;
+		PlanarRRT rrt(stateSpace, stateValidator, pathConnection);
+		RRTParameters parameters;
 		rrt.SetParameters(parameters);
 
 		Point2d start = { 0.0, 0.0 };
@@ -19,10 +24,17 @@ namespace Planner {
 
 		rrt.SearchPath();
 		std::vector<Point2d> path = rrt.GetPath();
+		std::cout << "Path: " << std::endl;
+		for (auto point : path) {
+			std::cout << "x=" << point.x() << ", y=" << point.y() << std::endl;
+		}
 
 		assert(!path.empty());
-		assert(stateSpace->ComputeDistance(start, path.front()) <= parameters.optimalSolutionTolerance);
-		assert(stateSpace->ComputeDistance(goal, path.back()) <= parameters.optimalSolutionTolerance);
+		double spatialTolerance = 1;
+		auto deltaStart = path.front() - start;
+		assert(deltaStart.norm() < spatialTolerance);
+		auto deltaGoal = path.back() - goal;
+		assert(deltaGoal.norm() < spatialTolerance);
 	}
 }
 

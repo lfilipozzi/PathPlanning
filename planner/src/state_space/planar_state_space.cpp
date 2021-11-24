@@ -1,4 +1,4 @@
-#include "state_space/state_space.h"
+#include "state_space/planar_state_space.h"
 
 namespace Planner {
 	void PlanarStateSpace::EnforceBounds(Pose2d& state)

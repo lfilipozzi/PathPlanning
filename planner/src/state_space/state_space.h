@@ -1,7 +1,6 @@
 #pragma once
 
 #include "utils/random.h"
-#include "geometry/2dplane.h"
 
 #include <vector>
 #include <array>
@@ -23,9 +22,6 @@ namespace Planner {
 		StateSpace(const State& lb, const State& ub) :
 			StateSpace({ lb, ub }) { }
 		virtual ~StateSpace() = default;
-
-		/// @brief Compute the distance between two states.
-		virtual double ComputeDistance(const State& from, const State& to) = 0;
 
 		/// @brief Modify the state if necessary to enforce state bounds
 		/// @param[in,out] state The state to enforce bound.
@@ -62,28 +58,7 @@ namespace Planner {
 
 	public:
 		static constexpr int dimension = Dimension;
-		const std::array<Pose2d, 2> bounds;
+		const std::array<State, 2> bounds;
 	};
 
-	/// @brief Planar state space
-	class PlanarStateSpace : public StateSpace<Pose2d, 3, double> {
-	public:
-		PlanarStateSpace(const std::array<Pose2d, 2>& bounds) :
-			StateSpace(bounds) { }
-		PlanarStateSpace(const Pose2d& lb, const Pose2d& ub) :
-			PlanarStateSpace(std::array<Pose2d, 2>({ lb, ub })) { }
-		virtual ~PlanarStateSpace() = default;
-
-		/// @copydoc StateSpace::EnforceBounds
-		virtual void EnforceBounds(Pose2d& state) override final;
-
-		/// @copydoc StateSpace::ValidateBounds
-		virtual bool ValidateBounds(const Pose2d& state) override final;
-
-		/// @copydoc StateSpace::SampleUniform
-		virtual Pose2d SampleUniform() override final;
-
-		/// @copydoc StateSpace::SampleGaussian
-		virtual Pose2d SampleGaussian(const Pose2d& mean, const Pose2d& stdDev) override final;
-	};
 }

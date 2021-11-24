@@ -1,5 +1,6 @@
 #include "state_validator/state_validator_occupancy_map.h"
 #include "state_validator/occupancy_map.h"
+#include "state_space/planar_state_space.h"
 
 namespace Planner {
 	StateValidatorOccupancyMap::StateValidatorOccupancyMap(const Ref<PlanarStateSpace>& stateSpace, const Ref<OccupancyMap>& map) :

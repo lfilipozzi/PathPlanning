@@ -126,9 +126,10 @@ namespace Planner {
 		/// @return The child node.
 		GenericNode* AddChild(Scope<GenericNode>&& node)
 		{
-			node->m_parent = this;
 			m_children.push_back(std::move(node));
-			return m_children.back().get();
+			GenericNode* nodePtr = m_children.back().get();
+			nodePtr->m_parent = this;
+			return nodePtr;
 		}
 
 		/// @brief Remove the node @node. @node must be a child of the
@@ -198,14 +199,15 @@ namespace Planner {
 		static void Reparent(GenericNode* child, GenericNode* newParent, Scope<GenericNode>& rootNode)
 		{
 			// Delete parenthood between child and its parent or de-anchor this node as the root node
-			GenericNode* oldParent = child->GetParent();
+			GenericNode* const oldParent = child->GetParent();
 			Scope<GenericNode> childScope;
 			if (oldParent)
 				childScope = oldParent->RemoveChild(child);
 			else
 				childScope = std::move(rootNode);
 
-			// The hierarchy must be modified if newParent is a child of child
+			// The hierarchy must be modified if newParent is a child of child.
+			// Add it as a child of oldParent or anchor it as the root node
 			if (newParent->IsDescendantOf(child)) {
 				Scope<GenericNode> newParentScope = newParent->GetParent()->RemoveChild(newParent);
 				if (oldParent)

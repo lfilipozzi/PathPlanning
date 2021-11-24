@@ -1,30 +1,41 @@
 #include "core/base.h"
 #include "algo/rrt_star.h"
 #include "geometry/2dplane.h"
-#include "state_space/rrt_star_state_space_2d.h"
+#include "paths/path_r2.h"
+#include "state_space/state_space_point2d.h"
+#include "state_validator/state_validator_free.h"
 
 namespace Planner {
-	using Vertex = Point2d;
 
 	void TestRRTStarPath()
 	{
-		auto stateSpace = Planner::makeRef<RRTStarStateSpace2D>();
+		std::array<Point2d, 2> bounds = { Point2d(0, 0), Point2d(5, 5) };
+		auto stateSpace = makeRef<StateSpacePoint2d>(bounds);
+		auto stateValidator = makeRef<StateValidatorFree<Point2d, 2, double>>(stateSpace);
+		auto pathConnection = makeRef<PathConnectionR2>();
 
-		Planner::RRTStar<Vertex, 2> rrtStar(stateSpace);
-		Planner::RRTStarParameters parameters;
+		PlanarRRTStar rrtStar(stateSpace, stateValidator, pathConnection);
+		RRTStarParameters parameters;
 		rrtStar.SetParameters(parameters);
 
-		Vertex start = { 0.0, 0.0 };
-		Vertex goal = { 2.0, 2.0 };
+		Point2d start = { 0.0, 0.0 };
+		Point2d goal = { 2.0, 2.0 };
 		rrtStar.SetInitState(start);
 		rrtStar.SetGoalState(goal);
 
 		rrtStar.SearchPath();
-		std::vector<Vertex> path = rrtStar.GetPath();
+		std::vector<Point2d> path = rrtStar.GetPath();
+		std::cout << "Path: " << std::endl;
+		for (auto point : path) {
+			std::cout << "x=" << point.x() << ", y=" << point.y() << std::endl;
+		}
 
 		assert(!path.empty());
-		assert(stateSpace->ComputeDistance(start, path.front()) <= parameters.optimalSolutionTolerance);
-		assert(stateSpace->ComputeDistance(goal, path.back()) <= parameters.optimalSolutionTolerance);
+		double spatialTolerance = 1;
+		auto deltaStart = path.front() - start;
+		assert(deltaStart.norm() < spatialTolerance);
+		auto deltaGoal = path.back() - goal;
+		assert(deltaGoal.norm() < spatialTolerance);
 	}
 }
 

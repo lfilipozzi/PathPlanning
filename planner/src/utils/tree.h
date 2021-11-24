@@ -32,7 +32,7 @@ namespace Planner {
 
 		///@brief Return the number of node in the tree.
 		/// @return The number of nodes.
-		std::size_t GetSize() const { return m_exploredNodeMap.size(); }
+		std::size_t Size() const { return m_exploredNodeMap.size(); }
 
 		/// @brief Check if the node belongs to the tree.
 		/// @return A boolean.
@@ -65,10 +65,8 @@ namespace Planner {
 			flann::Matrix<VertexType> query;
 			query = flann::Matrix<VertexType>((VertexType*)&state, 1, sizeof(state) / sizeof(VertexType));
 
-			std::vector<int> indicesBuffer(query.rows);
-			std::vector<VertexType> distsBuffer(query.rows);
-			flann::Matrix<int> indices(indicesBuffer.data(), query.rows, nn);
-			flann::Matrix<VertexType> dists(distsBuffer.data(), query.rows, nn);
+			flann::Matrix<int> indices(new int[query.rows * nn], query.rows, nn);
+			flann::Matrix<VertexType> dists(new VertexType[query.rows * nn], query.rows, nn);
 			int n = m_kdTree.knnSearch(query, indices, dists, nn, flann::SearchParams());
 
 			nodes.reserve(n);
@@ -77,6 +75,8 @@ namespace Planner {
 				nodes.push_back(m_exploredNodeMap[point]);
 			}
 
+			delete[] indices.ptr();
+			delete[] dists.ptr();
 			return nodes;
 		}
 
@@ -90,14 +90,14 @@ namespace Planner {
 			flann::Matrix<VertexType> query;
 			query = flann::Matrix<VertexType>((VertexType*)&state, 1, sizeof(state) / sizeof(VertexType));
 
-			std::vector<int> indicesBuffer(query.rows);
-			std::vector<VertexType> distsBuffer(query.rows);
-			flann::Matrix<int> indices(indicesBuffer.data(), query.rows, 1);
-			flann::Matrix<VertexType> dists(distsBuffer.data(), query.rows, 1);
+			flann::Matrix<int> indices(new int[query.rows], query.rows, 1);
+			flann::Matrix<VertexType> dists(new VertexType[query.rows], query.rows, 1);
 			m_kdTree.knnSearch(query, indices, dists, 1, flann::SearchParams());
 
 			Vertex point = (Vertex)m_kdTree.getPoint(indices[0][0]);
 
+			delete[] indices.ptr();
+			delete[] dists.ptr();
 			return m_exploredNodeMap[point];
 		}
 
@@ -148,6 +148,7 @@ namespace Planner {
 		void Clear()
 		{
 			m_exploredNodeMap.clear();
+			// TODO allow chaning metric used by KD_tree
 			m_kdTree = flann::Index<flann::L2_Simple<VertexType>>(flann::KDTreeSingleIndexParams());
 			m_rootNode.reset();
 		}

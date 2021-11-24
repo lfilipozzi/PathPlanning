@@ -7,6 +7,7 @@
 namespace Planner {
 
 	class OccupancyMap;
+	class PlanarStateSpace;
 
 	/// @brief State validator based on an occupancy map.
 	class StateValidatorOccupancyMap : public PlanarStateValidator {

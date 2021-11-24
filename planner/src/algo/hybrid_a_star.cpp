@@ -1,7 +1,7 @@
 #include "algo/hybrid_a_star.h"
 
 #include "paths/path_constant_steer.h"
-#include "state_space/state_space_reeds_shepp.h"
+#include "paths/path_reeds_shepp.h"
 #include "state_validator/state_validator_occupancy_map.h"
 #include "state_validator/occupancy_map.h"
 #include "state_validator/gvd.h"

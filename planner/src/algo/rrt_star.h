@@ -1,54 +1,23 @@
 #pragma once
 
 #include "algo/path_planner.h"
+#include "paths/path.h"
 #include "state_space/state_space.h"
+#include "state_validator/state_validator.h"
 #include "utils/tree.h"
 
 namespace Planner {
 
-	/// @brief Interface to sample the configuration space as required by RRT
-	/// algorithms.
-	template <typename Vertex>
-	class RRTStarStateSpace {
-	public:
-		virtual ~RRTStarStateSpace() = default;
-
-		// TODO FIXME Use StateSpace and StateValidator to implement those functions in RRTStar and delete RRTStarStateSpace
-		/// @brief Calculate the distance between two states
-		/// @param from The start state.
-		/// @param to The end state.
-		/// @return The distance between the states
-		virtual double ComputeDistance(const Vertex& from, const Vertex& to) const = 0;
-
-		/// @brief Check if there exist a valid transition between two states.
-		/// @param from The initial state.
-		/// @param to The destination state.
-		/// @return True if the transition is valid, false otherwise.
-		virtual bool IsTransitionCollisionFree(const Vertex& from, const Vertex& to) = 0;
-
-		/// @brief Generate a random state within the configuration space.
-		/// @details The sample must not be inside an obstacle.
-		/// @return A random state.
-		virtual Vertex Sample() = 0;
-
-		/// @brief Construct a new state by moving an incremental distance
-		/// from @source towards @target.
-		/// @details The path is not assumed to bring exactly to target but it
-		/// must evolve towards it.
-		/// @return The new state.
-		virtual Vertex SteerTowards(const Vertex& source, const Vertex& target) = 0;
-
-		/// @brief Construct a path that connects the node @source to the node
-		/// @target.
-		/// @return A tuple containing the cost to go from the source to the
-		/// target and a boolean indicating if the path is collision-free.
-		virtual std::tuple<double, bool> SteerExactly(const Vertex& source, const Vertex& target) = 0;
-	};
-
 	/// @brief Tunable parameters of the RRT algorithm.
 	struct RRTStarParameters {
-		unsigned int maxIteration = 100;
-		double optimalSolutionTolerance = 1;
+		/// @brief Maximum number of iterations
+		unsigned int maxIteration = 1e4;
+		/// @brief Maximum number of nodes in the search tree
+		unsigned int maxNumberTreeNode = 1e4;
+		/// @brief Maximum length of a motion allowed in the tree
+		double maxConnectionDistance = 0.1;
+		/// @brief Probability of choosing goal state during state sampling
+		double goalBias = 0.05;
 	};
 
 	template <
@@ -56,19 +25,24 @@ namespace Planner {
 		unsigned int Dimensions,
 		typename Hash = std::hash<Vertex>,
 		typename Equal = std::equal_to<Vertex>,
-		typename VertexType = double>
+		typename DataType = double>
 	class RRTStar : public PathPlanner<Vertex> {
 	private:
 		/// @brief Node metadata used by RRT star.
 		struct NodeMetadata {
+			/// @brief Path connecting the previous state to the current state.
+			Ref<Path<Vertex>> path;
+			/// @brief Cost from goal
 			double costFromGoal = 0;
 		};
 
 	public:
 		/// @brief Constructor.
-		/// @param stateSpace
-		RRTStar(const Ref<RRTStarStateSpace<Vertex>>& stateSpace) :
-			m_stateSpace(stateSpace) {};
+		RRTStar(const Ref<StateSpace<Vertex, Dimensions, DataType>>& stateSpace,
+			const Ref<StateValidator<Vertex, Dimensions, DataType>>& stateValidator,
+			const Ref<PathConnection<Vertex>>& pathConnection) :
+			m_stateSpace(stateSpace), m_stateValidator(stateValidator),
+			m_pathConnection(pathConnection) { };
 		virtual ~RRTStar() = default;
 
 		RRTStarParameters GetParameters() { return m_parameters; }
@@ -77,50 +51,57 @@ namespace Planner {
 
 		virtual Status SearchPath() override
 		{
+			Clear();
+
 			m_tree.CreateRootNode(this->m_init);
 
-			for (unsigned int k = 0; k < m_parameters.maxIteration; k++) {
+			int count = -1;
+			while (true) {
+				count++;
+				if (count > m_parameters.maxIteration) {
+					return Status::Failure;
+				}
+				if (m_tree.Size() > m_parameters.maxNumberTreeNode) {
+					return Status::Failure;
+				}
+
 				// Create a random configuration
-				Vertex randomState = m_stateSpace->Sample();
+				Vertex randomState = Random<double>::SampleUniform(0, 1) < m_parameters.goalBias ?
+					this->m_goal : m_stateSpace->SampleUniform();
 				// Find the nearest node in the tree
-				auto nearestNode = m_tree.GetNearestNode(randomState);
+				TreeNode* const nearestNode = m_tree.GetNearestNode(randomState);
 				if (!nearestNode)
 					continue;
-				// Find a new vertex from nearestNode towards randomState and check if the transition is collision-free
-				auto newState = m_stateSpace->SteerTowards(nearestNode->GetState(), randomState);
-				if (!m_stateSpace->IsTransitionCollisionFree(nearestNode->GetState(), newState))
+				// Create a new state towards the direction of randomState
+				auto pathNearToNew = SteerTowards(nearestNode->GetState(), randomState, m_parameters.maxConnectionDistance);
+				if (!m_stateValidator->IsPathValid(*pathNearToNew))
 					continue;
+				const Vertex& newState = pathNearToNew->GetFinalState();
 
-				// Find k nearest neighbor of newState where k is logarithmic in the size of the tree
-				unsigned int nn = log(m_tree.GetSize());
-				auto nearNodes = m_tree.GetNearestNodes(newState, nn);
-				// Find the best parent for newNode
-				auto bestParentNode = nearestNode;
-				[[maybe_unused]] auto [transitionCost, transitionCollisionFree] = m_stateSpace->SteerExactly(nearestNode->GetState(), newState);
-				double bestCost = nearestNode->meta.costFromGoal + transitionCost;
-				for (auto node : nearNodes) {
-					auto [transitionCost, transitionCollisionFree] = m_stateSpace->SteerExactly(node->GetState(), newState);
+				// Find the best parent for newNode amongst k nearest neighbors of
+				// the new state where k is logarithmic in the size of the tree
+				unsigned int nn = std::max<unsigned int>(1, log(m_tree.Size()));
+				std::vector<TreeNode*> nearNodes = m_tree.GetNearestNodes(newState, nn);
+				TreeNode* bestParentNode = nullptr;
+				double bestCost = std::numeric_limits<double>::infinity();
+				Ref<Path<Vertex>> bestPath;
+				for (const auto node : nearNodes) {
+					auto [pathParentToNew, transitionCost] = SteerExactly(node->GetState(), newState);
 					double cost = node->meta.costFromGoal + transitionCost;
-					if (cost < bestCost && transitionCollisionFree) {
+					if (cost < bestCost && m_stateValidator->IsPathValid(*pathParentToNew)) {
 						bestParentNode = node;
 						bestCost = cost;
+						bestPath = std::move(pathParentToNew);
 					}
 				}
+
+				// Add the node to the tree
 				auto newNode = m_tree.Extend(newState, bestParentNode);
 				newNode->meta.costFromGoal = bestCost;
-
-				// Reparent the nearest neighbor if necessary
-				for (auto node : nearNodes) {
-					auto [transitionCost, transitionCollisionFree] = m_stateSpace->SteerExactly(newNode->GetState(), node->GetState());
-					double cost = newNode->meta.costFromGoal + transitionCost;
-					if (cost < node->meta.costFromGoal && transitionCollisionFree) {
-						m_tree.Reparent(node, newNode);
-						node->meta.costFromGoal = cost;
-					}
-				}
+				newNode->meta.path = std::move(bestPath);
 
 				// Check solution
-				if (m_stateSpace->ComputeDistance(newState, this->m_goal) < m_parameters.optimalSolutionTolerance) {
+				if (IsSolution(newState)) {
 					m_solutionNode = newNode;
 					return Status::Success;
 				}
@@ -132,6 +113,8 @@ namespace Planner {
 		virtual std::vector<Vertex> GetPath() const override
 		{
 			std::vector<Vertex> path;
+
+			// TODO interpolate path
 
 			auto node = m_solutionNode;
 			if (!node)
@@ -146,18 +129,52 @@ namespace Planner {
 			return path;
 		}
 
-		/// @brief Clear the tree.
+	protected:
+		/// @brief Check if the node is a solution.
+		/// @return true is the node is a solution.
+		inline virtual bool IsSolution(const Vertex& state)
+		{
+			return Equal()(state, this->m_goal);
+		}
+
+		/// @brief Construct a new state by moving an incremental distance
+		/// from @from towards @to.
+		inline virtual Ref<Path<Vertex>> SteerTowards(const Vertex& from, const Vertex& to, double distance)
+		{
+			auto path = m_pathConnection->Connect(from, to);
+			if (path->GetLength() > 0) {
+				double ratio = std::clamp(distance / path->GetLength(), 0.0, 1.0);
+				path->Truncate(ratio);
+			}
+			return path;
+		}
+
+		/// @brief Construct a path that connects @from to @to.
+		/// @return A tuple containing the path connecting the states and the 
+		/// cost to go from @from to @to.
+		virtual std::tuple<Ref<Path<Vertex>>, double> SteerExactly(const Vertex& from, const Vertex& to)
+		{
+			auto path = m_pathConnection->Connect(from, to);
+			return { path, path->GetLength() };
+		}
+
 		void Clear()
 		{
 			m_tree.Clear();
 			m_solutionNode = nullptr;
 		}
 
-	private:
+	protected:
 		RRTStarParameters m_parameters;
-		Ref<RRTStarStateSpace<Vertex>> m_stateSpace;
+		Ref<StateSpace<Vertex, Dimensions, DataType>> m_stateSpace;
+		Ref<StateValidator<Vertex, Dimensions, DataType>> m_stateValidator;
+		Ref<PathConnection<Vertex>> m_pathConnection;
 
-		Tree<Vertex, Dimensions, NodeMetadata, Hash, Equal, VertexType> m_tree;
-		typename Tree<Vertex, Dimensions, NodeMetadata, Hash, Equal, VertexType>::Node* m_solutionNode = nullptr;
+		using TreeDeclType = Tree<Vertex, Dimensions, NodeMetadata, Hash, Equal, DataType>;
+		TreeDeclType m_tree;
+		using TreeNode = typename Tree<Vertex, Dimensions, NodeMetadata, Hash, Equal, DataType>::Node;
+		TreeNode* m_solutionNode = nullptr;
 	};
+
+	using PlanarRRTStar = RRTStar<Point2d, 2>;// TODO replace by pose2d
 }
