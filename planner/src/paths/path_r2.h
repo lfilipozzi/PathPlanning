@@ -12,10 +12,6 @@ namespace Planner {
 		virtual Point2d Interpolate(double ratio) const override;
 		/// @copydoc Planer::Path::Truncate
 		virtual void Truncate(double ratio) override;
-		/// @copydoc Planner::Path::GetDirection
-		virtual Direction GetDirection(double ratio) const override;
-		/// @copydoc Planner::Path::ComputeCost
-		virtual double ComputeCost(double directionSwitchingCost, double reverseCostMultiplier, double forwardCostMultiplier) const override;
 	};
 
 	class PathConnectionR2 : public PathConnection<Point2d> {

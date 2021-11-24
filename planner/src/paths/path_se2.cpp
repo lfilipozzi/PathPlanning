@@ -22,16 +22,6 @@ namespace Planner {
 		m_length *= ratio;
 	}
 
-	Direction PathSE2::GetDirection(double /*ratio*/) const
-	{
-		return Direction::Forward;
-	}
-
-	double PathSE2::ComputeCost(double /*directionSwitchingCost*/, double /*reverseCostMultiplier*/, double forwardCostMultiplier) const
-	{
-		return forwardCostMultiplier * m_length;
-	}
-
 	Ref<PlanarPath> PathConnectionSE2::Connect(const Pose2d& from, const Pose2d& to)
 	{
 		return makeRef<PathSE2>(from, to);

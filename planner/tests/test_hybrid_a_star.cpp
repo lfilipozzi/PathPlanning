@@ -8,7 +8,7 @@
 namespace Planner {
 	void TestHybridAStar()
 	{
-		std::array<Pose2d, 2> bounds = { Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) };
+		std::array<Pose2d, 2> bounds = { Pose2d(-10, -10, -M_PI), Pose2d(10, 10, M_PI) };
 		Ref<PlanarStateSpace> stateSpace = makeRef<PlanarStateSpace>(bounds);
 		Ref<ObstacleListOccupancyMap> map = makeRef<ObstacleListOccupancyMap>(0.1);
 		Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace, map);
@@ -17,7 +17,7 @@ namespace Planner {
 		hybridAStar.Initialize(stateValidator);
 
 		Pose2d start = { 0.0, 0.0, 0.0 };
-		Pose2d goal = { 10.0, 10.0, 0.78 };
+		Pose2d goal = { 8.0, 8.0, 0.78 };
 		hybridAStar.SetInitState(start);
 		hybridAStar.SetGoalState(goal);
 
@@ -38,7 +38,7 @@ namespace Planner {
 
 int main()
 {
-	PP_INIT_LOGGER;
+	PP_INIT;
 	Planner::TestHybridAStar();
 
 	return 0;

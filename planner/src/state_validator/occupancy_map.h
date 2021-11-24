@@ -55,31 +55,31 @@ namespace Planner {
 		const Ref<GVD::ObstacleDistanceMap>& GetObstacleDistanceMap() const { return m_obstacleDistanceMap; }
 
 		/// @brief Convert grid coordinate to local position
-		Point2d GridCellToLocalPosition(const GridCellPosition& position) const;
+		inline Point2d GridCellToLocalPosition(const GridCellPosition& cell) const;
 		/// @overload
-		Point2d GridCellToLocalPosition(int row, int column) const;
+		inline Point2d GridCellToLocalPosition(int row, int column) const;
 		/// @brief Convert grid cell coordinates to world coordinates
-		Point2d GridCellToWorldPosition(const GridCellPosition& position) const;
+		inline Point2d GridCellToWorldPosition(const GridCellPosition& cell) const;
 		/// @overload
-		Point2d GridCellToWorldPosition(int row, int column) const;
+		inline Point2d GridCellToWorldPosition(int row, int column) const;
 
 		/// @brief Convert local coordinate to grid position
-		GridCellPosition LocalPositionToGridCell(const Point2d& position, bool bounded = true) const;
+		inline GridCellPosition LocalPositionToGridCell(const Point2d& position, bool bounded = true) const;
 		/// @overload
-		GridCellPosition LocalPositionToGridCell(double x, double y, bool bounded = true) const;
+		inline GridCellPosition LocalPositionToGridCell(double x, double y, bool bounded = true) const;
 		/// @brief Convert local position to world coordinate
-		Point2d LocalPositionToWorldPosition(const Point2d& position) const;
+		inline Point2d LocalPositionToWorldPosition(const Point2d& position) const;
 		/// @overload
-		Point2d LocalPositionToWorldPosition(double x, double y) const;
+		inline Point2d LocalPositionToWorldPosition(double x, double y) const;
 
 		/// @brief Convert world position  to grid cell coordinate
-		GridCellPosition WorldPositionToGridCell(const Point2d& position, bool bounded = true) const;
+		inline GridCellPosition WorldPositionToGridCell(const Point2d& position, bool bounded = true) const;
 		/// @overload
-		GridCellPosition WorldPositionToGridCell(double x, double y, bool bounded = true) const;
+		inline GridCellPosition WorldPositionToGridCell(double x, double y, bool bounded = true) const;
 		/// @brief Convert World coordinate to local map coordinate
-		Point2d WorldPositionToLocalPosition(const Point2d& position) const;
+		inline Point2d WorldPositionToLocalPosition(const Point2d& position) const;
 		/// @overload
-		Point2d WorldPositionToLocalPosition(double x, double y) const;
+		inline Point2d WorldPositionToLocalPosition(double x, double y) const;
 
 		/// @brief Check if the point is inside the occupancy map
 		/// @param point The point in world coordinate
@@ -88,15 +88,25 @@ namespace Planner {
 		bool IsInsideMap(const GridCellPosition& cell) const;
 
 	private:
-		inline Point2d GridCellToGridPosition(const GridCellPosition& position) const
+		inline Point2d GridCellToGridPosition(const GridCellPosition& cell) const
 		{
-			return { position.row * resolution, position.col * resolution };
+			return { cell.row * resolution, cell.col * resolution };
+		}
+
+		inline Point2d GridCellToGridPosition(int row, int column) const
+		{
+			return { row * resolution, column * resolution };
 		}
 
 		inline GridCellPosition GridPositionToGridCell(const Point2d& position, bool bounded) const
 		{
-			int row = static_cast<int>(position.x() / resolution);
-			int col = static_cast<int>(position.y() / resolution);
+			return GridPositionToGridCell(position.x(), position.y(), bounded);
+		}
+
+		inline GridCellPosition GridPositionToGridCell(double x, double y, bool bounded) const
+		{
+			int row = static_cast<int>(x / resolution);
+			int col = static_cast<int>(y / resolution);
 
 			if (!bounded)
 				return GridCellPosition(row, col);
@@ -115,10 +125,70 @@ namespace Planner {
 		// Position of the origin of the local frame in the world frame
 		Point2d m_localOrigin = { 0.0, 0.0 };
 		// Position of the origin of the grid frame in the local frame
-		Point2d m_gridOrigin;
+		Point2d m_localGridOrigin, m_worldGridOrigin;
 		// Matrix of cell occupancy (positive or zero value means occupied)
 		Ref<Grid<int>> m_occupancyMatrix;
 		// Distance map to nearest obstacle
 		Ref<GVD::ObstacleDistanceMap> m_obstacleDistanceMap;
 	};
+
+	Point2d OccupancyMap::GridCellToLocalPosition(const GridCellPosition& cell) const
+	{
+		return m_localGridOrigin + GridCellToGridPosition(cell);
+	}
+
+	Point2d OccupancyMap::GridCellToLocalPosition(int row, int column) const
+	{
+		return GridCellToLocalPosition({ row, column });
+	}
+
+	Point2d OccupancyMap::GridCellToWorldPosition(const GridCellPosition& cell) const
+	{
+		return m_worldGridOrigin + GridCellToGridPosition(cell);
+	}
+
+	Point2d OccupancyMap::GridCellToWorldPosition(int row, int column) const
+	{
+		return GridCellToWorldPosition({ row, column });
+	}
+
+	GridCellPosition OccupancyMap::LocalPositionToGridCell(const Point2d& position, bool bounded) const
+	{
+		return GridPositionToGridCell(position - m_localGridOrigin, bounded);
+	}
+
+	GridCellPosition OccupancyMap::LocalPositionToGridCell(double x, double y, bool bounded) const
+	{
+		return LocalPositionToGridCell({ x, y }, bounded);
+	}
+
+	Point2d OccupancyMap::LocalPositionToWorldPosition(const Point2d& position) const
+	{
+		return m_localOrigin + position;
+	}
+
+	Point2d OccupancyMap::LocalPositionToWorldPosition(double x, double y) const
+	{
+		return LocalPositionToWorldPosition({ x, y });
+	}
+
+	GridCellPosition OccupancyMap::WorldPositionToGridCell(const Point2d& position, bool bounded) const
+	{
+		return WorldPositionToGridCell(position.x(), position.y(), bounded);
+	}
+
+	GridCellPosition OccupancyMap::WorldPositionToGridCell(double x, double y, bool bounded) const
+	{
+		return GridPositionToGridCell(x - m_worldGridOrigin.x(), y - m_worldGridOrigin.y(), bounded);
+	}
+
+	Point2d OccupancyMap::WorldPositionToLocalPosition(const Point2d& position) const
+	{
+		return position - m_localOrigin;
+	}
+
+	Point2d OccupancyMap::WorldPositionToLocalPosition(double x, double y) const
+	{
+		return WorldPositionToLocalPosition({ x, y });
+	}
 }

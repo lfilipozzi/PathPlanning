@@ -3,7 +3,7 @@
 
 namespace Planner {
 	PathConstantSteer::PathConstantSteer(const Ref<KinematicBicycleModel>& model, const Pose2d& init, double steering, double length, Direction direction) :
-		PlanarPath(init, length), m_model(model), m_steering(steering), m_direction(direction)
+		PlanarNonHolonomicPath(init, length), m_model(model), m_steering(steering), m_direction(direction)
 	{
 		m_final = Interpolate(1.0);
 	}
@@ -22,17 +22,5 @@ namespace Planner {
 	Direction PathConstantSteer::GetDirection(double /*ratio*/) const
 	{
 		return m_direction;
-	}
-
-	double PathConstantSteer::ComputeCost(double /*directionSwitchingCost*/, double reverseCostMultiplier, double forwardCostMultiplier) const
-	{
-		switch (m_direction) {
-		case Direction::Forward:
-			return forwardCostMultiplier * m_length;
-		case Direction::Backward:
-			return reverseCostMultiplier * m_length;
-		default:
-			return 0.0;
-		}
 	}
 }

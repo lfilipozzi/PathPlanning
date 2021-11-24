@@ -3,7 +3,7 @@
 
 namespace Planner {
 	PathReedsShepp::PathReedsShepp(const Pose2d& init, const ReedsShepp::PathSegment& pathSegment, double minTurningRadius) :
-		PlanarPath(init, pathSegment.GetLength(minTurningRadius)),
+		PlanarNonHolonomicPath(init, pathSegment.GetLength(minTurningRadius)),
 		m_pathSegment(pathSegment), m_minTurningRadius(minTurningRadius)
 	{
 		m_final = Interpolate(1.0);
@@ -91,6 +91,31 @@ namespace Planner {
 
 		// Update the path length
 		m_length *= ratio;
+	}
+
+	std::set<double> PathReedsShepp::GetCuspPointRatios() const
+	{
+		std::set<double> ratios;
+
+		if (m_length == 0.0)
+			return ratios;
+
+		double length = m_pathSegment.m_motions[0].length * m_minTurningRadius;
+		for (int i = 1; i < m_pathSegment.GetNumMotions(); i++) {
+			const auto& currMotion = m_pathSegment.m_motions[i];
+			const auto& prevMotion = m_pathSegment.m_motions[i - 1];
+			double ratio = length / m_length;
+			// Check ratio is smaller than 1.0 in case the path has been truncated
+			if (ratio > 1.0)
+				break;
+			// Check if the direction has changed
+			if (currMotion.direction != prevMotion.direction) {
+				ratios.insert(ratio);
+			}
+			length += currMotion.length * m_minTurningRadius;
+		}
+
+		return ratios;
 	}
 
 	Pose2d PathReedsShepp::Straight(const Pose2d& start, Direction direction, double length) const

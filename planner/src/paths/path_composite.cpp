@@ -1,0 +1,34 @@
+#include "path_composite.h"
+
+namespace Planner {
+	std::set<double> PlanarNonHolonomicCompositePath::GetCuspPointRatios() const
+	{
+		std::set<double> ratios;
+
+		if (m_paths.empty())
+			return ratios;
+
+		double length = 0.0;
+		Direction prevDirection = m_paths[0].second->GetDirection(0.0);
+		for (auto& path : m_paths) {
+			// Check if the path starts with same direction as the previous ends
+			if (path.second->GetDirection(0.0) != prevDirection)
+				ratios.insert(length / this->m_length);
+
+			// Check for cusp point in the path
+			auto cusps = path.second->GetCuspPointRatios();
+			ratios.insert(cusps.begin(), cusps.end());
+
+			prevDirection = path.second->GetDirection(1.0);
+			length += path.second->GetLength();
+		}
+
+		return ratios;
+	}
+
+	Direction PlanarNonHolonomicCompositePath::GetDirection(double ratio) const
+	{
+		auto [it, pathRatio] = FindSegment(ratio);
+		return it->second->GetDirection(pathRatio);
+	}
+}

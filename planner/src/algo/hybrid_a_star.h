@@ -53,7 +53,7 @@ namespace Planner {
 		/// algorithm.
 		struct State {
 			/// @brief Path connecting the previous state to the current state.
-			Ref<PlanarPath> path;
+			Ref<PlanarNonHolonomicPath> path;
 			/// @brief Discretized state.
 			Pose2i discrete;
 
@@ -96,7 +96,7 @@ namespace Planner {
 			Pose2i DiscretizePose(const Pose2d& pose) const;
 
 			/// @brief Create an augmented state from a path.
-			State CreateStateFromPath(const Ref<PlanarPath>& path) const;
+			State CreateStateFromPath(Ref<PlanarNonHolonomicPath>&& path) const;
 
 			/// @brief Create an augmented state from a pose.
 			State CreateStateFromPose(Pose2d pose) const;
@@ -115,7 +115,8 @@ namespace Planner {
 			const SearchParameters& GetParameters() const { return m_param; }
 
 		private:
-			double GetTransitionCost(const PlanarPath& path) const;
+			double GetDirectionSwitchingCost(const PlanarNonHolonomicPath& parentPath, const PlanarNonHolonomicPath& childPath) const;
+			double GetVoronoiCost(const PlanarNonHolonomicPath& path) const;
 
 			/// @brief Update state assuming constant steer angle and bicycle
 			/// kinematic model.
@@ -138,8 +139,10 @@ namespace Planner {
 		private:
 			SearchParameters m_param;
 			Ref<StateValidatorOccupancyMap> m_validator;
+			Ref<OccupancyMap> m_occupancyMap;
 			Ref<AStarHeuristic<State>> m_heuristic;
 			Ref<GVD> m_gvd;
+			float m_voroFieldDiagResolution;
 			Ref<KinematicBicycleModel> m_model;
 			std::vector<double> m_deltas;
 			State m_goalState;
@@ -166,12 +169,16 @@ namespace Planner {
 			/// @copydoc Planner::AStar::IsSolution
 			inline virtual bool IsSolution(Node* node) override
 			{
+				PP_PROFILE_FUNCTION();
+
 				return IdenticalPoses(node->GetState().GetPose(), this->m_goal.GetPose());
 			}
 
 			/// @copydoc Planner::AStar::ProcessPossibleShorterPath
 			inline virtual void ProcessPossibleShorterPath(Node* frontierNode, Scope<Node> childScope, Node* node) override
 			{
+				PP_PROFILE_FUNCTION();
+
 				// TODO FIXME check if a path with better cost exist between the two nodes if two poses are not identical?
 				auto child = childScope.get();
 				bool identicalPose = IdenticalPoses(frontierNode->GetState().GetPose(), node->GetState().GetPose());
@@ -217,8 +224,8 @@ namespace Planner {
 
 		void VisualizeObstacleHeuristic(const std::string& filename) const;
 
-		std::unordered_set<Ref<PlanarPath>> GetGraphSearchExploredSet() const;
-		std::vector<Ref<PlanarPath>> GetGraphSearchPath() const;
+		std::unordered_set<Ref<PlanarNonHolonomicPath>> GetGraphSearchExploredSet() const;
+		std::vector<Ref<PlanarNonHolonomicPath>> GetGraphSearchPath() const;
 		double GetGraphSearchOptimalCost() const;
 
 	public:
@@ -226,6 +233,8 @@ namespace Planner {
 		float pathInterpolation = 0.1f;
 
 	private:
+		bool isInitialized = false;
+
 		Ref<StateValidatorOccupancyMap> m_validator;
 		Ref<StatePropagator> m_propagator;
 		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
@@ -233,7 +242,7 @@ namespace Planner {
 		Ref<GVD> m_gvd;
 		GraphSearch m_graphSearch;
 		Smoother m_smoother;
+
 		std::vector<Pose2d> m_path;
-		bool isInitialized = false;
 	};
 }

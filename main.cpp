@@ -18,10 +18,8 @@ class Heuristic2D : public Planner::AStarHeuristic<Planner::Point2i> {
 	}
 };
 
-int main(int /*argc*/, char** /*argv*/)
+int Main(int /*argc*/, char** /*argv*/)
 {
-	PP_INIT_LOGGER;
-
 	Planner::AStar<Planner::Point2i> search;
 	search.Initialize(
 		Planner::makeRef<Planner::AStarStatePropagator2D>(),
@@ -60,11 +58,9 @@ int main(int /*argc*/, char** /*argv*/)
 
 using namespace Planner;
 
-int main()
+int Main(int /*argc*/, char** /*argv*/)
 {
-	PP_INIT_LOGGER;
-
-	std::array<Pose2d, 2> bounds = { Pose2d(-50, -50, -M_PI), Pose2d(50, 50, M_PI) };
+	std::array<Pose2d, 2> bounds = { Pose2d(-10, -10, -M_PI), Pose2d(10, 10, M_PI) };
 	Ref<PlanarStateSpace> stateSpace = makeRef<PlanarStateSpace>(bounds);
 	Ref<ObstacleListOccupancyMap> map = makeRef<ObstacleListOccupancyMap>(0.1);
 	Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace, map);
@@ -76,7 +72,7 @@ int main()
 	float initTime = timer.ElapsedMillis();
 
 	Pose2d start = { 0.0, 0.0, 0.0 };
-	Pose2d goal = { 10.0, 10.0, 0.78 };
+	Pose2d goal = { 8.0, 8.0, 0.78 };
 	hybridAStar.SetInitState(start);
 	hybridAStar.SetGoalState(goal);
 
@@ -100,10 +96,8 @@ int main()
 
 	#include "geometry/reeds_shepp.h"
 
-int main(int argc, char** argv)
+int Main(int argc, char** argv)
 {
-	PP_INIT_LOGGER;
-
 	if (argc != 7) {
 		PP_INFO("Invalid number of arguments: received {}, need 6", argc);
 		return -1;
@@ -125,10 +119,8 @@ int main(int argc, char** argv)
 
 	#include "state_space/planar_state_space.h"
 
-int main()
+int Main(int /*argc*/, char** /*argv*/)
 {
-	PP_INIT_LOGGER;
-
 	Planner::PlanarStateSpace stateSpace;
 
 	auto sample = stateSpace.SampleUniform();
@@ -149,10 +141,8 @@ int main()
 
 using namespace Planner;
 
-int main()
+int Main(int /*argc*/, char** /*argv*/)
 {
-	PP_INIT_LOGGER;
-
 	float width = 5;
 	float height = 5;
 	float resolution = width / 300;
@@ -206,3 +196,10 @@ int main()
 }
 
 #endif
+
+int main(int argc, char** argv)
+{
+	PP_INIT;
+	auto out = Main(argc, argv);
+	return out;
+}
