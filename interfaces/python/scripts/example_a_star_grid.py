@@ -54,10 +54,13 @@ def heuristic_fcn(state, goal):
 init = nav.GridCellPosition(1, 1)
 goal = nav.GridCellPosition(35, 35)
 
+path_cost = nav.AStarStatePropagatorFcnN2(map, path_cost_fcn)
+heuristic = nav.AStarHeuristicFcnN2(heuristic_fcn)
+
 algo_uni = nav.AStarN2();
 algo_uni.set_init_state(init)
 algo_uni.set_goal_state(goal)
-algo_uni.initialize(map, path_cost_fcn, heuristic_fcn)
+algo_uni.initialize(path_cost, heuristic)
 algo_uni.search_path()
 path_uni = algo_uni.get_path()
 explored = algo_uni.get_explored_states();
@@ -91,10 +94,12 @@ fig1, ax = plt.subplots()
 _ = ax.matshow(image, cmap=cmap, norm=norm, origin='lower')
 fig1.show()
 
+(heuristic_forward, heuristic_reverse) = nav.BidirectionalAStarN2.get_average_heuristic_pair(heuristic, heuristic);
+
 algo_bi = nav.BidirectionalAStarN2();
 algo_bi.set_init_state(init)
 algo_bi.set_goal_state(goal)
-algo_bi.initialize(map, path_cost_fcn, heuristic_fcn)
+algo_bi.initialize(path_cost, path_cost, heuristic_forward, heuristic_reverse)
 algo_bi.search_path()
 
 path_bi = algo_bi.get_path()

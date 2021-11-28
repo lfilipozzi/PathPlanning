@@ -4,12 +4,12 @@
 namespace Planner {
 	class OccupancyMap;
 
-	AStarStatePropagatorN2::AStarStatePropagatorN2(const Ref<OccupancyMap>& map,
+	AStarStatePropagatorFcnN2::AStarStatePropagatorFcnN2(const Ref<OccupancyMap>& map,
 		const std::function<double(const GridCellPosition&, const GridCellPosition&)>& pathCostFcn) :
 		m_map(map),
 		m_pathCostFcn(pathCostFcn) { }
 
-	std::vector<std::tuple<GridCellPosition, double>> AStarStatePropagatorN2::GetNeighborStates(const GridCellPosition& cell)
+	std::vector<std::tuple<GridCellPosition, double>> AStarStatePropagatorFcnN2::GetNeighborStates(const GridCellPosition& cell)
 	{
 		auto cellNeighbors = cell.GetNeighbors(m_map->Rows(), m_map->Columns());
 
@@ -25,24 +25,5 @@ namespace Planner {
 			neighbors.emplace_back(std::move(n), cost);
 		}
 		return neighbors;
-	}
-
-	bool AStarN2::Initialize(const Ref<OccupancyMap>& map,
-		const std::function<double(const GridCellPosition&, const GridCellPosition&)>& pathCostFcn,
-		const std::function<double(const GridCellPosition&, const GridCellPosition&)>& heuristicFcn)
-	{
-		auto propagator = makeRef<AStarStatePropagatorN2>(map, pathCostFcn);
-		auto heuristic = makeRef<AStarHeuristicN2>(heuristicFcn);
-		return AStarDeclType::Initialize(propagator, heuristic);
-	}
-
-	bool BidirectionalAStarN2::Initialize(const Ref<OccupancyMap>& map,
-		const std::function<double(const GridCellPosition&, const GridCellPosition&)>& pathCostFcn,
-		const std::function<double(const GridCellPosition&, const GridCellPosition&)>& heuristicFcn)
-	{
-		auto propagator = makeRef<AStarStatePropagatorN2>(map, pathCostFcn);
-		auto heuristic = makeRef<AStarHeuristicN2>(heuristicFcn);
-		auto [fHeuristic, rHeuristic] = AStarDeclType::GetAverageHeuristicPair(heuristic, heuristic);
-		return AStarDeclType::Initialize(propagator, propagator, fHeuristic, rHeuristic);
 	}
 }

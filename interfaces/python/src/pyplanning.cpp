@@ -114,6 +114,32 @@ PYBIND11_MODULE(pyplanning, m)
 		virtual std::vector<GridCellPosition> GetPath() const override { PYBIND11_OVERRIDE_PURE(std::vector<GridCellPosition>, PathPlannerN2Base, GetPath); }
 	};
 
+	using AStarHeuristicN2 = AStarHeuristic<GridCellPosition>;
+	struct AStarHeuristicN2Wrapper : AStarHeuristicN2 {
+		using AStarHeuristicN2::AStarHeuristicN2;
+		virtual double GetHeuristicValue(const GridCellPosition& state) override { PYBIND11_OVERRIDE_PURE(double, AStarHeuristicN2, GetHeuristicValue, state); }
+		virtual void SetGoal(const GridCellPosition& goal) override { PYBIND11_OVERRIDE_PURE(void, AStarHeuristicN2, SetGoal, goal); }
+	};
+
+	class_<AStarHeuristicN2, Ref<AStarHeuristicN2>, AStarHeuristicN2Wrapper>(m, "AStarHeuristicN2")
+		.def(init<>());
+
+	class_<AStarHeuristicFcnN2, Ref<AStarHeuristicFcnN2>, AStarHeuristicN2>(m, "AStarHeuristicFcnN2")
+		.def(init<std::function<double(const GridCellPosition&, const GridCellPosition&)>>());
+
+	using AStarStatePropagatorN2 = AStarStatePropagator<GridCellPosition>;
+	struct AStarStatePropagatorN2Wrapper : AStarStatePropagatorN2 {
+		using AStarStatePropagatorN2::AStarStatePropagatorN2;
+		using ReturnType = std::vector<std::tuple<GridCellPosition, double>>;
+		virtual ReturnType GetNeighborStates(const GridCellPosition& cell) override { PYBIND11_OVERRIDE_PURE(ReturnType, AStarStatePropagatorN2, GetNeighborStates, cell); }
+	};
+
+	class_<AStarStatePropagatorN2, Ref<AStarStatePropagatorN2>, AStarStatePropagatorN2Wrapper>(m, "AStarStatePropagatorN2")
+		.def(init<>());
+
+	class_<AStarStatePropagatorFcnN2, Ref<AStarStatePropagatorFcnN2>, AStarStatePropagatorN2>(m, "AStarStatePropagatorFcnN2")
+		.def(init<const Ref<OccupancyMap>&, const std::function<double(const GridCellPosition&, const GridCellPosition&)>&>());
+
 	class_<PathPlannerN2Base, PathPlannerN2BaseWrapper>(m, "PathPlannerN2Base")
 		.def(init<>())
 		.def("search_path", &PathPlannerN2Base::SearchPath)
@@ -129,10 +155,7 @@ PYBIND11_MODULE(pyplanning, m)
 
 	class_<PyAStarN2, PathPlannerN2Base>(m, "AStarN2")
 		.def(init<>())
-		.def<bool (AStarN2::*)(
-			const Ref<OccupancyMap>&,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&)>("initialize", &AStarN2::Initialize)
+		.def("initialize", &AStarN2::Initialize)
 		.def("get_explored_states", &PyAStarN2::GetExploredStates)
 		.def("get_optimal_cost", &AStarN2::GetOptimalCost);
 
@@ -155,10 +178,8 @@ PYBIND11_MODULE(pyplanning, m)
 
 	class_<PyBidirectionalAStarN2, PathPlannerN2Base>(m, "BidirectionalAStarN2")
 		.def(init<>())
-		.def<bool (BidirectionalAStarN2::*)(
-			const Ref<OccupancyMap>&,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&)>("initialize", &BidirectionalAStarN2::Initialize)
+		.def_static("get_average_heuristic_pair", &BidirectionalAStarN2::GetAverageHeuristicPair)
+		.def("initialize", &BidirectionalAStarN2::Initialize)
 		.def("get_explored_states", &PyBidirectionalAStarN2::GetExploredStates)
 		.def("get_optimal_cost", &BidirectionalAStarN2::GetOptimalCost);
 

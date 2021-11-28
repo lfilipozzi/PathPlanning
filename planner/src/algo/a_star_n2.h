@@ -10,9 +10,9 @@ namespace Planner {
 	class OccupancyMap;
 
 	/// @brief State propagator for planar A* grid search.
-	class AStarStatePropagatorN2 : public AStarStatePropagator<GridCellPosition> {
+	class AStarStatePropagatorFcnN2 : public AStarStatePropagator<GridCellPosition> {
 	public:
-		AStarStatePropagatorN2(const Ref<OccupancyMap>& map,
+		AStarStatePropagatorFcnN2(const Ref<OccupancyMap>& map,
 			const std::function<double(const GridCellPosition&, const GridCellPosition&)>& pathCostFcn);
 
 		/// @copydoc Planner::AStarStatePropagator::GetNeighborStates
@@ -23,7 +23,7 @@ namespace Planner {
 		std::function<double(const GridCellPosition&, const GridCellPosition&)> m_pathCostFcn;
 	};
 
-	using AStarHeuristicN2 = AStarConcreteHeuristicFcn<GridCellPosition, std::function<double(const GridCellPosition&, const GridCellPosition&)>>;
+	using AStarHeuristicFcnN2 = AStarConcreteHeuristicFcn<GridCellPosition, std::function<double(const GridCellPosition&, const GridCellPosition&)>>;
 
 	/// @brief Path planner using an A* search over a grid.
 	class AStarN2 : public AStar<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>, true> {
@@ -31,20 +31,6 @@ namespace Planner {
 
 	public:
 		AStarN2() = default;
-
-		/// @brief Initialize the search.
-		/// @param map The occupancy map.
-		/// @param pathCostFcn Function returning the path cost between two
-		/// neighbor cells. The first argument of the function is the origin
-		/// cell, the second argument is the destination cell.
-		/// @param heuristicFcn Function returning the heuristic cost between a
-		/// cell (first argument) and the goal (second argument).
-		bool Initialize(const Ref<OccupancyMap>& map,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>& pathCostFcn,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>& heuristicFcn);
-
-	protected:
-		using AStarDeclType::Initialize;
 	};
 
 	/// @brief Path planner using a bidirectional A* search over a grid.
@@ -53,19 +39,5 @@ namespace Planner {
 
 	public:
 		BidirectionalAStarN2() = default;
-
-		/// @brief Initialize the search.
-		/// @param map The occupancy map.
-		/// @param pathCostFcn Function returning the path cost between two
-		/// neighbor cells. The first argument of the function is the origin
-		/// cell, the second argument is the destination cell.
-		/// @param heuristicFcn Function returning the heuristic cost between a
-		/// cell (first argument) and the goal (second argument).
-		bool Initialize(const Ref<OccupancyMap>& map,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>& pathCostFcn,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>& heuristicFcn);
-
-	protected:
-		using AStarDeclType::Initialize;
 	};
 }
