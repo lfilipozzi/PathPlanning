@@ -363,7 +363,7 @@ namespace Planner {
 					} else if (inFrontier) {
 						// Check if the node in frontier has a higher cost than the
 						// current path, and if so replace it by child
-						ProcessPossibleShorterPath(*inFrontier, std::move(childScope), node);
+						ProcessPossibleShortcut(*inFrontier, std::move(childScope), node);
 					}
 				} else {
 					// Add child to frontier and to the tree
@@ -379,16 +379,15 @@ namespace Planner {
 		/// @childScope.
 		/// @param childScope The node being added to the frontier.
 		/// @param node The node being expanded.
-		inline virtual void ProcessPossibleShorterPath(Node* frontierNode, Scope<Node> childScope, Node* /*node*/)
+		inline virtual void ProcessPossibleShortcut(Node* frontierNode, Scope<Node> childScope, Node* node)
 		{
 			PP_PROFILE_FUNCTION();
 
 			auto child = childScope.get();
 			if (frontierNode->meta.totalCost > child->meta.totalCost) {
-				// Replace the node in frontier by the newly find better node.
-				auto previousChildScope = frontierNode->GetParent()->ReplaceChild(frontierNode, std::move(childScope), false);
 				// Replace the node in the frontier by child
-				m_frontier.Remove(previousChildScope.get());
+				node->AddChild(std::move(childScope));
+				m_frontier.Remove(frontierNode);
 				m_frontier.Push(child);
 			}
 		}

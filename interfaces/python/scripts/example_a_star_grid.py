@@ -59,7 +59,7 @@ algo_uni.set_init_state(init)
 algo_uni.set_goal_state(goal)
 algo_uni.initialize(map, path_cost_fcn, heuristic_fcn)
 algo_uni.search_path()
-path = algo_uni.get_path()
+path_uni = algo_uni.get_path()
 explored = algo_uni.get_explored_states();
 
 EMPTY_COLOR = 0
@@ -80,7 +80,7 @@ image = np.zeros((ncols, nrows))
 for cell in explored:
 	image[cell.col][cell.row] = EXPLORED_FORWARD_COLOR
 
-for cell in path:
+for cell in path_uni:
 	image[cell.col][cell.row] = PATH_COLOR
 
 for cells in obstacle_cells:
@@ -97,7 +97,7 @@ algo_bi.set_goal_state(goal)
 algo_bi.initialize(map, path_cost_fcn, heuristic_fcn)
 algo_bi.search_path()
 
-path = algo_bi.get_path()
+path_bi = algo_bi.get_path()
 (explored_forward, explored_reverse) = algo_bi.get_explored_states();
 
 nrows = map.rows();
@@ -113,7 +113,7 @@ for cell in explored_reverse:
 	else:
 		image[cell.col][cell.row] = EXPLORED_COLOR
 
-for cell in path:
+for cell in path_bi:
 	image[cell.col][cell.row] = PATH_COLOR
 
 for cells in obstacle_cells:
@@ -123,3 +123,6 @@ for cells in obstacle_cells:
 fig2, ax = plt.subplots()
 _ = ax.matshow(image, cmap=cmap, norm=norm, origin='lower')
 fig2.show()
+
+algo_uni.get_optimal_cost()
+algo_bi.get_optimal_cost()

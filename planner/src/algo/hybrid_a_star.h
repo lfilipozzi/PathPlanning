@@ -174,8 +174,8 @@ namespace Planner {
 				return IdenticalPoses(node->GetState().GetPose(), this->m_goal.GetPose());
 			}
 
-			/// @copydoc Planner::AStar::ProcessPossibleShorterPath
-			inline virtual void ProcessPossibleShorterPath(Node* frontierNode, Scope<Node> childScope, Node* node) override
+			/// @copydoc Planner::AStar::ProcessPossibleShortcut
+			inline virtual void ProcessPossibleShortcut(Node* frontierNode, Scope<Node> childScope, Node* node) override
 			{
 				PP_PROFILE_FUNCTION();
 
@@ -184,10 +184,9 @@ namespace Planner {
 				bool identicalPose = IdenticalPoses(frontierNode->GetState().GetPose(), node->GetState().GetPose());
 				bool betterCost = frontierNode->meta.totalCost > child->meta.totalCost;
 				if (identicalPose && betterCost) {
-					// Replace the node in frontier by the newly find better node.
-					auto previousChildScope = frontierNode->GetParent()->ReplaceChild(frontierNode, std::move(childScope), false);
 					// Replace the node in the frontier by child
-					m_frontier.Remove(previousChildScope.get());
+					node->AddChild(std::move(childScope));
+					m_frontier.Remove(frontierNode);
 					m_frontier.Push(child);
 				}
 			}

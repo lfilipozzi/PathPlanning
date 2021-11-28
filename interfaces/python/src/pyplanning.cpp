@@ -4,6 +4,7 @@
 #include <pybind11/functional.h>
 
 #include "core/base.h"
+
 #include "algo/path_planner.h"
 #include "algo/hybrid_a_star.h"
 #include "algo/a_star_n2.h"
@@ -195,7 +196,12 @@ PYBIND11_MODULE(pyplanning, m)
 		.def(init<>())
 		.def(init<int, int>())
 		.def_readwrite("row", &GridCellPosition::row)
-		.def_readwrite("col", &GridCellPosition::col);
+		.def_readwrite("col", &GridCellPosition::col)
+		.def("__repr__",
+			[](const GridCellPosition& cell) {
+				return "<GridCellPosition: row " + std::to_string(cell.row) + ", col: " + std::to_string(cell.col) + ">";
+			}
+		);
 
 	//    _____      _   _
 	//   |  __ \    | | | |

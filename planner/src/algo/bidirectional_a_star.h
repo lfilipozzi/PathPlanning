@@ -151,8 +151,6 @@ namespace Planner {
 
 			double bestCost = std::numeric_limits<double>::infinity();
 			while (!m_fSearch.m_frontier.Empty() && !m_rSearch.m_frontier.Empty()) {
-				PP_INFO("Forward: {} in forward frontier, {} in reverse frontier", m_fSearch.m_frontier.Size(), m_rSearch.m_frontier.Size());
-
 				// Forward search
 				auto fNode = m_fSearch.m_frontier.Pop();
 				m_fSearch.Expand(fNode);
