@@ -29,7 +29,7 @@ namespace Planner {
 		typename DataType = double>
 	class RRT : public PathPlanner<Vertex> {
 	protected:
-		struct NodeMetadata {
+		struct NodeInfo {
 			/// @brief Path connecting the previous state to the current state.
 			Ref<Path<Vertex>> path;
 		};
@@ -39,7 +39,8 @@ namespace Planner {
 		RRT(const Ref<StateSpace<Vertex, Dimensions, DataType>>& stateSpace,
 			const Ref<StateValidator<Vertex, Dimensions, DataType>>& stateValidator,
 			const Ref<PathConnection<Vertex>>& pathConnection) :
-			m_stateSpace(stateSpace), m_stateValidator(stateValidator),
+			m_stateSpace(stateSpace),
+			m_stateValidator(stateValidator),
 			m_pathConnection(pathConnection)
 		{
 			Random<DataType>::Init();
@@ -68,21 +69,20 @@ namespace Planner {
 				}
 
 				// Create a random configuration
-				Vertex randomState = Random<double>::SampleUniform(0, 1) < m_parameters.goalBias ?
-					this->m_goal : m_stateSpace->SampleUniform();
+				Vertex randomState = Random<double>::SampleUniform(0, 1) < m_parameters.goalBias ? this->m_goal : m_stateSpace->SampleUniform();
 				// Find the nearest node in the tree
 				TreeNode* const nearestNode = m_tree.GetNearestNode(randomState);
 				if (!nearestNode)
 					continue;
 				// Create a new state towards the direction of randomState
-				auto pathNearToNew = SteerTowards(nearestNode->GetState(), randomState, m_parameters.maxConnectionDistance);
+				auto pathNearToNew = SteerTowards((*nearestNode)->state, randomState, m_parameters.maxConnectionDistance);
 				if (!m_stateValidator->IsPathValid(*pathNearToNew))
 					continue;
 				const Vertex& newState = pathNearToNew->GetFinalState();
 
 				// Add the node to the tree
 				TreeNode* newNode = m_tree.Extend(newState, nearestNode);
-				newNode->meta.path = std::move(pathNearToNew);
+				(*newNode)->info.path = std::move(pathNearToNew);
 
 				// Check solution
 				if (IsSolution(newState)) {
@@ -107,7 +107,7 @@ namespace Planner {
 			unsigned int depth = m_solutionNode->GetDepth();
 			path.resize(depth + 1);
 			for (auto it = path.rbegin(); it != path.rend(); it++) {
-				*it = node->GetState();
+				*it = (*node)->state;
 				node = node->GetParent();
 			}
 			return path;
@@ -145,12 +145,12 @@ namespace Planner {
 		Ref<StateValidator<Vertex, Dimensions, DataType>> m_stateValidator;
 		Ref<PathConnection<Vertex>> m_pathConnection;
 
-		using TreeDeclType = Tree<Vertex, Dimensions, NodeMetadata, Hash, Equal, DataType>;
+		using TreeDeclType = Tree<Vertex, Dimensions, NodeInfo, Hash, Equal, DataType>;
 		TreeDeclType m_tree;
-		using TreeNode = typename Tree<Vertex, Dimensions, NodeMetadata, Hash, Equal, DataType>::Node;
+		using TreeNode = typename Tree<Vertex, Dimensions, NodeInfo, Hash, Equal, DataType>::Node;
 		TreeNode* m_solutionNode = nullptr;
 	};
 
 	using RRTR2 = RRT<Point2d, 2>;
-// 	using RRTSE2 = RRT<Pose2d, 3>;
+	// using RRTSE2 = RRT<Pose2d, 3>;
 }

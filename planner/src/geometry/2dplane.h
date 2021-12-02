@@ -107,7 +107,8 @@ namespace std {
 
 	template <typename T>
 	struct equal_to<Planner::Point2<T>> {
-		bool operator()(const Planner::Point2<T>& lhs, const Planner::Point2<T>& rhs) const {
+		bool operator()(const Planner::Point2<T>& lhs, const Planner::Point2<T>& rhs) const
+		{
 			return lhs.x() == rhs.x() && lhs.y() == rhs.y();
 		}
 	};
@@ -125,7 +126,8 @@ namespace std {
 
 	template <typename T>
 	struct equal_to<Planner::Pose2<T>> {
-		bool operator()(const Planner::Pose2<T>& lhs, const Planner::Pose2<T>& rhs) const {
+		bool operator()(const Planner::Pose2<T>& lhs, const Planner::Pose2<T>& rhs) const
+		{
 			return lhs.position == rhs.position && lhs.WrapTheta() == rhs.WrapTheta();
 		}
 	};

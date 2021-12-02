@@ -12,9 +12,9 @@
 #elif defined(__APPLE__) || defined(__MACH__)
 	#include <TargetConditionals.h>
 	#define PP_PLATFORM_APPLE
-	/* TARGET_OS_MAC exists on all the platforms so we must check all of them 
-     * (in this order) to ensure that we're running on Mac and not some 
-     * other Apple platform */
+	/* TARGET_OS_MAC exists on all the platforms so we must check all of them
+	 * (in this order) to ensure that we're running on Mac and not some
+	 * other Apple platform */
 	#if TARGET_IPHONE_SIMULATOR == 1
 		#error "IOS simulator is not supported!"
 	#elif TARGET_OS_IPHONE == 1

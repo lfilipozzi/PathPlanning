@@ -9,11 +9,11 @@ namespace Planner {
 		m_map(map),
 		m_pathCostFcn(pathCostFcn) { }
 
-	std::vector<std::tuple<GridCellPosition, double>> AStarStatePropagatorFcnN2::GetNeighborStates(const GridCellPosition& cell)
+	std::vector<std::tuple<GridCellPosition, NullAction, double>> AStarStatePropagatorFcnN2::GetNeighborStates(const GridCellPosition& cell)
 	{
 		auto cellNeighbors = cell.GetNeighbors(m_map->Rows(), m_map->Columns());
 
-		std::vector<std::tuple<GridCellPosition, double>> neighbors;
+		std::vector<std::tuple<GridCellPosition, NullAction, double>> neighbors;
 		neighbors.reserve(cellNeighbors.size());
 		for (auto& n : cellNeighbors) {
 			if (m_map->IsOccupied(n))
@@ -22,7 +22,7 @@ namespace Planner {
 				if (m_map->IsOccupied({ n.row, cell.col }) && m_map->IsOccupied({ cell.row, n.col }))
 					continue;
 			double cost = m_pathCostFcn(cell, n);
-			neighbors.emplace_back(std::move(n), cost);
+			neighbors.emplace_back(std::move(n), NullAction(), cost);
 		}
 		return neighbors;
 	}

@@ -8,20 +8,34 @@
 
 namespace Planner {
 
+	template <typename State, typename NodeInfo>
+	struct TreeNodeData {
+		State state;
+		NodeInfo info;
+
+		TreeNodeData(const State& state) :
+			state(state), info(NodeInfo()) { }
+		TreeNodeData(const State& state, const NodeInfo& info) :
+			state(state), info(info) { }
+	};
+	template <typename State, typename NodeInfo>
+	using TreeNode = Node<TreeNodeData<State, NodeInfo>>;
+
 	/// @brief Tree of T node.
 	/// @details This tree allows operation such as finding a nearest neighbor
 	/// to a node in the tree, rewiring the tree.
 	template <
-		typename Vertex,
+		typename State,
 		unsigned int Dimensions,
-		typename Metadata = VoidClass,
-		typename Hash = std::hash<Vertex>,
-		typename Equal = std::equal_to<Vertex>,
+		typename NodeInfo = NullClass,
+		typename Hash = std::hash<State>,
+		typename Equal = std::equal_to<State>,
 		typename DataType = double>
 	class Tree {
 	public:
-		using Node = GenericNode<Vertex, Metadata>;
+		using Node = TreeNode<State, NodeInfo>;
 
+	public:
 		Tree(const Tree&) = delete;
 		Tree& operator=(const Tree&) = delete;
 
@@ -42,11 +56,11 @@ namespace Planner {
 		}
 
 		/// @brief Create the root node of the tree.
-		Node* CreateRootNode(const Vertex& start)
+		Node* CreateRootNode(const State& start)
 		{
 			m_rootNode = makeScope<Node>(start);
 			m_exploredNodeMap.insert({ start, m_rootNode.get() });
-			m_kdTree.buildIndex(flann::Matrix<DataType>((DataType*)&(m_rootNode->GetState()), 1, m_dimensions));
+			m_kdTree.buildIndex(flann::Matrix<DataType>((DataType*)&((*m_rootNode)->state), 1, m_dimensions));
 			return m_rootNode.get();
 		}
 
@@ -56,7 +70,7 @@ namespace Planner {
 		/// @param state The state whose closest neighbors must be find.
 		/// @param nn The number of neighbors to find.
 		/// @return The nearest nodes to @state.
-		std::vector<Node*> GetNearestNodes(const Vertex& state, const unsigned int nn = 1)
+		std::vector<Node*> GetNearestNodes(const State& state, const unsigned int nn = 1)
 		{
 			std::vector<Node*> nodes;
 			if (nn == 0)
@@ -71,7 +85,7 @@ namespace Planner {
 
 			nodes.reserve(n);
 			for (unsigned int i = 0; i < n; i++) {
-				Vertex point = (Vertex)m_kdTree.getPoint(indices[0][i]);
+				State point = (State)m_kdTree.getPoint(indices[0][i]);
 				nodes.push_back(m_exploredNodeMap[point]);
 			}
 
@@ -85,7 +99,7 @@ namespace Planner {
 		/// the nearest neighbor.
 		/// @param state The state whose closest neighbor must be find.
 		/// @return The nearest node to @state.
-		Node* GetNearestNode(const Vertex& state)
+		Node* GetNearestNode(const State& state)
 		{
 			flann::Matrix<DataType> query;
 			query = flann::Matrix<DataType>((DataType*)&state, 1, sizeof(state) / sizeof(DataType));
@@ -94,7 +108,7 @@ namespace Planner {
 			flann::Matrix<DataType> dists(new DataType[query.rows], query.rows, 1);
 			m_kdTree.knnSearch(query, indices, dists, 1, flann::SearchParams());
 
-			Vertex point = (Vertex)m_kdTree.getPoint(indices[0][0]);
+			State point = (State)m_kdTree.getPoint(indices[0][0]);
 
 			delete[] indices.ptr();
 			delete[] dists.ptr();
@@ -107,7 +121,7 @@ namespace Planner {
 		/// @param start The node to connect from. If none is provided, the
 		/// closest node in the tree is used instead.
 		/// @return The new node in the tree.
-		Node* Extend(const Vertex& target, Node* source = nullptr)
+		Node* Extend(const State& target, Node* source = nullptr)
 		{
 			// Check if the target is already in the tree
 			auto search = m_exploredNodeMap.find(target);
@@ -125,8 +139,8 @@ namespace Planner {
 			Node* newNode = source->AddChild(makeScope<Node>(target));
 
 			// Add the node to the map and k-d tree
-			m_kdTree.addPoints(flann::Matrix<DataType>((DataType*)&(newNode->GetState()), 1, m_dimensions));
-			m_exploredNodeMap.insert({ newNode->GetState(), newNode });
+			m_kdTree.addPoints(flann::Matrix<DataType>((DataType*)&((*newNode)->state), 1, m_dimensions));
+			m_exploredNodeMap.insert({ (*newNode)->state, newNode });
 
 			return newNode;
 		}
@@ -156,7 +170,7 @@ namespace Planner {
 	private:
 		const unsigned int m_dimensions = Dimensions;
 
-		std::unordered_map<Vertex, Node*, Hash, Equal> m_exploredNodeMap;
+		std::unordered_map<State, Node*, Hash, Equal> m_exploredNodeMap;
 		flann::Index<flann::L2_Simple<DataType>> m_kdTree;
 
 		Scope<Node> m_rootNode;

@@ -96,14 +96,27 @@ PYBIND11_MODULE(pyplanning, m)
 		.def_readwrite("collision_ratio", &Smoother::Parameters::collisionRatio)
 		.def_readonly("max_curvature", &Smoother::Parameters::maxCurvature);
 
+	class_<HybridAStar::Stats>(m, "HybridAStarStats")
+		.def_readonly("graph_search_status", &HybridAStar::Stats::graphSearchStatus)
+		.def_readonly("smoothing_status", &HybridAStar::Stats::smoothingStatus);
+
+	enum_<Smoother::Status>(m, "SmoothingStatus")
+		.value("MAX_ITERATION", Smoother::Status::MaxIteration)
+		.value("STEP_TOLERANCE", Smoother::Status::StepTolerance)
+		.value("PATH_SIZE", Smoother::Status::PathSize)
+		.value("FAILURE", Smoother::Status::Failure)
+		.value("COLLISION", Smoother::Status::Collision);
+
 	class_<HybridAStar, PathPlannerSE2Base>(m, "HybridAStar")
 		.def(init<>())
 		.def(init<const HybridAStar::SearchParameters&>())
 		.def("initialize", &HybridAStar::Initialize)
 		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation)
-		.def("get_graph_search_explored_set", &HybridAStar::GetGraphSearchExploredSet)
+		.def("get_stats", &HybridAStar::GetStats)
+		.def("get_graph_search_explored_path_set", &HybridAStar::GetGraphSearchExploredPathSet)
 		.def("get_graph_search_path", &HybridAStar::GetGraphSearchPath)
 		.def("get_graph_search_optimal_cost", &HybridAStar::GetGraphSearchOptimalCost)
+		.def("get_smoothed_path", &HybridAStar::GetSmoothedPath)
 		.def("get_search_parameters", &HybridAStar::GetSearchParameters)
 		.def_property("smoother_parameters", &HybridAStar::GetSmootherParameters, &HybridAStar::SetSmootherParameters)
 		.def("visualize_obstacle_heuristic", &HybridAStar::VisualizeObstacleHeuristic);
@@ -130,7 +143,7 @@ PYBIND11_MODULE(pyplanning, m)
 	using AStarStatePropagatorN2 = AStarStatePropagator<GridCellPosition>;
 	struct AStarStatePropagatorN2Wrapper : AStarStatePropagatorN2 {
 		using AStarStatePropagatorN2::AStarStatePropagatorN2;
-		using ReturnType = std::vector<std::tuple<GridCellPosition, double>>;
+		using ReturnType = std::vector<std::tuple<GridCellPosition, NullAction, double>>;
 		virtual ReturnType GetNeighborStates(const GridCellPosition& cell) override { PYBIND11_OVERRIDE_PURE(ReturnType, AStarStatePropagatorN2, GetNeighborStates, cell); }
 	};
 
@@ -221,8 +234,7 @@ PYBIND11_MODULE(pyplanning, m)
 		.def("__repr__",
 			[](const GridCellPosition& cell) {
 				return "<GridCellPosition: row " + std::to_string(cell.row) + ", col: " + std::to_string(cell.col) + ">";
-			}
-		);
+			});
 
 	//    _____      _   _
 	//   |  __ \    | | | |

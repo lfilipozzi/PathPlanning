@@ -8,7 +8,11 @@ Implementation of various path-planning algorithms:
 - Hybrid A*
 - A* grid search
 
+Hybrid A* search:
 ![Hybrid A*](ressources/hybrid_a_star.png)
+
+Grid A* search:
+![Hybrid A*](ressources/grid_a_star.png)
 
 This repository provides an interface to use these algorithms in python.
 

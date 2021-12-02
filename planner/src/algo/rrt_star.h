@@ -29,7 +29,7 @@ namespace Planner {
 	class RRTStar : public PathPlanner<Vertex> {
 	private:
 		/// @brief Node metadata used by RRT star.
-		struct NodeMetadata {
+		struct NodeInfo {
 			/// @brief Path connecting the previous state to the current state.
 			Ref<Path<Vertex>> path;
 			/// @brief Cost from goal
@@ -41,8 +41,9 @@ namespace Planner {
 		RRTStar(const Ref<StateSpace<Vertex, Dimensions, DataType>>& stateSpace,
 			const Ref<StateValidator<Vertex, Dimensions, DataType>>& stateValidator,
 			const Ref<PathConnection<Vertex>>& pathConnection) :
-			m_stateSpace(stateSpace), m_stateValidator(stateValidator),
-			m_pathConnection(pathConnection) { };
+			m_stateSpace(stateSpace),
+			m_stateValidator(stateValidator),
+			m_pathConnection(pathConnection) {};
 		virtual ~RRTStar() = default;
 
 		RRTStarParameters GetParameters() { return m_parameters; }
@@ -66,28 +67,28 @@ namespace Planner {
 				}
 
 				// Create a random configuration
-				Vertex randomState = Random<double>::SampleUniform(0, 1) < m_parameters.goalBias ?
-					this->m_goal : m_stateSpace->SampleUniform();
+				Vertex randomState = Random<double>::SampleUniform(0, 1) < m_parameters.goalBias ? this->m_goal : m_stateSpace->SampleUniform();
 				// Find the nearest node in the tree
 				TreeNode* const nearestNode = m_tree.GetNearestNode(randomState);
 				if (!nearestNode)
 					continue;
 				// Create a new state towards the direction of randomState
-				auto pathNearToNew = SteerTowards(nearestNode->GetState(), randomState, m_parameters.maxConnectionDistance);
+				auto pathNearToNew = SteerTowards((*nearestNode)->state, randomState, m_parameters.maxConnectionDistance);
 				if (!m_stateValidator->IsPathValid(*pathNearToNew))
 					continue;
 				const Vertex& newState = pathNearToNew->GetFinalState();
 
 				// Find the best parent for newNode amongst k nearest neighbors of
 				// the new state where k is logarithmic in the size of the tree
+				// FIXME need to use radius search to make sure that the connection length is always less than maxConnectionDistance
 				unsigned int nn = std::max<unsigned int>(1, log(m_tree.Size()));
 				std::vector<TreeNode*> nearNodes = m_tree.GetNearestNodes(newState, nn);
 				TreeNode* bestParentNode = nullptr;
 				double bestCost = std::numeric_limits<double>::infinity();
 				Ref<Path<Vertex>> bestPath;
 				for (const auto node : nearNodes) {
-					auto [pathParentToNew, transitionCost] = SteerExactly(node->GetState(), newState);
-					double cost = node->meta.costFromGoal + transitionCost;
+					auto [pathParentToNew, transitionCost] = SteerExactly((*node)->state, newState);
+					double cost = (*node)->info.costFromGoal + transitionCost;
 					if (cost < bestCost && m_stateValidator->IsPathValid(*pathParentToNew)) {
 						bestParentNode = node;
 						bestCost = cost;
@@ -97,8 +98,8 @@ namespace Planner {
 
 				// Add the node to the tree
 				auto newNode = m_tree.Extend(newState, bestParentNode);
-				newNode->meta.costFromGoal = bestCost;
-				newNode->meta.path = std::move(bestPath);
+				(*newNode)->info.costFromGoal = bestCost;
+				(*newNode)->info.path = std::move(bestPath);
 
 				// Check solution
 				if (IsSolution(newState)) {
@@ -123,7 +124,7 @@ namespace Planner {
 			unsigned int depth = m_solutionNode->GetDepth();
 			path.resize(depth + 1);
 			for (auto it = path.rbegin(); it != path.rend(); it++) {
-				*it = node->GetState();
+				*it = (*node)->state;
 				node = node->GetParent();
 			}
 			return path;
@@ -150,7 +151,7 @@ namespace Planner {
 		}
 
 		/// @brief Construct a path that connects @from to @to.
-		/// @return A tuple containing the path connecting the states and the 
+		/// @return A tuple containing the path connecting the states and the
 		/// cost to go from @from to @to.
 		virtual std::tuple<Ref<Path<Vertex>>, double> SteerExactly(const Vertex& from, const Vertex& to)
 		{
@@ -170,12 +171,12 @@ namespace Planner {
 		Ref<StateValidator<Vertex, Dimensions, DataType>> m_stateValidator;
 		Ref<PathConnection<Vertex>> m_pathConnection;
 
-		using TreeDeclType = Tree<Vertex, Dimensions, NodeMetadata, Hash, Equal, DataType>;
+		using TreeDeclType = Tree<Vertex, Dimensions, NodeInfo, Hash, Equal, DataType>;
 		TreeDeclType m_tree;
-		using TreeNode = typename Tree<Vertex, Dimensions, NodeMetadata, Hash, Equal, DataType>::Node;
+		using TreeNode = typename Tree<Vertex, Dimensions, NodeInfo, Hash, Equal, DataType>::Node;
 		TreeNode* m_solutionNode = nullptr;
 	};
 
 	using RRTStarR2 = RRTStar<Point2d, 2>;
-// 	using RRTStarSE2 = RRTStar<Pose2d, 3>;
+	// using RRTStarSE2 = RRTStar<Pose2d, 3>;
 }
