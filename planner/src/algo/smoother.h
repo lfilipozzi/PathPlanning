@@ -43,7 +43,7 @@ namespace Planner {
 			/// @brief Weight on the proximity to the Voronoi edge
 			float voronoiWeight = 0.02f;
 			/// @brief Weight on the proximity to obstacle
-			float collisionWeight = 0.0002f;
+			float collisionWeight = 0.2f;
 			/// @brief Weight on the curvature
 			float curvatureWeight = 0.4f;
 

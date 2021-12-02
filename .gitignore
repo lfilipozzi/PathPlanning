@@ -67,6 +67,9 @@ Thumbs.db
 *vcxproj.*
 .vs/
 
+# Visual studio code
+.vscode/
+
 # MinGW generated files
 *.Debug
 *.Release
@@ -78,9 +81,10 @@ Thumbs.db
 *.dll
 *.exe
 
+# Image
+*.ppm
+
 # Generated files
-profile-startup.json
-profile-runtime.json
-profile-shutdown.json
-imgui.ini
+profiling.json
 *.log
+callgrind.out.*

@@ -1,24 +1,30 @@
 #pragma once
 
-#include "core/base.h"
+#include "state_space/state_space.h"
 #include "geometry/2dplane.h"
-#include "state_space.h"
 
 namespace Planner {
 
-	/// @brief Configuration space in the special Euclidean group SE(2).
-	class StateSpaceSE2 : public PlanarStateSpace {
+	/// @brief Planar state space
+	class StateSpaceSE2 : public StateSpace<Pose2d, 3, double> {
 	public:
 		StateSpaceSE2(const std::array<Pose2d, 2>& bounds) :
-			PlanarStateSpace(bounds) { }
+			StateSpace(bounds) { }
 		StateSpaceSE2(const Pose2d& lb, const Pose2d& ub) :
 			StateSpaceSE2(std::array<Pose2d, 2>({ lb, ub })) { }
-		~StateSpaceSE2() = default;
+		virtual ~StateSpaceSE2() = default;
 
-		virtual double ComputeDistance(const Pose2d& from, const Pose2d& to) override
-		{
-			auto delta = to.position - from.position;
-			return delta.norm();
-		}
+		/// @copydoc StateSpace::EnforceBounds
+		virtual void EnforceBounds(Pose2d& state) override final;
+
+		/// @copydoc StateSpace::ValidateBounds
+		virtual bool ValidateBounds(const Pose2d& state) override final;
+
+		/// @copydoc StateSpace::SampleUniform
+		virtual Pose2d SampleUniform() override final;
+
+		/// @copydoc StateSpace::SampleGaussian
+		virtual Pose2d SampleGaussian(const Pose2d& mean, const Pose2d& stdDev) override final;
 	};
+
 }

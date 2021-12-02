@@ -25,7 +25,7 @@ obstacle_positions.append(obstacle.get_boundary_world_position())
 shape = nav.RectangleShape(10.0, 1.0)
 obstacle = nav.Obstacle()
 obstacle.set_shape(shape)
-obstacle.set_pose(nav.Pose2d(0.0, 7.0, -math.pi / 4.0))
+obstacle.set_pose(nav.Pose2d(0.0, 7.5, -math.pi / 4.0))
 map.add_obstacle(obstacle)
 obstacle_positions.append(obstacle.get_boundary_world_position())
 
@@ -68,11 +68,11 @@ algo.path_interpolation = 0.8
 algo.search_path()
 
 path = algo.get_path()
-graph_search_explored = algo.get_graph_search_explored_set();
+graph_search_explored_path_set = algo.get_graph_search_explored_path_set();
 
 fig, ax = plt.subplots()
 ratios = np.linspace(0.0, 1.0, 10)
-for path in graph_search_explored:
+for path in graph_search_explored_path_set:
 	poses = [path.interpolate(ratio) for ratio in ratios]
 	x = [p.x() for p in poses]
 	y = [p.y() for p in poses]
@@ -91,10 +91,15 @@ for path in graph_search_path:
 
 _ = ax.plot(x, y, color='orange', linewidth = 2, label='Graph search solution')
 
+smoothed_path = algo.get_smoothed_path()
+x = [p.x() for p in smoothed_path]
+y = [p.y() for p in smoothed_path]
+_ = ax.plot(x, y, color='yellow', linewidth = 2, label='Smoothed path')
+
 path = algo.get_path()
 x = [p.x() for p in path]
 y = [p.y() for p in path]
-_ = ax.plot(x, y, color='blue', linewidth = 2, label='Hybrid A* solution')
+_ = ax.plot(x, y, color='blue', linewidth = 2, linestyle = 'dashed', label='Hybrid A* solution')
 
 for position in obstacle_positions:
 	x = [p.x() for p in position]

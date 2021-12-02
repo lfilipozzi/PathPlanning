@@ -8,7 +8,7 @@ namespace Planner {
 	/// @brief Create a consistent pair of heuristic for bidirectional A*.
 	template <typename State>
 	class AverageHeuristic : public AStarConcreteHeuristic<State> {
-		template <typename S, typename HashState, typename EqualState, bool GraphSearch>
+		template <typename S, typename A, typename HashState, typename EqualState, bool GraphSearch>
 		friend class BidirectionalAStar;
 
 	public:
@@ -38,11 +38,11 @@ namespace Planner {
 		double m_constant;
 	};
 
-	template <typename State, typename HashState = std::hash<State>, typename EqualState = std::equal_to<State>, bool GraphSearch = true>
+	template <typename State, typename Action, typename HashState = std::hash<State>, typename EqualState = std::equal_to<State>, bool GraphSearch = true>
 	class BidirectionalAStar : public PathPlanner<State> {
 	protected:
-		class UnidirectionalAStar : public AStar<State, HashState, EqualState, GraphSearch, ExploredMap<State, HashState, EqualState>> {
-			template <typename S, typename HashS, typename EqualS, bool>
+		class UnidirectionalAStar : public AStar<State, Action, HashState, EqualState, GraphSearch, ExploredMap<State, Action, HashState, EqualState>> {
+			template <typename S, typename A, typename HashS, typename EqualS, bool>
 			friend class BidirectionalAStar;
 
 		public:
@@ -72,7 +72,7 @@ namespace Planner {
 		}
 
 		/// @brief Return the set of explored states.
-		std::tuple<ExploredMap<State, HashState, EqualState>, ExploredMap<State, HashState, EqualState>> GetExploredStates() const
+		std::tuple<ExploredMap<State, Action, HashState, EqualState>, ExploredMap<State, Action, HashState, EqualState>> GetExploredStates() const
 		{
 			return std::make_tuple(m_fSearch.GetExploredStates(), m_rSearch.GetExploredStates());
 		}
@@ -84,7 +84,7 @@ namespace Planner {
 		}
 
 		/// @Brief Return the state-propagator used by the algorithm.
-		std::tuple<const Ref<AStarStatePropagator<State>>&, const Ref<AStarStatePropagator<State>>&> GetStatePropagators() const
+		std::tuple<const Ref<AStarStatePropagator<State, Action>>&, const Ref<AStarStatePropagator<State, Action>>&> GetStatePropagators() const
 		{
 			return std::make_tuple(m_fSearch.GetStatePropagator(), m_rSearch.GetStatePropagator());
 		}
@@ -112,7 +112,7 @@ namespace Planner {
 		/// heuristic does not meet this condition, the pair defined by their
 		/// average does and can be constructed from
 		/// BidirectionalAStar::GetAverageHeuristicPair.
-		bool Initialize(const Ref<AStarStatePropagator<State>>& fPropagator, const Ref<AStarStatePropagator<State>>& rPropagator,
+		bool Initialize(const Ref<AStarStatePropagator<State, Action>>& fPropagator, const Ref<AStarStatePropagator<State, Action>>& rPropagator,
 			const Ref<AStarHeuristic<State>>& fHeuristic, const Ref<AStarHeuristic<State>>& rHeuristic)
 		{
 			if (!m_fSearch.Initialize(fPropagator, fHeuristic))
@@ -151,8 +151,6 @@ namespace Planner {
 
 			double bestCost = std::numeric_limits<double>::infinity();
 			while (!m_fSearch.m_frontier.Empty() && !m_rSearch.m_frontier.Empty()) {
-				PP_INFO("Forward: {} in forward frontier, {} in reverse frontier", m_fSearch.m_frontier.Size(), m_rSearch.m_frontier.Size());
-
 				// Forward search
 				auto fNode = m_fSearch.m_frontier.Pop();
 				m_fSearch.Expand(fNode);
@@ -168,8 +166,8 @@ namespace Planner {
 					if (m_fSearch.m_frontier.Empty() || m_rSearch.m_frontier.Empty())
 						return Status::Success;
 
-					double fTopCost = m_fSearch.m_frontier.Top()->meta.pathCost;
-					double rTopCost = m_rSearch.m_frontier.Top()->meta.pathCost;
+					double fTopCost = (*m_fSearch.m_frontier.Top())->pathCost;
+					double rTopCost = (*m_rSearch.m_frontier.Top())->pathCost;
 
 					// Check the stopping criterion
 					if (fTopCost + rTopCost >= bestCost + costOffset)
@@ -180,14 +178,14 @@ namespace Planner {
 		}
 
 	protected:
-		void FindIntersection(AStarNode<State>* nodeA, UnidirectionalAStar& searchA, UnidirectionalAStar& searchB, double& bestPathCost)
+		void FindIntersection(AStarNode<State, Action>* nodeA, UnidirectionalAStar& searchA, UnidirectionalAStar& searchB, double& bestPathCost)
 		{
-			auto it = searchB.m_explored.find(nodeA->GetState());
+			auto it = searchB.m_explored.find((*nodeA)->state);
 			if (it != searchB.m_explored.end()) {
 				auto nodeB = it->second;
 
 				// Check the path of the new candidate path
-				double candidatePathCost = nodeA->meta.pathCost + nodeB->meta.pathCost;
+				double candidatePathCost = (*nodeA)->pathCost + (*nodeB)->pathCost;
 				if (candidatePathCost < bestPathCost) {
 					// This is the new best path
 					bestPathCost = candidatePathCost;

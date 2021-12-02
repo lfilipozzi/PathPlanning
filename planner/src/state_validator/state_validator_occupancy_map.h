@@ -7,18 +7,19 @@
 namespace Planner {
 
 	class OccupancyMap;
+	class StateSpaceSE2;
 
 	/// @brief State validator based on an occupancy map.
-	class StateValidatorOccupancyMap : public PlanarStateValidator {
+	class StateValidatorOccupancyMap : public StateValidatorSE2Base {
 	public:
-		StateValidatorOccupancyMap(const Ref<PlanarStateSpace>& stateSpace, const Ref<OccupancyMap>& map);
+		StateValidatorOccupancyMap(const Ref<StateSpaceSE2>& stateSpace, const Ref<OccupancyMap>& map);
 		~StateValidatorOccupancyMap() = default;
 
 		/// @copydoc Planner::StateValidator::IsStateValid
 		virtual bool IsStateValid(const Pose2d& state) override;
 
 		/// @copydoc Planner::StateValidator::IsPathValid
-		virtual bool IsPathValid(const PlanarPath& path, float* last = nullptr) override;
+		virtual bool IsPathValid(const PathSE2Base& path, float* last = nullptr) override;
 
 		Ref<OccupancyMap>& GetOccupancyMap() { return m_map; }
 

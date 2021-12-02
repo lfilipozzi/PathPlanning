@@ -6,22 +6,26 @@
 
 namespace Planner {
 
-	struct VoidClass {
+	struct NullClass {
 	};
 
 	/// @brief Node
-	template <typename State, typename Metadata = VoidClass>
-	class GenericNode {
+	template <typename T>
+	class Node {
 	public:
-		GenericNode(const State& state) :
-			m_state(state) { }
-		~GenericNode() = default;
+		Node() = default;
+		Node(const T& data) :
+			m_data(data) { }
+		template <typename... Args>
+		Node(Args&&... args) :
+			m_data(T(std::forward<Args>(args)...)) { }
+		~Node() = default;
 
 		/// @brief Perform a pre-order traversal of the tree whose root node
 		/// is *this.
 		/// @param func Function to apply.
 		template <typename Func>
-		void PreOrderTraversal(Func& func) const
+		void PreOrderTraversal(Func func) const
 		{
 			func(*this);
 			for (auto& child : m_children) {
@@ -33,7 +37,7 @@ namespace Planner {
 		/// is *this.
 		/// @param func Function to apply.
 		template <typename Func>
-		void PostOrderTraversal(Func& func) const
+		void PostOrderTraversal(Func func) const
 		{
 			for (auto& child : m_children) {
 				child->PostOrderTraversal(func);
@@ -46,7 +50,7 @@ namespace Planner {
 		[[nodiscard]] unsigned int GetDepth() const
 		{
 			unsigned int depth = 0;
-			for (GenericNode* parent = m_parent; parent != nullptr; parent = parent->m_parent) {
+			for (Node* parent = m_parent; parent != nullptr; parent = parent->m_parent) {
 				depth++;
 			}
 			return depth;
@@ -54,21 +58,21 @@ namespace Planner {
 
 		/// @brief Return the parent of the node.
 		/// @return The parent of the node.
-		const GenericNode* GetParent() const { return m_parent; }
-		GenericNode* GetParent() { return m_parent; }
+		const Node* GetParent() const { return m_parent; }
+		Node* GetParent() { return m_parent; }
 
 		/// @brief Return the children of the node.
 		/// @return The children of the node.
-		const std::vector<Scope<GenericNode>>& GetChildren() const { return m_children; }
+		const std::vector<Scope<Node>>& GetChildren() const { return m_children; }
 
 		/// @brief Return the previous sibling of the node.
 		/// @return The previous sibling of the node.
-		const GenericNode* GetPrevious() const
+		const Node* GetPrevious() const
 		{
 			if (m_parent == nullptr)
 				return nullptr;
 			auto& siblings = m_parent->m_children;
-			auto it = std::find_if(siblings.begin(), siblings.end(), [this](const Scope<GenericNode>& object) { return object.get() == this; });
+			auto it = std::find_if(siblings.begin(), siblings.end(), [this](const Scope<Node>& object) { return object.get() == this; });
 			if (it == siblings.begin())
 				return nullptr;
 			return (--it)->get();
@@ -76,12 +80,12 @@ namespace Planner {
 
 		/// @brief Return the next sibling of the node.
 		/// @return The next sibling of the node.
-		const GenericNode* GetNext() const
+		const Node* GetNext() const
 		{
 			if (m_parent == nullptr)
 				return nullptr;
 			auto& siblings = m_parent->m_children;
-			auto it = std::find_if(siblings.rbegin(), siblings.rend(), [this](const Scope<GenericNode>& object) { return object.get() == this; });
+			auto it = std::find_if(siblings.rbegin(), siblings.rend(), [this](const Scope<Node>& object) { return object.get() == this; });
 			if (it == siblings.rbegin())
 				return nullptr;
 			return (--it)->get();
@@ -89,23 +93,23 @@ namespace Planner {
 
 		/// @brief Return the first children of the node.
 		/// @return The first children of the node.
-		const GenericNode* GetFirst() const
+		const Node* GetFirst() const
 		{
 			if (m_children.empty())
 				return nullptr;
 			return m_children[0].get();
 		}
 
-		/// @brief Return the state of the node.
-		/// @return The state of the node.
-		const State& GetState() const { return m_state; }
-		State& GetState() { return m_state; }
+		T& operator*() { return m_data; }
+		const T& operator*() const { return m_data; }
+		T* operator->() { return &m_data; }
+		const T* operator->() const { return &m_data; }
 
 		/// @brief Check if the current node if a child of @node.
 		/// @return True if the @this is a child of @node, false otherwise.
-		[[nodiscard]] bool IsDescendantOf(const GenericNode* const node) const
+		[[nodiscard]] bool IsDescendantOf(const Node* const node) const
 		{
-			GenericNode* parent = m_parent;
+			Node* parent = m_parent;
 			while (parent != nullptr) {
 				if (parent == node)
 					return true;
@@ -116,7 +120,7 @@ namespace Planner {
 
 		/// @brief Check if the current node is a parent of @node.
 		/// @return True if @this is a parent of @node, false otherwise.
-		[[nodiscard]] bool IsAncestorOf(const GenericNode* const node) const
+		[[nodiscard]] bool IsAncestorOf(const Node* const node) const
 		{
 			return node->IsDescendantOf(this);
 		}
@@ -124,11 +128,12 @@ namespace Planner {
 		/// @brief Set @node as a child of the current node.
 		/// @details Change the ownership of the node.
 		/// @return The child node.
-		GenericNode* AddChild(Scope<GenericNode>&& node)
+		Node* AddChild(Scope<Node>&& node)
 		{
-			node->m_parent = this;
 			m_children.push_back(std::move(node));
-			return m_children.back().get();
+			Node* nodePtr = m_children.back().get();
+			nodePtr->m_parent = this;
+			return nodePtr;
 		}
 
 		/// @brief Remove the node @node. @node must be a child of the
@@ -138,9 +143,9 @@ namespace Planner {
 		/// @param node The child to remove.
 		/// @return A smart pointer owning the removed child and its possible
 		/// children.
-		Scope<GenericNode> RemoveChild(GenericNode* node)
+		Scope<Node> RemoveChild(Node* node)
 		{
-			Scope<GenericNode> childScope;
+			Scope<Node> childScope;
 			for (auto it = m_children.begin(); it != m_children.end(); it++) {
 				if (it->get() == node) {
 					childScope = std::move(*it);
@@ -163,9 +168,9 @@ namespace Planner {
 		/// @param adoptGrandchildren Boolean, if set to true, the children of @brat
 		/// are moved to children of @changeling.
 		/// @return A Scope owning @brat.
-		Scope<GenericNode> ReplaceChild(GenericNode* brat, Scope<GenericNode>&& changeling, bool adoptGrandchildren = true)
+		Scope<Node> ReplaceChild(Node* brat, Scope<Node>&& changeling, bool adoptGrandchildren = true)
 		{
-			Scope<GenericNode> bratScope;
+			Scope<Node> bratScope;
 			for (auto it = m_children.begin(); it != m_children.end(); it++) {
 				if (it->get() == brat) {
 					bratScope = std::move(*it);
@@ -195,19 +200,20 @@ namespace Planner {
 		/// @param child The child node.
 		/// @param newParent The new parent of child.
 		/// @param rootNode The root node of the tree.
-		static void Reparent(GenericNode* child, GenericNode* newParent, Scope<GenericNode>& rootNode)
+		static void Reparent(Node* child, Node* newParent, Scope<Node>& rootNode)
 		{
 			// Delete parenthood between child and its parent or de-anchor this node as the root node
-			GenericNode* oldParent = child->GetParent();
-			Scope<GenericNode> childScope;
+			Node* const oldParent = child->GetParent();
+			Scope<Node> childScope;
 			if (oldParent)
 				childScope = oldParent->RemoveChild(child);
 			else
 				childScope = std::move(rootNode);
 
-			// The hierarchy must be modified if newParent is a child of child
+			// The hierarchy must be modified if newParent is a child of child.
+			// Add it as a child of oldParent or anchor it as the root node
 			if (newParent->IsDescendantOf(child)) {
-				Scope<GenericNode> newParentScope = newParent->GetParent()->RemoveChild(newParent);
+				Scope<Node> newParentScope = newParent->GetParent()->RemoveChild(newParent);
 				if (oldParent)
 					oldParent->AddChild(std::move(newParentScope));
 				else
@@ -218,12 +224,11 @@ namespace Planner {
 			newParent->AddChild(std::move(childScope));
 		}
 
-	public:
-		Metadata meta;
+	protected:
+		T m_data;
 
 	private:
-		std::vector<Scope<GenericNode>> m_children;
-		State m_state;
-		GenericNode* m_parent = nullptr;
+		std::vector<Scope<Node>> m_children;
+		Node* m_parent = nullptr;
 	};
 }

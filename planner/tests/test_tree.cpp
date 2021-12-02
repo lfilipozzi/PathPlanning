@@ -4,10 +4,11 @@
 
 namespace Planner {
 	using Vertex = Point2d;
+	using VertexTree = Tree<Vertex, 2>;
 
 	void TestNodeGetDepth()
 	{
-		Planner::Tree<Vertex, 2> tree;
+		VertexTree tree;
 
 		Vertex pointA = { 0, 0 };
 		Vertex pointB = { 1, 0 };
@@ -27,7 +28,7 @@ namespace Planner {
 
 	void TestNodeIsDescendantOf()
 	{
-		Planner::Tree<Vertex, 2> tree;
+		VertexTree tree;
 
 		Vertex pointA = { 0, 0 };
 		Vertex pointB = { 1, 0 };
@@ -46,7 +47,7 @@ namespace Planner {
 
 	void TestNodeIsAncestorOf()
 	{
-		Planner::Tree<Vertex, 2> tree;
+		VertexTree tree;
 
 		Vertex pointA = { 0, 0 };
 		Vertex pointB = { 1, 0 };
@@ -65,7 +66,7 @@ namespace Planner {
 
 	void TestNodeReplaceChild()
 	{
-		Planner::Tree<Vertex, 2> tree;
+		VertexTree tree;
 
 		Vertex pointA = { 0, 0 };
 		Vertex pointB = { 1, 0 };
@@ -76,9 +77,9 @@ namespace Planner {
 		auto nodeA = tree.CreateRootNode(pointA);
 		auto nodeB = tree.Extend(pointB, nodeA);
 		auto nodeC = tree.Extend(pointC, nodeB);
-		auto nodeD = tree.Extend(pointD, nodeC);
+		[[maybe_unused]] auto nodeD = tree.Extend(pointD, nodeC);
 
-		auto scopeE = makeScope<GenericNode<Vertex>>(pointE);
+		auto scopeE = makeScope<VertexTree::Node>(pointE);
 		auto nodeE = scopeE.get();
 		auto scope = nodeA->ReplaceChild(nodeB, std::move(scopeE), true);
 

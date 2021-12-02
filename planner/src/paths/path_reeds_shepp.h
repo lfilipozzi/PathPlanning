@@ -4,18 +4,18 @@
 #include "geometry/reeds_shepp.h"
 
 namespace Planner {
-	class PathReedsShepp : public PlanarNonHolonomicPath {
+	class PathReedsShepp : public PathNonHolonomicSE2Base {
 	public:
 		PathReedsShepp(const Pose2d& init, const ReedsShepp::PathSegment& pathSegment, double minTurningRadius);
 
 		/// @copydoc Planner::Path::Interpolate
 		virtual Pose2d Interpolate(double ratio) const override;
-		using PlanarNonHolonomicPath::Interpolate;
+		using PathNonHolonomicSE2Base::Interpolate;
 		/// @copydoc Planer::Path::Truncate
 		virtual void Truncate(double ratio) override;
-		/// @copydoc Planer::PlanarNonHolonomicPath::GetCuspPointRatios
+		/// @copydoc Planer::PathNonHolonomic::GetCuspPointRatios
 		virtual std::set<double> GetCuspPointRatios() const override;
-		/// @copydoc Planner::PlanarNonHolonomicPath::GetDirection
+		/// @copydoc Planner::PathNonHolonomic::GetDirection
 		virtual Direction GetDirection(double ratio) const override;
 
 		/// @brief Compute the cost associated to the path.
@@ -37,16 +37,16 @@ namespace Planner {
 		double m_minTurningRadius = 1;
 	};
 
-	class ReedsSheppConnection : public PlanarPathConnection {
+	class PathConnectionReedsShepp : public PathConnectionSE2Base {
 	public:
-		ReedsSheppConnection(double minTurningRadius = 1.0, double directionSwitchingCost = 0.0,
+		PathConnectionReedsShepp(double minTurningRadius = 1.0, double directionSwitchingCost = 0.0,
 			double reverseCostMultiplier = 1.0, double forwardCostMultiplier = 1.0) :
 			m_minTurningRadius(minTurningRadius),
 			m_directionSwitchingCost(directionSwitchingCost),
 			m_reverseCostMultiplier(reverseCostMultiplier), m_forwardCostMultiplier(forwardCostMultiplier) { }
 
 		/// @copydoc Planner::PathConnection::Connect
-		virtual Ref<PlanarPath> Connect(const Pose2d& from, const Pose2d& to) override;
+		virtual Ref<PathSE2Base> Connect(const Pose2d& from, const Pose2d& to) override;
 
 	private:
 		double m_minTurningRadius;

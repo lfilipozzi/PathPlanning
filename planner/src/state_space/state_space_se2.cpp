@@ -1,7 +1,7 @@
-#include "state_space/state_space.h"
+#include "state_space/state_space_se2.h"
 
 namespace Planner {
-	void PlanarStateSpace::EnforceBounds(Pose2d& state)
+	void StateSpaceSE2::EnforceBounds(Pose2d& state)
 	{
 		auto lb = bounds[0];
 		auto ub = bounds[1];
@@ -12,8 +12,7 @@ namespace Planner {
 		// clang-format on
 	}
 
-	/// @copydoc StateSpace::ValidateBounds
-	bool PlanarStateSpace::ValidateBounds(const Pose2d& state)
+	bool StateSpaceSE2::ValidateBounds(const Pose2d& state)
 	{
 		auto lb = bounds[0];
 		auto ub = bounds[1];
@@ -25,8 +24,7 @@ namespace Planner {
 		return true;
 	}
 
-	/// @copydoc StateSpace::SampleUniform
-	Pose2d PlanarStateSpace::SampleUniform()
+	Pose2d StateSpaceSE2::SampleUniform()
 	{
 		Pose2d state;
 		auto lb = bounds[0];
@@ -39,8 +37,7 @@ namespace Planner {
 		return state;
 	}
 
-	/// @copydoc StateSpace::SampleGaussian
-	 Pose2d PlanarStateSpace::SampleGaussian(const Pose2d& mean, const Pose2d& stdDev)
+	 Pose2d StateSpaceSE2::SampleGaussian(const Pose2d& mean, const Pose2d& stdDev)
 	{
 		Pose2d state;
 		auto lb = bounds[0];

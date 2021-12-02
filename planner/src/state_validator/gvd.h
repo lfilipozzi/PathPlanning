@@ -118,31 +118,31 @@ namespace Planner {
 		void Update();
 
 		/// @brief Return the position to the nearest obstacle.
-		/// @details Note that no check is performed on the cell position.
+		/// @warning Note that no check is performed on the cell position.
 		inline const GridCellPosition& GetNearestObstacleCell(int row, int col) const { return m_obstacleMap->GetNearestObstacleCell(row, col); }
 		/// @overload
 		inline const GridCellPosition& GetNearestObstacleCell(const GridCellPosition& position) const { return m_obstacleMap->GetNearestObstacleCell(position); }
 
 		/// @brief Return the position to the nearest Voronoi edge.
-		/// @details Note that no check is performed on the cell position.
+		/// @warning Note that no check is performed on the cell position.
 		inline const GridCellPosition& GetNearestVoronoiEdgeCell(int row, int col) const { return m_voronoiMap->GetNearestVoronoiEdgeCell(row, col); }
 		/// @overload
 		inline const GridCellPosition& GetNearestVoronoiEdgeCell(const GridCellPosition& position) const { return m_voronoiMap->GetNearestVoronoiEdgeCell(position); }
 
 		/// @brief Return the distance to the nearest obstacle
-		/// @details Note that no check is performed on the cell position.
+		/// @warning Note that no check is performed on the cell position.
 		inline float GetDistanceToNearestObstacle(int row, int col) const { return m_obstacleMap->GetDistanceToNearestObstacle(row, col); }
 		/// @overload
 		inline float GetDistanceToNearestObstacle(const GridCellPosition& position) const { return m_obstacleMap->GetDistanceToNearestObstacle(position); }
 
 		/// @brief Return the distance to the nearest Voronoi edge.
-		/// @details Note that no check is performed on the cell position.
+		/// @warning Note that no check is performed on the cell position.
 		inline float GetDistanceToNearestVoronoiEdge(int row, int col) const { return m_voronoiMap->GetDistanceToNearestVoronoiEdge(row, col); }
 		/// @overload
 		inline float GetDistanceToNearestVoronoiEdge(const GridCellPosition& position) const { return m_voronoiMap->GetDistanceToNearestVoronoiEdge(position); }
 
 		/// @brief Return the value of the Voronoi potential field.
-		/// @details Note that no check is performed on the cell position.
+		/// @warning Note that no check is performed on the cell position.
 		inline float GetPathCost(int row, int col) const { return m_pathCostMap[row][col]; }
 		/// @overload
 		inline float GetPathCost(const GridCellPosition& position) const { return GetPathCost(position.row, position.col); }

@@ -1,48 +1,23 @@
 #pragma once
 
 #include "algo/path_planner.h"
+#include "paths/path.h"
 #include "state_space/state_space.h"
+#include "state_validator/state_validator.h"
 #include "utils/tree.h"
 
 namespace Planner {
 
-	/// @brief Interface to sample the configuration space as required by RRT
-	/// algorithms.
-	template <typename Vertex>
-	class RRTStateSpace {
-	public:
-		virtual ~RRTStateSpace() = default;
-
-		// TODO FIXME Use StateSpace and StateValidator to implement those functions in RRT and delete RRTStateSpace
-		/// @brief Calculate the distance between two states
-		/// @param from The start state.
-		/// @param to The end state.
-		/// @return The distance between the states
-		virtual double ComputeDistance(const Vertex& from, const Vertex& to) const = 0;
-
-		/// @brief Check if there exist a valid transition between two states.
-		/// @param from The initial state.
-		/// @param to The destination state.
-		/// @return True if the transition is valid, false otherwise.
-		virtual bool IsTransitionCollisionFree(const Vertex& from, const Vertex& to) = 0;
-
-		/// @brief Generate a random state within the configuration space.
-		/// @details The sample must not be inside an obstacle.
-		/// @return A random state.
-		virtual Vertex Sample() = 0;
-
-		/// @brief Construct a new state by moving an incremental distance
-		/// from @source towards @target.
-		/// @details The path is not assumed to bring exactly to target but it
-		/// must evolve towards it.
-		/// @return The new state.
-		virtual Vertex SteerTowards(const Vertex& source, const Vertex& target) = 0;
-	};
-
 	/// @brief Tunable parameters of the RRT algorithm.
 	struct RRTParameters {
+		/// @brief Maximum number of iterations
 		unsigned int maxIteration = 100;
-		double optimalSolutionTolerance = 1;
+		/// @brief Maximum number of nodes in the search tree
+		unsigned int maxNumberTreeNode = 1e4;
+		/// @brief Maximum length of a motion allowed in the tree
+		double maxConnectionDistance = 0.1;
+		/// @brief Probability of choosing goal state during state sampling
+		double goalBias = 0.05;
 	};
 
 	/// @brief Implementation of the Rapidly-exploring Random Trees (RRT).
@@ -51,13 +26,26 @@ namespace Planner {
 		unsigned int Dimensions,
 		typename Hash = std::hash<Vertex>,
 		typename Equal = std::equal_to<Vertex>,
-		typename VertexType = double>
+		typename DataType = double>
 	class RRT : public PathPlanner<Vertex> {
+	protected:
+		struct NodeInfo {
+			/// @brief Path connecting the previous state to the current state.
+			Ref<Path<Vertex>> path;
+		};
+
 	public:
 		/// @brief Constructor.
-		/// @param stateSpace
-		RRT(const Ref<RRTStateSpace<Vertex>>& stateSpace) :
-			m_stateSpace(stateSpace) {};
+		RRT(const Ref<StateSpace<Vertex, Dimensions, DataType>>& stateSpace,
+			const Ref<StateValidator<Vertex, Dimensions, DataType>>& stateValidator,
+			const Ref<PathConnection<Vertex>>& pathConnection) :
+			m_stateSpace(stateSpace),
+			m_stateValidator(stateValidator),
+			m_pathConnection(pathConnection)
+		{
+			Random<DataType>::Init();
+			Random<double>::Init();
+		};
 		virtual ~RRT() = default;
 
 		RRTParameters GetParameters() { return m_parameters; }
@@ -66,23 +54,38 @@ namespace Planner {
 
 		virtual Status SearchPath() override
 		{
+			Clear();
+
 			m_tree.CreateRootNode(this->m_init);
 
-			for (unsigned int k = 0; k < m_parameters.maxIteration; k++) {
+			int count = -1;
+			while (true) {
+				count++;
+				if (count > m_parameters.maxIteration) {
+					return Status::Failure;
+				}
+				if (m_tree.Size() > m_parameters.maxNumberTreeNode) {
+					return Status::Failure;
+				}
+
 				// Create a random configuration
-				Vertex randomState = m_stateSpace->Sample();
+				Vertex randomState = Random<double>::SampleUniform(0, 1) < m_parameters.goalBias ? this->m_goal : m_stateSpace->SampleUniform();
 				// Find the nearest node in the tree
-				auto nearestNode = m_tree.GetNearestNode(randomState);
+				TreeNode* const nearestNode = m_tree.GetNearestNode(randomState);
 				if (!nearestNode)
 					continue;
-				// Extend the tree toward randomState by creating a valid new node with obstacle-free path
-				auto newState = m_stateSpace->SteerTowards(nearestNode->GetState(), randomState);
-				if (!m_stateSpace->IsTransitionCollisionFree(nearestNode->GetState(), newState))
+				// Create a new state towards the direction of randomState
+				auto pathNearToNew = SteerTowards((*nearestNode)->state, randomState, m_parameters.maxConnectionDistance);
+				if (!m_stateValidator->IsPathValid(*pathNearToNew))
 					continue;
-				auto newNode = m_tree.Extend(newState, nearestNode);
+				const Vertex& newState = pathNearToNew->GetFinalState();
+
+				// Add the node to the tree
+				TreeNode* newNode = m_tree.Extend(newState, nearestNode);
+				(*newNode)->info.path = std::move(pathNearToNew);
 
 				// Check solution
-				if (m_stateSpace->ComputeDistance(newState, this->m_goal) < m_parameters.optimalSolutionTolerance) {
+				if (IsSolution(newState)) {
 					m_solutionNode = newNode;
 					return Status::Success;
 				}
@@ -95,6 +98,8 @@ namespace Planner {
 		{
 			std::vector<Vertex> path;
 
+			// TODO interpolate path
+
 			auto node = m_solutionNode;
 			if (!node)
 				return path;
@@ -102,23 +107,50 @@ namespace Planner {
 			unsigned int depth = m_solutionNode->GetDepth();
 			path.resize(depth + 1);
 			for (auto it = path.rbegin(); it != path.rend(); it++) {
-				*it = node->GetState();
+				*it = (*node)->state;
 				node = node->GetParent();
 			}
 			return path;
 		}
 
+	protected:
 		void Clear()
 		{
 			m_tree.Clear();
 			m_solutionNode = nullptr;
 		}
 
-	private:
-		RRTParameters m_parameters;
-		Ref<RRTStateSpace<Vertex>> m_stateSpace;
+		/// @brief Check if the node is a solution.
+		/// @return true is the node is a solution.
+		inline virtual bool IsSolution(const Vertex& state)
+		{
+			return (state - this->m_goal).norm() < 1;
+		}
 
-		Tree<Vertex, Dimensions, VoidClass, Hash, Equal, VertexType> m_tree;
-		typename Tree<Vertex, Dimensions, VoidClass, Hash, Equal, VertexType>::Node* m_solutionNode = nullptr;
+		/// @brief Construct a new state by moving an incremental distance
+		/// from @from towards @to.
+		inline virtual Ref<Path<Vertex>> SteerTowards(const Vertex& from, const Vertex& to, double distance)
+		{
+			auto path = m_pathConnection->Connect(from, to);
+			if (path->GetLength() > 0) {
+				double ratio = std::clamp(distance / path->GetLength(), 0.0, 1.0);
+				path->Truncate(ratio);
+			}
+			return path;
+		}
+
+	protected:
+		RRTParameters m_parameters;
+		Ref<StateSpace<Vertex, Dimensions, DataType>> m_stateSpace;
+		Ref<StateValidator<Vertex, Dimensions, DataType>> m_stateValidator;
+		Ref<PathConnection<Vertex>> m_pathConnection;
+
+		using TreeDeclType = Tree<Vertex, Dimensions, NodeInfo, Hash, Equal, DataType>;
+		TreeDeclType m_tree;
+		using TreeNode = typename Tree<Vertex, Dimensions, NodeInfo, Hash, Equal, DataType>::Node;
+		TreeNode* m_solutionNode = nullptr;
 	};
+
+	using RRTR2 = RRT<Point2d, 2>;
+	// using RRTSE2 = RRT<Pose2d, 3>;
 }

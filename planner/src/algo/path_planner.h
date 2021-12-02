@@ -40,6 +40,7 @@ namespace Planner {
 		Vertex m_goal;
 	};
 
-	using PlanarPathPlanner = PathPlanner<Pose2d>;
-	using GridPathPlanner = PathPlanner<GridCellPosition>;
+	using PathPlannerN2Base = PathPlanner<GridCellPosition>;
+	using PathPlannerR2Base = PathPlanner<Point2d>;
+	using PathPlannerSE2Base = PathPlanner<Pose2d>;
 }

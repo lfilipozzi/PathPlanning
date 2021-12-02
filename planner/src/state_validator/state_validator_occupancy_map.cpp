@@ -1,9 +1,10 @@
 #include "state_validator/state_validator_occupancy_map.h"
 #include "state_validator/occupancy_map.h"
+#include "state_space/state_space_se2.h"
 
 namespace Planner {
-	StateValidatorOccupancyMap::StateValidatorOccupancyMap(const Ref<PlanarStateSpace>& stateSpace, const Ref<OccupancyMap>& map) :
-		PlanarStateValidator(stateSpace)
+	StateValidatorOccupancyMap::StateValidatorOccupancyMap(const Ref<StateSpaceSE2>& stateSpace, const Ref<OccupancyMap>& map) :
+		StateValidatorSE2Base(stateSpace)
 	{
 		m_map = map;
 		float width = stateSpace->bounds[1].position.x() - stateSpace->bounds[0].position.x();
@@ -24,8 +25,10 @@ namespace Planner {
 		return distance >= minSafeRadius;
 	}
 
-	bool StateValidatorOccupancyMap::IsPathValid(const PlanarPath& path, float* last)
+	bool StateValidatorOccupancyMap::IsPathValid(const PathSE2Base& path, float* last)
 	{
+		PP_PROFILE_FUNCTION();
+
 		const auto& bounds = m_stateSpace->bounds;
 		const double pathLength = path.GetLength();
 		if (pathLength == 0.0) {
@@ -38,7 +41,6 @@ namespace Planner {
 		double length = 0.0;
 		while (length < pathLength) {
 			Pose2d state = path.Interpolate(length / pathLength);
-			GridCellPosition cell = m_map->WorldPositionToGridCell(state.position);
 
 			// Check current state
 			if (!IsStateValid(state)) {
@@ -56,6 +58,7 @@ namespace Planner {
 				bounds[1].y() - state.y(),
 			});
 			// TODO add offset
+			GridCellPosition cell = m_map->WorldPositionToGridCell(state.position);
 			float distance = m_map->GetObstacleDistanceMap()->GetDistanceToNearestObstacle(cell);
 			float deltaLength = distance - minSafeRadius;
 			deltaLength = std::min(deltaLength, distToMapBorder);

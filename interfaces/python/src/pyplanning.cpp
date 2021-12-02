@@ -4,20 +4,21 @@
 #include <pybind11/functional.h>
 
 #include "core/base.h"
+
 #include "algo/path_planner.h"
 #include "algo/hybrid_a_star.h"
-#include "algo/planar_a_star_grid.h"
+#include "algo/a_star_n2.h"
 
 #include "geometry/2dplane.h"
 
 #include "models/kinematic_bicycle_model.h"
 
 #include "paths/path.h"
+#include "paths/path_se2.h"
 #include "paths/path_reeds_shepp.h"
 #include "paths/path_constant_steer.h"
 
 #include "state_space/state_space.h"
-#include "state_space/state_space_reeds_shepp.h"
 #include "state_space/state_space_se2.h"
 
 #include "state_validator/occupancy_map.h"
@@ -56,18 +57,18 @@ PYBIND11_MODULE(pyplanning, m)
 		.value("SUCCESS", Status::Success)
 		.value("FAILURE", Status::Failure);
 
-	struct PlanarPathPlannerWrapper : PlanarPathPlanner {
-		using PlanarPathPlanner::PlanarPathPlanner;
-		virtual Status SearchPath() override { PYBIND11_OVERRIDE_PURE(Status, PlanarPathPlanner, SearchPath); }
-		virtual std::vector<Pose2d> GetPath() const override { PYBIND11_OVERRIDE_PURE(std::vector<Pose2d>, PlanarPathPlanner, GetPath); }
+	struct PathPlannerSE2BaseWrapper : PathPlannerSE2Base {
+		using PathPlannerSE2Base::PathPlannerSE2Base;
+		virtual Status SearchPath() override { PYBIND11_OVERRIDE_PURE(Status, PathPlannerSE2Base, SearchPath); }
+		virtual std::vector<Pose2d> GetPath() const override { PYBIND11_OVERRIDE_PURE(std::vector<Pose2d>, PathPlannerSE2Base, GetPath); }
 	};
 
-	class_<PlanarPathPlanner, PlanarPathPlannerWrapper>(m, "PlanarPathPlanner")
+	class_<PathPlannerSE2Base, PathPlannerSE2BaseWrapper>(m, "PathPlannerSE2Base")
 		.def(init<>())
-		.def("search_path", &PlanarPathPlanner::SearchPath)
-		.def("get_path", &PlanarPathPlanner::GetPath)
-		.def("set_init_state", &PlanarPathPlanner::SetInitState)
-		.def("set_goal_state", &PlanarPathPlanner::SetGoalState);
+		.def("search_path", &PathPlannerSE2Base::SearchPath)
+		.def("get_path", &PathPlannerSE2Base::GetPath)
+		.def("set_init_state", &PathPlannerSE2Base::SetInitState)
+		.def("set_goal_state", &PathPlannerSE2Base::SetGoalState);
 
 	class_<HybridAStar::SearchParameters>(m, "HybridAStarSearchParameters")
 		.def(init<>())
@@ -95,53 +96,91 @@ PYBIND11_MODULE(pyplanning, m)
 		.def_readwrite("collision_ratio", &Smoother::Parameters::collisionRatio)
 		.def_readonly("max_curvature", &Smoother::Parameters::maxCurvature);
 
-	class_<HybridAStar, PlanarPathPlanner>(m, "HybridAStar")
+	class_<HybridAStar::Stats>(m, "HybridAStarStats")
+		.def_readonly("graph_search_status", &HybridAStar::Stats::graphSearchStatus)
+		.def_readonly("smoothing_status", &HybridAStar::Stats::smoothingStatus);
+
+	enum_<Smoother::Status>(m, "SmoothingStatus")
+		.value("MAX_ITERATION", Smoother::Status::MaxIteration)
+		.value("STEP_TOLERANCE", Smoother::Status::StepTolerance)
+		.value("PATH_SIZE", Smoother::Status::PathSize)
+		.value("FAILURE", Smoother::Status::Failure)
+		.value("COLLISION", Smoother::Status::Collision);
+
+	class_<HybridAStar, PathPlannerSE2Base>(m, "HybridAStar")
 		.def(init<>())
 		.def(init<const HybridAStar::SearchParameters&>())
 		.def("initialize", &HybridAStar::Initialize)
 		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation)
-		.def("get_graph_search_explored_set", &HybridAStar::GetGraphSearchExploredSet)
+		.def("get_stats", &HybridAStar::GetStats)
+		.def("get_graph_search_explored_path_set", &HybridAStar::GetGraphSearchExploredPathSet)
 		.def("get_graph_search_path", &HybridAStar::GetGraphSearchPath)
 		.def("get_graph_search_optimal_cost", &HybridAStar::GetGraphSearchOptimalCost)
+		.def("get_smoothed_path", &HybridAStar::GetSmoothedPath)
 		.def("get_search_parameters", &HybridAStar::GetSearchParameters)
 		.def_property("smoother_parameters", &HybridAStar::GetSmootherParameters, &HybridAStar::SetSmootherParameters)
 		.def("visualize_obstacle_heuristic", &HybridAStar::VisualizeObstacleHeuristic);
 
-	struct GridPathPlannerWrapper : GridPathPlanner {
-		using GridPathPlanner::GridPathPlanner;
-		virtual Status SearchPath() override { PYBIND11_OVERRIDE_PURE(Status, GridPathPlanner, SearchPath); }
-		virtual std::vector<GridCellPosition> GetPath() const override { PYBIND11_OVERRIDE_PURE(std::vector<GridCellPosition>, GridPathPlanner, GetPath); }
+	struct PathPlannerN2BaseWrapper : PathPlannerN2Base {
+		using PathPlannerN2Base::PathPlannerN2Base;
+		virtual Status SearchPath() override { PYBIND11_OVERRIDE_PURE(Status, PathPlannerN2Base, SearchPath); }
+		virtual std::vector<GridCellPosition> GetPath() const override { PYBIND11_OVERRIDE_PURE(std::vector<GridCellPosition>, PathPlannerN2Base, GetPath); }
 	};
 
-	class_<GridPathPlanner, GridPathPlannerWrapper>(m, "GridPathPlanner")
-		.def(init<>())
-		.def("search_path", &GridPathPlanner::SearchPath)
-		.def("get_path", &GridPathPlanner::GetPath)
-		.def("set_init_state", &GridPathPlanner::SetInitState)
-		.def("set_goal_state", &GridPathPlanner::SetGoalState);
+	using AStarHeuristicN2 = AStarHeuristic<GridCellPosition>;
+	struct AStarHeuristicN2Wrapper : AStarHeuristicN2 {
+		using AStarHeuristicN2::AStarHeuristicN2;
+		virtual double GetHeuristicValue(const GridCellPosition& state) override { PYBIND11_OVERRIDE_PURE(double, AStarHeuristicN2, GetHeuristicValue, state); }
+		virtual void SetGoal(const GridCellPosition& goal) override { PYBIND11_OVERRIDE_PURE(void, AStarHeuristicN2, SetGoal, goal); }
+	};
 
-	struct PyPlanarAStarGrid : public PlanarAStarGrid {
-		using PlanarAStarGrid::PlanarAStarGrid;
+	class_<AStarHeuristicN2, Ref<AStarHeuristicN2>, AStarHeuristicN2Wrapper>(m, "AStarHeuristicN2")
+		.def(init<>());
+
+	class_<AStarHeuristicFcnN2, Ref<AStarHeuristicFcnN2>, AStarHeuristicN2>(m, "AStarHeuristicFcnN2")
+		.def(init<std::function<double(const GridCellPosition&, const GridCellPosition&)>>());
+
+	using AStarStatePropagatorN2 = AStarStatePropagator<GridCellPosition>;
+	struct AStarStatePropagatorN2Wrapper : AStarStatePropagatorN2 {
+		using AStarStatePropagatorN2::AStarStatePropagatorN2;
+		using ReturnType = std::vector<std::tuple<GridCellPosition, NullAction, double>>;
+		virtual ReturnType GetNeighborStates(const GridCellPosition& cell) override { PYBIND11_OVERRIDE_PURE(ReturnType, AStarStatePropagatorN2, GetNeighborStates, cell); }
+	};
+
+	class_<AStarStatePropagatorN2, Ref<AStarStatePropagatorN2>, AStarStatePropagatorN2Wrapper>(m, "AStarStatePropagatorN2")
+		.def(init<>());
+
+	class_<AStarStatePropagatorFcnN2, Ref<AStarStatePropagatorFcnN2>, AStarStatePropagatorN2>(m, "AStarStatePropagatorFcnN2")
+		.def(init<const Ref<OccupancyMap>&, const std::function<double(const GridCellPosition&, const GridCellPosition&)>&>());
+
+	class_<PathPlannerN2Base, PathPlannerN2BaseWrapper>(m, "PathPlannerN2Base")
+		.def(init<>())
+		.def("search_path", &PathPlannerN2Base::SearchPath)
+		.def("get_path", &PathPlannerN2Base::GetPath)
+		.def("set_init_state", &PathPlannerN2Base::SetInitState)
+		.def("set_goal_state", &PathPlannerN2Base::SetGoalState);
+
+	// Create GetExploredStates to return a std::unordered_set
+	struct PyAStarN2 : public AStarN2 {
+		using AStarN2::AStarN2;
 		const std::unordered_set<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>>& GetExploredStates() const { return m_explored; }
 	};
 
-	class_<PyPlanarAStarGrid, GridPathPlanner>(m, "PlanarAStarGrid")
+	class_<PyAStarN2, PathPlannerN2Base>(m, "AStarN2")
 		.def(init<>())
-		.def<bool (PlanarAStarGrid::*)(
-			const Ref<OccupancyMap>&,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&)>("initialize", &PlanarAStarGrid::Initialize)
-		.def("get_explored_states", &PyPlanarAStarGrid::GetExploredStates)
-		.def("get_optimal_cost", &PlanarAStarGrid::GetOptimalCost);
+		.def("initialize", &AStarN2::Initialize)
+		.def("get_explored_states", &PyAStarN2::GetExploredStates)
+		.def("get_optimal_cost", &AStarN2::GetOptimalCost);
 
-	struct PyPlanarBidirectionalAStarGrid : public PlanarBidirectionalAStarGrid {
-		using PlanarBidirectionalAStarGrid::PlanarBidirectionalAStarGrid;
+	// Create GetExploredStates to return a std::unordered_set
+	struct PyBidirectionalAStarN2 : public BidirectionalAStarN2 {
+		using BidirectionalAStarN2::BidirectionalAStarN2;
 		std::tuple<std::unordered_set<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>>,
 			std::unordered_set<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>>>
 		GetExploredStates()
 		{
 			std::unordered_set<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>> fExplored, rExplored;
-			auto [fExploredMap, rExploredMap] = PlanarBidirectionalAStarGrid::GetExploredStates();
+			auto [fExploredMap, rExploredMap] = BidirectionalAStarN2::GetExploredStates();
 			for (auto kv : fExploredMap)
 				fExplored.insert(kv.first);
 			for (auto kv : rExploredMap)
@@ -150,14 +189,12 @@ PYBIND11_MODULE(pyplanning, m)
 		}
 	};
 
-	class_<PyPlanarBidirectionalAStarGrid, GridPathPlanner>(m, "PlanarBidirectionalAStarGrid")
+	class_<PyBidirectionalAStarN2, PathPlannerN2Base>(m, "BidirectionalAStarN2")
 		.def(init<>())
-		.def<bool (PlanarBidirectionalAStarGrid::*)(
-			const Ref<OccupancyMap>&,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&,
-			const std::function<double(const GridCellPosition&, const GridCellPosition&)>&)>("initialize", &PlanarBidirectionalAStarGrid::Initialize)
-		.def("get_explored_states", &PyPlanarBidirectionalAStarGrid::GetExploredStates)
-		.def("get_optimal_cost", &PlanarBidirectionalAStarGrid::GetOptimalCost);
+		.def_static("get_average_heuristic_pair", &BidirectionalAStarN2::GetAverageHeuristicPair)
+		.def("initialize", &BidirectionalAStarN2::Initialize)
+		.def("get_explored_states", &PyBidirectionalAStarN2::GetExploredStates)
+		.def("get_optimal_cost", &BidirectionalAStarN2::GetOptimalCost);
 
 	//     _____                           _
 	//    / ____|                         | |
@@ -193,7 +230,11 @@ PYBIND11_MODULE(pyplanning, m)
 		.def(init<>())
 		.def(init<int, int>())
 		.def_readwrite("row", &GridCellPosition::row)
-		.def_readwrite("col", &GridCellPosition::col);
+		.def_readwrite("col", &GridCellPosition::col)
+		.def("__repr__",
+			[](const GridCellPosition& cell) {
+				return "<GridCellPosition: row " + std::to_string(cell.row) + ", col: " + std::to_string(cell.col) + ">";
+			});
 
 	//    _____      _   _
 	//   |  __ \    | | | |
@@ -213,53 +254,59 @@ PYBIND11_MODULE(pyplanning, m)
 		.value("BACKWARD", Direction::Backward)
 		.value("NO_MOTION", Direction::NoMotion);
 
-	struct PlanarPathWrapper : PlanarPath {
-		using PlanarPath::PlanarPath;
-		virtual Pose2d Interpolate(double ratio) const override { PYBIND11_OVERRIDE_PURE(Pose2d, PlanarPath, Interpolate, ratio); }
-		virtual void Truncate(double ratio) override { PYBIND11_OVERRIDE_PURE(void, PlanarPath, Truncate, ratio); }
+	struct PathSE2BaseWrapper : PathSE2Base {
+		using PathSE2Base::PathSE2Base;
+		virtual Pose2d Interpolate(double ratio) const override { PYBIND11_OVERRIDE_PURE(Pose2d, PathSE2Base, Interpolate, ratio); }
+		virtual void Truncate(double ratio) override { PYBIND11_OVERRIDE_PURE(void, PathSE2Base, Truncate, ratio); }
 	};
 
-	class_<PlanarPath, Ref<PlanarPath>, PlanarPathWrapper>(m, "PlanarPath")
+	class_<PathSE2Base, Ref<PathSE2Base>, PathSE2BaseWrapper>(m, "PathSE2Base")
 		.def(init<>())
-		.def("get_initial_state", &PlanarPath::GetInitialState)
-		.def("get_final_state", &PlanarPath::GetFinalState)
-		.def<Pose2d (PlanarPath::*)(double) const>("interpolate", &PlanarPath::Interpolate)
-		.def<std::vector<Pose2d> (PlanarPath::*)(const std::vector<double>&) const>("interpolate", &PlanarPath::Interpolate)
-		.def("truncate", &PlanarPath::Truncate)
-		.def("get_length", &PlanarPath::GetLength);
+		.def("get_initial_state", &PathSE2Base::GetInitialState)
+		.def("get_final_state", &PathSE2Base::GetFinalState)
+		.def<Pose2d (PathSE2Base::*)(double) const>("interpolate", &PathSE2Base::Interpolate)
+		.def<std::vector<Pose2d> (PathSE2Base::*)(const std::vector<double>&) const>("interpolate", &PathSE2Base::Interpolate)
+		.def("truncate", &PathSE2Base::Truncate)
+		.def("get_length", &PathSE2Base::GetLength);
 
-	struct PlanarNonHolonomicPathWrapper : PlanarPathWrapper, virtual PlanarNonHolonomicPath {
-		using PlanarNonHolonomicPath::PlanarNonHolonomicPath;
-		virtual Direction GetDirection(double ratio) const override { PYBIND11_OVERRIDE_PURE(Direction, PlanarNonHolonomicPath, GetDirection, ratio); }
-		virtual std::set<double> GetCuspPointRatios() const override { PYBIND11_OVERRIDE(std::set<double>, PlanarNonHolonomicPath, GetCuspPointRatios); }
+	class_<PathSE2, Ref<PathSE2>, PathSE2Base>(m, "PathSE2")
+		.def(init<const Pose2d&, const Pose2d&>());
+
+	struct PathNonHolonomicSE2BaseWrapper : PathSE2BaseWrapper, virtual PathNonHolonomicSE2Base {
+		using PathNonHolonomicSE2Base::PathNonHolonomic;
+		virtual Direction GetDirection(double ratio) const override { PYBIND11_OVERRIDE_PURE(Direction, PathNonHolonomicSE2Base, GetDirection, ratio); }
+		virtual std::set<double> GetCuspPointRatios() const override { PYBIND11_OVERRIDE(std::set<double>, PathNonHolonomicSE2Base, GetCuspPointRatios); }
 	};
 
-	class_<PlanarNonHolonomicPath, Ref<PlanarNonHolonomicPath>, PlanarPath, PlanarNonHolonomicPathWrapper>(m, "PlanarNonHolonomicPath")
-		.def("get_direction", &PlanarNonHolonomicPath::GetDirection)
-		.def("get_cusp_point_ratios", &PlanarNonHolonomicPath::GetCuspPointRatios);
+	class_<PathNonHolonomicSE2Base, Ref<PathNonHolonomicSE2Base>, PathSE2Base, PathNonHolonomicSE2BaseWrapper>(m, "PathNonHolonomicSE2Base")
+		.def("get_direction", &PathNonHolonomicSE2Base::GetDirection)
+		.def("get_cusp_point_ratios", &PathNonHolonomicSE2Base::GetCuspPointRatios);
 
-	class_<PathReedsShepp, Ref<PathReedsShepp>, PlanarNonHolonomicPath>(m, "PathReedsShepp")
+	class_<PathReedsShepp, Ref<PathReedsShepp>, PathNonHolonomicSE2Base>(m, "PathReedsShepp")
 		.def(init<const Pose2d&, ReedsShepp::PathSegment, double>())
 		.def_property("min_turning_radius", &PathReedsShepp::GetMinTurningRadius, nullptr);
 
-	class_<PathConstantSteer, Ref<PathConstantSteer>, PlanarNonHolonomicPath>(m, "PathConstantSteer")
+	class_<PathConstantSteer, Ref<PathConstantSteer>, PathNonHolonomicSE2Base>(m, "PathConstantSteer")
 		.def(init<const Ref<KinematicBicycleModel>&, const Pose2d&, double, double, Direction>())
 		.def_property("steering", &PathConstantSteer::GetSteeringAngle, nullptr);
 
 	class_<KinematicBicycleModel, Ref<KinematicBicycleModel>>(m, "KinematicBicycleModel")
 		.def(init<double, double>());
 
-	struct PathConnectionWrapper : PlanarPathConnection {
-		using PlanarPathConnection::PlanarPathConnection;
-		virtual Ref<Path<Pose2d>> Connect(const Pose2d& from, const Pose2d& to) override { PYBIND11_OVERRIDE_PURE(Ref<Path<Pose2d>>, PlanarPathConnection, Connect, from, to); }
+	struct PathConnectionSE2BaseWrapper : PathConnectionSE2Base {
+		using PathConnectionSE2Base::PathConnectionSE2Base;
+		virtual Ref<Path<Pose2d>> Connect(const Pose2d& from, const Pose2d& to) override { PYBIND11_OVERRIDE_PURE(Ref<Path<Pose2d>>, PathConnectionSE2Base, Connect, from, to); }
 	};
 
-	class_<PlanarPathConnection, Ref<PlanarPathConnection>, PathConnectionWrapper>(m, "PlanarPathConnection")
+	class_<PathConnectionSE2Base, Ref<PathConnectionSE2Base>, PathConnectionSE2BaseWrapper>(m, "PathConnectionSE2Base")
 		.def(init<>())
-		.def("connect", &PlanarPathConnection::Connect);
+		.def("connect", &PathConnectionSE2Base::Connect);
 
-	class_<ReedsSheppConnection, Ref<ReedsSheppConnection>, PlanarPathConnection>(m, "ReedsSheppConnection")
+	class_<PathConnectionSE2, Ref<PathConnectionSE2>, PathConnectionSE2Base>(m, "PathConnectionSE2")
 		.def(init<>());
+
+	class_<PathConnectionReedsShepp, Ref<PathConnectionReedsShepp>, PathConnectionSE2Base>(m, "PathConnectionReedsShepp")
+		.def(init<double, double, double, double>());
 
 	//     _____ _        _        _____
 	//    / ____| |      | |      / ____|
@@ -270,29 +317,14 @@ PYBIND11_MODULE(pyplanning, m)
 	//                                  | |
 	//                                  |_|
 
-	struct PlanarStateSpaceWrapper : PlanarStateSpace {
-		using PlanarStateSpace::PlanarStateSpace;
-		virtual double ComputeDistance(const Pose2d& a, const Pose2d& b) override { PYBIND11_OVERRIDE_PURE(double, PlanarStateSpace, ComputeDistance, a, b); }
-	};
-
-	class_<PlanarStateSpace, Ref<PlanarStateSpace>, PlanarStateSpaceWrapper>(m, "PlanarStateSpace")
+	class_<StateSpaceSE2, Ref<StateSpaceSE2>>(m, "StateSpaceSE2")
 		.def(init<const std::array<Pose2d, 2>&>())
 		.def(init<const Pose2d&, const Pose2d&>())
-		.def("compute_distance)", &PlanarStateSpace::ComputeDistance)
-		.def("enforce_bounds", &PlanarStateSpace::EnforceBounds)
-		.def("validate_bounds", &PlanarStateSpace::ValidateBounds)
-		.def("sample_uniform", &PlanarStateSpace::SampleUniform)
-		.def("sample_gaussian", &PlanarStateSpace::SampleGaussian)
-		.def_readonly("bounds", &PlanarStateSpace::bounds);
-
-	class_<StateSpaceReedsShepp, Ref<StateSpaceReedsShepp>, PlanarStateSpace>(m, "StateSpaceReedsShepp")
-		.def(init<const std::array<Pose2d, 2>&, double>())
-		.def(init<const Pose2d&, const Pose2d&, double>())
-		.def_readonly("min_turning_radius", &StateSpaceReedsShepp::minTurningRadius);
-
-	class_<StateSpaceSE2, Ref<StateSpaceSE2>, PlanarStateSpace>(m, "StateSpaceSE2")
-		.def(init<const std::array<Pose2d, 2>&>())
-		.def(init<const Pose2d&, const Pose2d&>());
+		.def("enforce_bounds", &StateSpaceSE2::EnforceBounds)
+		.def("validate_bounds", &StateSpaceSE2::ValidateBounds)
+		.def("sample_uniform", &StateSpaceSE2::SampleUniform)
+		.def("sample_gaussian", &StateSpaceSE2::SampleGaussian)
+		.def_readonly("bounds", &StateSpaceSE2::bounds);
 
 	//   __      __   _ _     _       _
 	//   \ \    / /  | (_)   | |     | |
@@ -367,23 +399,23 @@ PYBIND11_MODULE(pyplanning, m)
 	class_<CircleShape, Ref<CircleShape>, Shape>(m, "CircleShape")
 		.def(init<double, int>());
 
-	struct PlanarStateValidatorWrapper : PlanarStateValidator {
-		using PlanarStateValidator::PlanarStateValidator;
-		virtual bool IsStateValid(const Pose2d& a) override { PYBIND11_OVERRIDE_PURE(bool, PlanarStateValidator, IsStateValid, a); }
-		virtual bool IsPathValid(const Path<Pose2d>& a, float* b) override { PYBIND11_OVERRIDE_PURE(bool, PlanarStateValidator, IsStateValid, a, b); }
+	struct StateValidatorSE2BaseWrapper : StateValidatorSE2Base {
+		using StateValidatorSE2Base::StateValidatorSE2Base;
+		virtual bool IsStateValid(const Pose2d& a) override { PYBIND11_OVERRIDE_PURE(bool, StateValidatorSE2Base, IsStateValid, a); }
+		virtual bool IsPathValid(const Path<Pose2d>& a, float* b) override { PYBIND11_OVERRIDE_PURE(bool, StateValidatorSE2Base, IsStateValid, a, b); }
 	};
 
-	class_<PlanarStateValidator, Ref<PlanarStateValidator>, PlanarStateValidatorWrapper>(m, "PlanarStateValidator")
-		.def(init<const Ref<PlanarStateSpace>&>())
-		.def("is_state_valid", &PlanarStateValidator::IsStateValid)
-		.def<bool (PlanarStateValidator::*)(const PlanarPath&, float*)>("is_path_valid", &PlanarStateValidator::IsPathValid)
-		.def_property("state_space", &PlanarStateValidator::GetStateSpace, nullptr);
+	class_<StateValidatorSE2Base, Ref<StateValidatorSE2Base>, StateValidatorSE2BaseWrapper>(m, "StateValidatorSE2Base")
+		.def(init<const Ref<StateSpaceSE2>&>())
+		.def("is_state_valid", &StateValidatorSE2Base::IsStateValid)
+		.def<bool (StateValidatorSE2Base::*)(const PathSE2Base&, float*)>("is_path_valid", &StateValidatorSE2Base::IsPathValid)
+		.def_property("state_space", &StateValidatorSE2Base::GetStateSpace, nullptr);
 
-	class_<PlanarStateValidatorFree, Ref<PlanarStateValidatorFree>, PlanarStateValidator>(m, "PlanarStateValidatorFree")
-		.def(init<const Ref<PlanarStateSpace>&>());
+	class_<StateValidatorSE2Free, Ref<StateValidatorSE2Free>, StateValidatorSE2Base>(m, "StateValidatorSE2Free")
+		.def(init<const Ref<StateSpaceSE2>&>());
 
-	class_<StateValidatorOccupancyMap, Ref<StateValidatorOccupancyMap>, PlanarStateValidator>(m, "StateValidatorOccupancyMap")
-		.def(init<const Ref<PlanarStateSpace>&, const Ref<OccupancyMap>&>())
+	class_<StateValidatorOccupancyMap, Ref<StateValidatorOccupancyMap>, StateValidatorSE2Base>(m, "StateValidatorOccupancyMap")
+		.def(init<const Ref<StateSpaceSE2>&, const Ref<OccupancyMap>&>())
 		.def("get_occupancy_map", &StateValidatorOccupancyMap::GetOccupancyMap)
 		.def_readwrite("min_path_interpolation_distance", &StateValidatorOccupancyMap::minPathInterpolationDistance)
 		.def_readwrite("min_safe_radius", &StateValidatorOccupancyMap::minSafeRadius);

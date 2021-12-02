@@ -8,9 +8,11 @@
 
 namespace Planner {
 
+	using NullAction = NullClass;
+
 	/// @brief Interface to sample the configuration space as required by A*
 	/// algorithms.
-	template <typename State>
+	template <typename State, typename Action = NullAction>
 	class AStarStatePropagator {
 	public:
 		AStarStatePropagator() = default;
@@ -21,7 +23,7 @@ namespace Planner {
 		/// be valid.
 		/// @return A list of tuple all neighboring positions and their associated
 		/// transition cost.
-		virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) = 0;
+		virtual std::vector<std::tuple<State, Action, double>> GetNeighborStates(const State& state) = 0;
 	};
 
 	/// @brief Interface for an A* heuristic function.
@@ -31,7 +33,7 @@ namespace Planner {
 		friend class AStarCombinedHeuristic;
 		template <typename S1, typename S2, typename Func>
 		friend class AStarHeuristicAdapter;
-		template <typename S, typename HashState, typename EqualState, bool GraphSearch, typename ExploredContainer>
+		template <typename S, typename A, typename HashState, typename EqualState, bool GraphSearch, typename ExploredContainer>
 		friend class AStar;
 
 	public:
@@ -141,13 +143,22 @@ namespace Planner {
 		Func m_funcAdapter;
 	};
 
-	/// @brief Node metadata used by A* star.
-	struct AStarNodeMetadata {
+	/// Node data for A* search
+	template <typename State, typename Action = NullAction>
+	struct AStarNodeData {
+		const State state;
+		const Action action;
 		double pathCost = 0;
 		double totalCost = 0;
+
+		AStarNodeData(const State& state) :
+			state(state), action(Action()) { }
+		AStarNodeData(const State& state, const Action& action) :
+			state(state), action(action) { }
 	};
-	template <typename State>
-	using AStarNode = GenericNode<State, AStarNodeMetadata>;
+	/// @brief Node for A* search
+	template <typename State, typename Action = NullAction>
+	using AStarNode = Node<AStarNodeData<State, Action>>;
 
 	/// @brief Implementation of an explored set for A* search using a
 	/// std::unordered_set.
@@ -159,29 +170,31 @@ namespace Planner {
 		/// @brief Empty the container.
 		inline void Clear() { this->clear(); }
 		/// @brief Insert a node in the container.
-		inline void Insert(AStarNode<State>* const node) { this->insert(node->GetState()); }
+		template <typename Action>
+		inline void Insert(AStarNode<State, Action>* const node) { this->insert((*node)->state); }
 		/// @brief Check if a node is in the container.
-		inline bool Contains(AStarNode<State>* const node) { return this->find(node->GetState()) != this->end(); }
+		template <typename Action>
+		inline bool Contains(AStarNode<State, Action>* const node) { return this->find((*node)->state) != this->end(); }
 	};
 
 	/// @brief Implementation of an explored set for A* search using a
 	/// std::unordered_map.
-	template <typename State, typename HashState, typename EqualState>
-	class ExploredMap : public std::unordered_map<State, AStarNode<State>*, HashState, EqualState> {
+	template <typename State, typename Action, typename HashState, typename EqualState>
+	class ExploredMap : public std::unordered_map<State, AStarNode<State, Action>*, HashState, EqualState> {
 	public:
 		ExploredMap() = default;
 
 		/// @brief Empty the container.
 		inline void Clear() { this->clear(); }
 		/// @brief Insert a node in the container.
-		inline void Insert(AStarNode<State>* const node) { this->insert({ node->GetState(), node }); }
+		inline void Insert(AStarNode<State, Action>* const node) { this->insert({ (*node)->state, node }); }
 		/// @brief Check if a node is in the container.
-		inline bool Contains(AStarNode<State>* const node) { return this->find(node->GetState()) != this->end(); }
+		inline bool Contains(AStarNode<State, Action>* const node) { return this->find((*node)->state) != this->end(); }
 	};
 
 	/// @brief Implementation of a void explored set for A* search.
 	/// @note For use with A* tree search only.
-	template <typename State, typename HashState, typename EqualState>
+	template <typename State>
 	class ExploredVoid {
 	public:
 		ExploredVoid() = default;
@@ -189,14 +202,17 @@ namespace Planner {
 		/// @brief Empty the container.
 		inline void Clear() { }
 		/// @brief Insert a node in the container.
-		inline void Insert(AStarNode<State>* const /*node*/) { }
+		template <typename Action>
+		inline void Insert(AStarNode<State, Action>* const /*node*/) { }
 		/// @brief Check if a node is in the container.
-		inline bool Contains(AStarNode<State>* const /*node*/) { return false; }
+		template <typename Action>
+		inline bool Contains(AStarNode<State, Action>* const /*node*/) { return false; }
 	};
 
 	/// @brief Implementation of the A* algorithm.
 	template <
 		typename State,
+		typename Action = NullAction,
 		typename HashState = std::hash<State>,
 		typename EqualState = std::equal_to<State>,
 		bool GraphSearch = true,
@@ -205,26 +221,26 @@ namespace Planner {
 		static_assert(std::is_copy_constructible<State>::value);
 
 	protected:
-		using Node = AStarNode<State>;
+		using Node = AStarNode<State, Action>;
 
 		struct CompareNode {
 			bool operator()(Node* lhs, Node* rhs) const
 			{
-				return lhs->meta.totalCost > rhs->meta.totalCost;
+				return (*lhs)->totalCost > (*rhs)->totalCost;
 			}
 		};
 
 		struct HashNode {
 			std::size_t operator()(Node* node) const
 			{
-				return HashState()(node->GetState());
+				return HashState()((*node)->state);
 			}
 		};
 
 		struct EqualNode {
 			bool operator()(Node* lhs, Node* rhs) const
 			{
-				return EqualState()(lhs->GetState(), rhs->GetState());
+				return EqualState()((*lhs)->state, (*rhs)->state);
 			}
 		};
 
@@ -246,10 +262,29 @@ namespace Planner {
 			unsigned int depth = m_solutionNode->GetDepth();
 			path.resize(depth + 1);
 			for (auto it = path.rbegin(); it != path.rend(); it++) {
-				*it = node->GetState();
+				*it = (*node)->state;
 				node = node->GetParent();
 			}
 			return path;
+		}
+
+		/// @brief Return the actions from the initial state to the goal state.
+		std::vector<Action> GetActions() const
+		{
+			std::vector<Action> actions;
+
+			auto node = m_solutionNode;
+			if (!node)
+				return actions;
+
+			unsigned int depth = m_solutionNode->GetDepth();
+			actions.resize(depth);
+			for (auto it = actions.rbegin(); it != actions.rend(); it++) {
+				*it = (*node)->action;
+				node = node->GetParent();
+			}
+
+			return actions;
 		}
 
 		/// @brief Return the set of explored states.
@@ -260,11 +295,11 @@ namespace Planner {
 		{
 			if (!m_solutionNode)
 				return std::numeric_limits<double>::infinity();
-			return m_solutionNode->meta.pathCost;
+			return (*m_solutionNode)->pathCost;
 		}
 
 		/// @Brief Return the state-propagator used by the algorithm.
-		const Ref<AStarStatePropagator<State>>& GetStatePropagator() const { return m_propagator; }
+		const Ref<AStarStatePropagator<State, Action>>& GetStatePropagator() const { return m_propagator; }
 		/// @brief Return the heuristic used by the algorithm
 		const Ref<AStarHeuristic<State>>& GetHeuristic() const { return m_heuristic; }
 
@@ -277,7 +312,7 @@ namespace Planner {
 		/// - Consistency (for graph search only): \f$h(u) - h(v) \leq c(u,v)\f$
 		/// for all point \f$u\f$ and \f$v\f$ with \f$h\f$ the heuristic
 		/// function and \f$c(u,v)\f$ the path cost from \f$u\f$ to \f$v\f$.
-		bool Initialize(const Ref<AStarStatePropagator<State>>& propagator, const Ref<AStarHeuristic<State>>& heuristic)
+		bool Initialize(const Ref<AStarStatePropagator<State, Action>>& propagator, const Ref<AStarHeuristic<State>>& heuristic)
 		{
 			if (!propagator || !heuristic)
 				return isInitialized = false;
@@ -334,7 +369,7 @@ namespace Planner {
 		{
 			PP_PROFILE_FUNCTION();
 
-			return EqualState()(node->GetState(), this->m_goal);
+			return EqualState()((*node)->state, this->m_goal);
 		}
 
 		/// @brief Add a node to the explored set, expand it, and push its
@@ -345,12 +380,12 @@ namespace Planner {
 
 			m_explored.Insert(node);
 
-			for (auto& [childState, transitionCost] : m_propagator->GetNeighborStates(node->GetState())) {
+			for (auto& [childState, action, transitionCost] : m_propagator->GetNeighborStates((*node)->state)) {
 				// Create the child node
-				Scope<Node> childScope = makeScope<Node>(childState);
+				Scope<Node> childScope = makeScope<Node>(childState, action);
 				Node* child = childScope.get();
-				child->meta.pathCost = node->meta.pathCost + transitionCost;
-				child->meta.totalCost = child->meta.pathCost + m_heuristic->GetHeuristicValue(child->GetState());
+				(*child)->pathCost = (*node)->pathCost + transitionCost;
+				(*child)->totalCost = (*child)->pathCost + m_heuristic->GetHeuristicValue((*child)->state);
 
 				// Check if the child node is in the frontier or explored set
 				if constexpr (GraphSearch) {
@@ -363,7 +398,7 @@ namespace Planner {
 					} else if (inFrontier) {
 						// Check if the node in frontier has a higher cost than the
 						// current path, and if so replace it by child
-						ProcessPossibleShorterPath(*inFrontier, std::move(childScope), node);
+						ProcessPossibleShortcut(*inFrontier, std::move(childScope), node);
 					}
 				} else {
 					// Add child to frontier and to the tree
@@ -379,22 +414,20 @@ namespace Planner {
 		/// @childScope.
 		/// @param childScope The node being added to the frontier.
 		/// @param node The node being expanded.
-		inline virtual void ProcessPossibleShorterPath(Node* frontierNode, Scope<Node> childScope, Node* /*node*/)
+		inline virtual void ProcessPossibleShortcut(Node* frontierNode, Scope<Node> childScope, Node* node)
 		{
 			PP_PROFILE_FUNCTION();
 
 			auto child = childScope.get();
-			if (frontierNode->meta.totalCost > child->meta.totalCost) {
-				// Replace the node in frontier by the newly find better node.
-				auto previousChildScope = frontierNode->GetParent()->ReplaceChild(frontierNode, std::move(childScope), false);
-				// Replace the node in the frontier by child
-				m_frontier.Remove(previousChildScope.get());
+			if ((*frontierNode)->totalCost > (*child)->totalCost) {
+				m_frontier.Remove(frontierNode);
 				m_frontier.Push(child);
+				node->AddChild(std::move(childScope));
 			}
 		}
 
 	protected:
-		Ref<AStarStatePropagator<State>> m_propagator;
+		Ref<AStarStatePropagator<State, Action>> m_propagator;
 		Ref<AStarHeuristic<State>> m_heuristic;
 
 		Frontier<Node*, CompareNode, HashNode, EqualNode> m_frontier;

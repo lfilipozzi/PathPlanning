@@ -68,7 +68,7 @@ endif()
 set(PATH_PLANNNING_SRC
 	${CMAKE_SOURCE_DIR}/planner/src/algo/hybrid_a_star.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/algo/heuristics.cpp
-	${CMAKE_SOURCE_DIR}/planner/src/algo/planar_a_star_grid.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/algo/a_star_n2.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/algo/smoother.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/geometry/2dplane.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/geometry/reeds_shepp.cpp
@@ -76,7 +76,10 @@ set(PATH_PLANNNING_SRC
 	${CMAKE_SOURCE_DIR}/planner/src/paths/path_composite.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/paths/path_constant_steer.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/paths/path_reeds_shepp.cpp
-	${CMAKE_SOURCE_DIR}/planner/src/state_space/state_space.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/paths/path_r2.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/paths/path_se2.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/state_space/state_space_r2.cpp
+	${CMAKE_SOURCE_DIR}/planner/src/state_space/state_space_se2.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/gvd.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/obstacle.cpp
 	${CMAKE_SOURCE_DIR}/planner/src/state_validator/obstacle_list_occupancy_map.cpp

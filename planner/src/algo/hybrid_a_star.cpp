@@ -1,8 +1,8 @@
 #include "algo/hybrid_a_star.h"
 
 #include "paths/path_constant_steer.h"
+#include "paths/path_reeds_shepp.h"
 #include "paths/path_composite.h"
-#include "state_space/state_space_reeds_shepp.h"
 #include "state_validator/state_validator_occupancy_map.h"
 #include "state_validator/occupancy_map.h"
 #include "state_validator/gvd.h"
@@ -32,118 +32,95 @@ namespace Planner {
 		const Ref<AStarHeuristic<State>>& heuristic, const Ref<GVD>& gvd)
 	{
 		m_validator = stateValidator;
+		m_occupancyMap = m_validator->GetOccupancyMap();
 		m_heuristic = heuristic;
 		m_gvd = gvd;
+		m_voroFieldDiagResolution = m_gvd->resolution * std::sqrt(2.0);
 	}
 
-	Pose2i HybridAStar::StatePropagator::DiscretizePose(const Pose2d& pose) const
-	{
-		PP_PROFILE_FUNCTION();
-
-		return {
-			static_cast<int>(pose.x() / m_param.spatialResolution),
-			static_cast<int>(pose.y() / m_param.spatialResolution),
-			static_cast<int>(pose.WrapTheta() / m_param.angularResolution),
-		};
-	}
-
-	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPath(Ref<PlanarNonHolonomicPath>&& path) const
+	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPath(const Ref<PathNonHolonomicSE2Base>& path) const
 	{
 		State state;
-		state.path = path;
-		state.discrete = DiscretizePose(state.path->GetFinalState());
+		state.direction = path->GetDirection(1.0);
+		state.continuousPose = path->GetFinalState();
+		state.discretePose = DiscretizePose(state.continuousPose);
 		return state;
 	}
 
-	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPose(Pose2d pose) const
+	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPose(const Pose2d& pose) const
 	{
 		State state;
-		state.discrete = DiscretizePose(pose);
-		state.path = makeRef<PathConstantSteer>(m_model, pose);
+		state.direction = Direction::NoMotion;
+		state.continuousPose = pose;
+		state.discretePose = DiscretizePose(state.continuousPose);
 		return state;
 	}
 
-	std::vector<std::tuple<HybridAStar::State, double>> HybridAStar::StatePropagator::GetNeighborStates(const State& state)
+	std::vector<std::tuple<HybridAStar::State, HybridAStar::Action, double>> HybridAStar::StatePropagator::GetNeighborStates(const State& state)
 	{
 		PP_PROFILE_FUNCTION();
 
-		std::vector<std::tuple<State, double>> neighbors;
+		std::vector<std::tuple<State, Action, double>> neighbors;
 		neighbors.reserve(2 * m_deltas.size());
 		for (double delta : m_deltas) {
 			State newState;
+			Action action;
 			double cost;
 
 			// Find neighbor state in forward direction
-			if (GetConstantSteerChild(state, delta, Direction::Forward, newState, cost))
-				neighbors.push_back({ newState, cost });
+			if (GetConstantSteerChild(state, delta, Direction::Forward, newState, action, cost))
+				neighbors.push_back({ newState, action, cost });
 
 			// Find neighbor state in forward direction
-			if (GetConstantSteerChild(state, delta, Direction::Backward, newState, cost))
-				neighbors.push_back({ newState, cost });
+			if (GetConstantSteerChild(state, delta, Direction::Backward, newState, action, cost))
+				neighbors.push_back({ newState, action, cost });
 		}
 
 		// Randomly add a child using a Reeds-Shepp path with a
 		// probability which is function of the heuristic to the goal
 		double hCost = m_heuristic->GetHeuristicValue(state);
 		if (hCost < 10.0 || Random<double>::SampleUniform(0.0, 1.0) < 10.0 / (hCost * hCost)) {
-			State reedsShepp;
+			State newState;
+			Action action;
 			double cost;
-			if (GetReedsSheppChild(state, reedsShepp, cost))
-				neighbors.push_back({ reedsShepp, cost });
+			if (GetReedsSheppChild(state, newState, action, cost))
+				neighbors.push_back({ newState, action, cost });
 		}
 
 		return neighbors;
 	}
 
-	double HybridAStar::StatePropagator::GetDirectionSwitchingCost(const PlanarNonHolonomicPath& parentPath, const PlanarNonHolonomicPath& childPath) const
-	{
-		double switchingCost = 0.0;
-		if (parentPath.GetDirection(1.0) != childPath.GetDirection(0.0))
-			switchingCost = m_param.directionSwitchingCost;
-		return switchingCost;
-	}
-
-	double HybridAStar::StatePropagator::GetVoronoiCost(const PlanarNonHolonomicPath& path) const
+	double HybridAStar::StatePropagator::GetVoronoiCost(const PathNonHolonomicSE2Base& path) const
 	{
 		PP_PROFILE_FUNCTION();
 
 		float voronoiCost = 0.0;
-		bool inside = true;
-		float interpLength = 0.1;
-		{
-			const double pathLength = path.GetLength();
-			double length = 0.0;
-			float positionCost;
-			while (length < pathLength) {
-				// Get cost
-				if (m_gvd->GetPathCost(path.Interpolate(length / pathLength).position, positionCost)) {
-					voronoiCost += positionCost;
-				} else {
-					inside = false;
-				}
-				// Update length
-				length += interpLength;
-			}
-
-			voronoiCost *= interpLength;
-			if (!inside) {
-				PP_WARN("Requesting path cost outside of the map");
-			}
+		float interpLength = m_voroFieldDiagResolution;
+		const double pathLength = path.GetLength();
+		for (double length = 0.0; length < pathLength; length += interpLength) {
+			auto position = path.Interpolate(length / pathLength).position;
+			auto cell = m_occupancyMap->WorldPositionToGridCell(position, false);
+			PP_ASSERT(m_occupancyMap->IsInsideMap(cell), "The cell is not inside the occupancy map");
+			voronoiCost = m_gvd->GetPathCost(cell);
 		}
+
+		voronoiCost *= interpLength;
 		return m_param.voronoiCostMultiplier * voronoiCost;
 	}
 
-	bool HybridAStar::StatePropagator::GetConstantSteerChild(const State& state, double delta, Direction direction, State& child, double& cost) const
+	bool HybridAStar::StatePropagator::GetConstantSteerChild(const State& state, double delta, Direction direction, State& child, Action& action, double& cost) const
 	{
 		PP_PROFILE_FUNCTION();
 
-		child = CreateStateFromPath(makeRef<PathConstantSteer>(m_model, state.GetPose(), delta, m_param.spatialResolution * 1.5, direction));
+		action.path = makeRef<PathConstantSteer>(m_model, state.continuousPose, delta, m_param.spatialResolution * 1.5, direction);
+		child = CreateStateFromPath(action.path);
 
 		// Validate transition
 		float lastValidRatio;
-		if (!m_validator->IsPathValid(*child.path, &lastValidRatio)) {
-			child.path->Truncate(lastValidRatio);
-			child.discrete = DiscretizePose(child.path->GetFinalState());
+		if (!m_validator->IsPathValid(*action.path, &lastValidRatio)) {
+			action.path->Truncate(lastValidRatio);
+			child.continuousPose = action.path->GetFinalState();
+			child.discretePose = DiscretizePose(child.continuousPose);
 			// Skip if the last valid state does not belong to a new cell
 			if (State::Equal()(state, child)) {
 				return false;
@@ -152,44 +129,71 @@ namespace Planner {
 
 		// Compute transition cost
 		double pathCost;
-		switch (child.path->GetDirection(0.0)) {
+		switch (direction) {
 		case Direction::Forward:
-			pathCost = m_param.forwardCostMultiplier * child.path->GetLength();
+			pathCost = m_param.forwardCostMultiplier * action.path->GetLength();
 			break;
 		case Direction::Backward:
-			pathCost = m_param.reverseCostMultiplier * child.path->GetLength();
+			pathCost = m_param.reverseCostMultiplier * action.path->GetLength();
 			break;
 		default:
 			pathCost = 0.0;
 		}
-		double switchingCost = GetDirectionSwitchingCost(*state.path, *child.path);
-		double voronoiCost = GetVoronoiCost(*child.path);
+		double switchingCost = action.path->GetDirection(1.0) == action.path->GetDirection(1.0) ? 0.0 : m_param.directionSwitchingCost;
+		double voronoiCost = GetVoronoiCost(*action.path);
 		cost = pathCost + switchingCost + voronoiCost;
+
 		return true;
 	}
 
-	bool HybridAStar::StatePropagator::GetReedsSheppChild(const State& state, State& child, double& cost) const
+	bool HybridAStar::StatePropagator::GetReedsSheppChild(const State& state, State& child, Action& action, double& cost) const
 	{
 		PP_PROFILE_FUNCTION();
 
-		const auto& from = state.GetPose();
-		const auto& to = m_goalState.GetPose();
+		const auto& from = state.continuousPose;
+		const auto& to = m_goalState.continuousPose;
 		auto pathSegment = ReedsShepp::Solver::GetOptimalPath(from, to,
 			m_param.minTurningRadius, m_param.reverseCostMultiplier,
 			m_param.forwardCostMultiplier, m_param.directionSwitchingCost);
 		auto path = makeRef<PathReedsShepp>(from, pathSegment, m_param.minTurningRadius);
+
 		if (!m_validator->IsPathValid(*path))
 			return false;
-		double pathCost = path->ComputeCost(m_param.directionSwitchingCost,
-			m_param.reverseCostMultiplier, m_param.forwardCostMultiplier);
 
-		child = CreateStateFromPath(std::move(path));
+		double pathAndSwitchingCosts = path->ComputeCost(m_param.directionSwitchingCost,
+			m_param.reverseCostMultiplier, m_param.forwardCostMultiplier);
+		child = CreateStateFromPath(path);
+		action.path = std::move(path);
 
 		// Compute transition cost
-		double switchingCost = GetDirectionSwitchingCost(*state.path, *child.path);
-		double voronoiCost = GetVoronoiCost(*child.path);
-		cost = pathCost + switchingCost + voronoiCost;
+		double voronoiCost = GetVoronoiCost(*action.path);
+		cost = pathAndSwitchingCosts + voronoiCost;
+
 		return true;
+	}
+
+	Ref<PathSE2CompositeNonHolonomic> HybridAStar::GraphSearch::GetCompositePath() const
+	{
+		auto path = makeRef<PathSE2CompositeNonHolonomic>();
+		const auto& actions = GetActions();
+		path->Reserve(actions.size());
+		for (auto& action : actions)
+			path->PushBack(action.path);
+		return path;
+	}
+
+	std::unordered_set<Ref<PathNonHolonomicSE2Base>> HybridAStar::GraphSearch::GetExploredPathSet() const
+	{
+		std::unordered_set<Ref<PathNonHolonomicSE2Base>> paths;
+
+		if (!m_rootNode)
+			return paths;
+
+		m_rootNode->PreOrderTraversal([&](const Node& node) {
+			if (node->action.path)
+				paths.insert(node->action.path);
+		});
+		return paths;
 	}
 
 	HybridAStar::HybridAStar() :
@@ -248,9 +252,9 @@ namespace Planner {
 		// Run A* on 2D pose
 		m_graphSearch.SetInitState(m_propagator->CreateStateFromPose(this->m_init));
 		m_graphSearch.SetGoalState(m_propagator->SetGoalState(this->m_goal));
-		auto graphSearchStatus = m_graphSearch.SearchPath();
-		if (graphSearchStatus < 0)
-			return graphSearchStatus;
+		m_stats.graphSearchStatus = m_graphSearch.SearchPath();
+		if (m_stats.graphSearchStatus < 0)
+			return m_stats.graphSearchStatus;
 
 		// Process path before smoothing
 		std::vector<Pose2d> graphSearchPath;
@@ -258,19 +262,16 @@ namespace Planner {
 		{
 			PP_PROFILE_SCOPE("Process graph search path");
 
-			// Generate composite path
-			auto path = makeRef<PlanarNonHolonomicCompositePath>();
-			const auto& states = m_graphSearch.GetPath();
-			path->Reserve(states.size());
-			for (auto& state : states)
-				path->PushBack(state.path);
-			double pathLength = path->GetLength();
+			// Get composite path
+			auto path = m_graphSearch.GetCompositePath();
+			const double pathLength = path->GetLength();
 
 			// Generate ratio at which to sample the path and find indices of cusp points
 			std::vector<double> ratios;
 			auto cuspRatios = path->GetCuspPointRatios();
 			cuspRatios.insert(0.0);
 			cuspRatios.insert(1.0);
+			ratios.reserve(pathLength / pathInterpolation + cuspRatios.size());
 			auto cuspRatioIt = cuspRatios.begin();
 			for (double length = 0.0; length <= pathLength; length += pathInterpolation) {
 				// Sample cusp point
@@ -290,10 +291,10 @@ namespace Planner {
 		}
 
 		// Smooth the path
-		auto smoothStatus = m_smoother.Smooth(graphSearchPath, cuspIndices);
-		if (smoothStatus < 0) {
+		m_stats.smoothingStatus = m_smoother.Smooth(graphSearchPath, cuspIndices);
+		if (m_stats.smoothingStatus < 0) {
 			m_path = graphSearchPath;
-			return graphSearchStatus;
+			return m_stats.graphSearchStatus;
 		}
 
 		// Save the result
@@ -307,21 +308,17 @@ namespace Planner {
 		m_obstacleHeuristic->Visualize(filename);
 	}
 
-	std::unordered_set<Ref<PlanarNonHolonomicPath>> HybridAStar::GetGraphSearchExploredSet() const
+	std::unordered_set<Ref<PathNonHolonomicSE2Base>> HybridAStar::GetGraphSearchExploredPathSet() const
 	{
-		const auto& exploredStates = m_graphSearch.GetExploredStates();
-		std::unordered_set<Ref<PlanarNonHolonomicPath>> exploredPaths;
-		for (auto& state : exploredStates)
-			exploredPaths.insert(state.path);
-		return exploredPaths;
+		return m_graphSearch.GetExploredPathSet();
 	}
 
-	std::vector<Ref<PlanarNonHolonomicPath>> HybridAStar::GetGraphSearchPath() const
+	std::vector<Ref<PathNonHolonomicSE2Base>> HybridAStar::GetGraphSearchPath() const
 	{
-		const auto& graphSearchPath = m_graphSearch.GetPath();
-		std::vector<Ref<PlanarNonHolonomicPath>> paths;
-		for (auto& state : graphSearchPath)
-			paths.push_back(state.path);
+		const auto& actions = m_graphSearch.GetActions();
+		std::vector<Ref<PathNonHolonomicSE2Base>> paths;
+		for (auto& action : actions)
+			paths.push_back(action.path);
 		return paths;
 	}
 

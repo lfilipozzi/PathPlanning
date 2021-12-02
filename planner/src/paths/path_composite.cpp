@@ -1,7 +1,7 @@
 #include "path_composite.h"
 
 namespace Planner {
-	std::set<double> PlanarNonHolonomicCompositePath::GetCuspPointRatios() const
+	std::set<double> PathSE2CompositeNonHolonomic::GetCuspPointRatios() const
 	{
 		std::set<double> ratios;
 
@@ -26,7 +26,7 @@ namespace Planner {
 		return ratios;
 	}
 
-	Direction PlanarNonHolonomicCompositePath::GetDirection(double ratio) const
+	Direction PathSE2CompositeNonHolonomic::GetDirection(double ratio) const
 	{
 		auto [it, pathRatio] = FindSegment(ratio);
 		return it->second->GetDirection(pathRatio);

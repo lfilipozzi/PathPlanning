@@ -16,6 +16,7 @@ namespace Planner {
 	class StateValidatorOccupancyMap;
 	class KinematicBicycleModel;
 	class GVD;
+	class PathSE2CompositeNonHolonomic;
 
 	/// @brief Conduct a Hybrid A* search to find the optimal path.
 	/// @details The continuous state-space is discretized to perform a A*
@@ -23,7 +24,7 @@ namespace Planner {
 	/// the configuration space.
 	/// The A* search provides an optimal solution that is then smoothed by a
 	/// nonlinear optimization.
-	class HybridAStar : public PlanarPathPlanner {
+	class HybridAStar : public PathPlannerSE2Base {
 	public:
 		struct SearchParameters {
 			const double wheelbase = 2.6; // TODO add maxSteeringAngle to choose how to propagate bicycle model
@@ -48,21 +49,22 @@ namespace Planner {
 				spatialResolution(spatialResolution), angularResolution(angularResolution) { }
 		};
 
+		struct Stats {
+			Status graphSearchStatus = Status::Failure;
+			Smoother::Status smoothingStatus = Smoother::Status::Failure;
+		};
+
 	private:
-		/// @brief Augmented state used for the A* search in the hybrid A*
-		/// algorithm.
+		/// @brief State used for the A* search in the hybrid A* algorithm.
 		struct State {
-			/// @brief Path connecting the previous state to the current state.
-			Ref<PlanarNonHolonomicPath> path;
+			/// @brief Direction
+			Direction direction;
 			/// @brief Discretized state.
-			Pose2i discrete;
+			Pose2i discretePose;
+			/// @brief Pose
+			Pose2d continuousPose;
 
-			/// @brief Return the real (continuous) pose associated to the state.
-			const Pose2d& GetPose() const { return path->GetFinalState(); }
-
-			bool operator==(const State& rhs) const { return discrete == rhs.discrete; }
-
-			/// @brief Hash to discretize the 3D configuration space.
+			/// @brief Hasher for the discretized configuration space.
 			/// @details Two states are considered equal if they correspond to the
 			/// same"cell", i.e. they have their position difference is less than the
 			/// spatial resolution and if their heading difference is less than the
@@ -70,22 +72,28 @@ namespace Planner {
 			struct Hash {
 				std::size_t operator()(const State& state) const
 				{
-					auto pose = state.discrete;
 					std::hash<Pose2i> hasher;
-					return hasher(pose);
+					return hasher(state.discretePose);
 				}
 			};
 
+			/// @brief Check if two states correspond to the same cell.
 			struct Equal {
 				bool operator()(const State& lhs, const State& rhs) const
 				{
-					return lhs.discrete == rhs.discrete;
+					return lhs.discretePose == rhs.discretePose;
 				}
 			};
 		};
 
+		/// @brief Action between states in hybrid A*
+		struct Action {
+			/// @brief Path connecting the previous state to the current state.
+			Ref<PathNonHolonomicSE2Base> path;
+		};
+
 		/// @brief Define the state-space used for the A* search.
-		class StatePropagator : public AStarStatePropagator<State> {
+		class StatePropagator : public AStarStatePropagator<State, Action> {
 		public:
 			StatePropagator(const SearchParameters& parameters);
 
@@ -93,16 +101,23 @@ namespace Planner {
 				const Ref<AStarHeuristic<State>>& heuristic, const Ref<GVD>& gvd);
 
 			/// @brief Discretize a state.
-			Pose2i DiscretizePose(const Pose2d& pose) const;
+			inline Pose2i DiscretizePose(const Pose2d& pose) const
+			{
+				return {
+					static_cast<int>(pose.x() / m_param.spatialResolution),
+					static_cast<int>(pose.y() / m_param.spatialResolution),
+					static_cast<int>(pose.WrapTheta() / m_param.angularResolution),
+				};
+			}
 
 			/// @brief Create an augmented state from a path.
-			State CreateStateFromPath(Ref<PlanarNonHolonomicPath>&& path) const;
+			State CreateStateFromPath(const Ref<PathNonHolonomicSE2Base>& path) const;
 
 			/// @brief Create an augmented state from a pose.
-			State CreateStateFromPose(Pose2d pose) const;
+			State CreateStateFromPose(const Pose2d& pose) const;
 
 			/// @copydoc Planner::AStarStateSpace::GetNeighborStates()
-			virtual std::vector<std::tuple<State, double>> GetNeighborStates(const State& state) override;
+			virtual std::vector<std::tuple<State, Action, double>> GetNeighborStates(const State& state) override;
 
 			/// @brief Set the goal state from the goal pose.
 			State& SetGoalState(const Pose2d& goal)
@@ -115,8 +130,7 @@ namespace Planner {
 			const SearchParameters& GetParameters() const { return m_param; }
 
 		private:
-			double GetDirectionSwitchingCost(const PlanarNonHolonomicPath& parentPath, const PlanarNonHolonomicPath& childPath) const;
-			double GetVoronoiCost(const PlanarNonHolonomicPath& path) const;
+			double GetVoronoiCost(const PathNonHolonomicSE2Base& path) const;
 
 			/// @brief Update state assuming constant steer angle and bicycle
 			/// kinematic model.
@@ -124,23 +138,27 @@ namespace Planner {
 			/// @param[in] delta The steering angle.
 			/// @param[in] reverse The direction.
 			/// @param[out] child The next state.
+			/// @param[out] action The action connecting @state to @child.
 			/// @param[out] cost The transition cost.
 			/// @return Boolean to indicate if the transition is valid.
-			[[nodiscard]] bool GetConstantSteerChild(const State& state, double delta, Direction direction, State& child, double& cost) const;
+			[[nodiscard]] bool GetConstantSteerChild(const State& state, double delta, Direction direction, State& child, Action& action, double& cost) const;
 
 			/// @brief Compute Reeds-Shepp path from a state to the goal.
 			/// @param[in] state The previous state.
 			/// @param[out] child The goal state containing the Reeds-Shepp
 			/// path from the state to the goal.
+			/// @param[out] action The action connecting @state to @child.
 			/// @param[out] cost The transition cost.
 			/// @return Boolean to indicate if the transition is valid.
-			[[nodiscard]] bool GetReedsSheppChild(const State& state, State& child, double& cost) const;
+			[[nodiscard]] bool GetReedsSheppChild(const State& state, State& child, Action& action, double& cost) const;
 
 		private:
 			SearchParameters m_param;
 			Ref<StateValidatorOccupancyMap> m_validator;
+			Ref<OccupancyMap> m_occupancyMap;
 			Ref<AStarHeuristic<State>> m_heuristic;
 			Ref<GVD> m_gvd;
+			float m_voroFieldDiagResolution;
 			Ref<KinematicBicycleModel> m_model;
 			std::vector<double> m_deltas;
 			State m_goalState;
@@ -148,7 +166,7 @@ namespace Planner {
 
 		class Adapter {
 		public:
-			const Pose2d& operator()(const State& state) { return state.GetPose(); }
+			const Pose2d& operator()(const State& state) { return state.continuousPose; }
 		};
 		/// @brief Adapter a heuristic for an A* search of Pose2d to an
 		/// heuristic for A* search of HybrisAStar::State.
@@ -159,35 +177,31 @@ namespace Planner {
 		};
 
 		/// @brief A* based graph search for Hybrid A*
-		class GraphSearch : public AStar<State, State::Hash, State::Equal, true> {
+		class GraphSearch : public AStar<State, Action, State::Hash, State::Equal, true> {
 		public:
 			GraphSearch() = default;
+
+			/// @brief Return the solution path connecting the initial state to
+			/// the goal state.
+			Ref<PathSE2CompositeNonHolonomic> GetCompositePath() const;
+
+			/// @brief Return the set of explored path
+			std::unordered_set<Ref<PathNonHolonomicSE2Base>> GetExploredPathSet() const;
 
 		protected:
 			/// @copydoc Planner::AStar::IsSolution
 			inline virtual bool IsSolution(Node* node) override
 			{
-				PP_PROFILE_FUNCTION();
-
-				return IdenticalPoses(node->GetState().GetPose(), this->m_goal.GetPose());
+				return IdenticalPoses((*node)->state.continuousPose, this->m_goal.continuousPose);
 			}
 
-			/// @copydoc Planner::AStar::ProcessPossibleShorterPath
-			inline virtual void ProcessPossibleShorterPath(Node* frontierNode, Scope<Node> childScope, Node* node) override
+			/// @copydoc Planner::AStar::ProcessPossibleShortcut
+			inline virtual void ProcessPossibleShortcut(Node* frontierNode, Scope<Node> childScope, Node* node) override
 			{
-				PP_PROFILE_FUNCTION();
-
 				// TODO FIXME check if a path with better cost exist between the two nodes if two poses are not identical?
 				auto child = childScope.get();
-				bool identicalPose = IdenticalPoses(frontierNode->GetState().GetPose(), node->GetState().GetPose());
-				bool betterCost = frontierNode->meta.totalCost > child->meta.totalCost;
-				if (identicalPose && betterCost) {
-					// Replace the node in frontier by the newly find better node.
-					auto previousChildScope = frontierNode->GetParent()->ReplaceChild(frontierNode, std::move(childScope), false);
-					// Replace the node in the frontier by child
-					m_frontier.Remove(previousChildScope.get());
-					m_frontier.Push(child);
-				}
+				if (IdenticalPoses((*frontierNode)->state.continuousPose, (*child)->state.continuousPose))
+					AStar<State, Action, State::Hash, State::Equal, true>::ProcessPossibleShortcut(frontierNode, std::move(childScope), node);
 			}
 
 		private:
@@ -222,9 +236,13 @@ namespace Planner {
 
 		void VisualizeObstacleHeuristic(const std::string& filename) const;
 
-		std::unordered_set<Ref<PlanarNonHolonomicPath>> GetGraphSearchExploredSet() const;
-		std::vector<Ref<PlanarNonHolonomicPath>> GetGraphSearchPath() const;
+		const Stats& GetStats() const { return m_stats; }
+
+		std::unordered_set<Ref<PathNonHolonomicSE2Base>> GetGraphSearchExploredPathSet() const;
+		std::vector<Ref<PathNonHolonomicSE2Base>> GetGraphSearchPath() const;
 		double GetGraphSearchOptimalCost() const;
+
+		const std::vector<Pose2d>& GetSmoothedPath() const { return m_smoother.GetPath(); }
 
 	public:
 		/// @brief Distance to interpolate pose from the path
@@ -241,6 +259,7 @@ namespace Planner {
 		GraphSearch m_graphSearch;
 		Smoother m_smoother;
 
+		Stats m_stats;
 		std::vector<Pose2d> m_path;
 	};
 }

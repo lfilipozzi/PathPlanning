@@ -18,7 +18,7 @@ namespace Planner {
 		auto statePropagator = Planner::makeRef<AStarStatePropagator2D>();
 		auto heuristic = Planner::makeRef<Test2DHeuristic>();
 
-		Planner::AStar<Point2i> aStar;
+		Planner::AStar<Point2i, NullAction> aStar;
 		aStar.Initialize(statePropagator, heuristic);
 
 		Point2i start = { 0.0, 0.0 };
