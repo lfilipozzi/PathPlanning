@@ -18,6 +18,8 @@ namespace Planner {
 		using PathNonHolonomicSE2Base::Interpolate;
 		/// @copydoc Planner::Path::Truncate
 		virtual void Truncate(double ratio) override;
+		/// @copydoc Planner::Path::TimeFlipTransform
+		virtual void TimeFlipTransform() override;
 		/// @copydoc Planner::PathNonHolonomic::GetDirection
 		virtual Direction GetDirection(double ratio) const override;
 

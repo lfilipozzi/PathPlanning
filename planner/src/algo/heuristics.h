@@ -6,19 +6,22 @@
 #include "utils/grid.h"
 
 namespace Planner {
-	class NonHolonomicHeuristic : public AStarConcreteHeuristic<Pose2d> {
+	/// @brief Store the path cost of a Reeds-Shepp path which is defined by the
+	/// cost factors @reverseCostMultiplier, @forwardCostMultiplier, and 
+	/// @directionSwitchingCost with a minimum turning radius @minTurningRadius.
+	/// The path must be contained in a configuration space with bounds @bounds.
+	class ReedsSheppPathCost {
 	public:
-		~NonHolonomicHeuristic();
+		~ReedsSheppPathCost();
 
-		/// @brief Generate the NonHolonomicHeuristic heuristic.
-		static Ref<NonHolonomicHeuristic> Build(const std::array<Pose2d, 2>& bounds,
+		static Ref<ReedsSheppPathCost> Build(const std::array<Pose2d, 2>& bounds,
 			double spatialResolution, double angularResolution, double minTurningRadius,
 			double reverseCostMultiplier, double forwardCostMultiplier, double directionSwitchingCost);
 
-		virtual double GetHeuristicValue(const Pose2d& state) override;
+		double GetPathCost(const Pose2d& from, const Pose2d& to);
 
 	protected:
-		NonHolonomicHeuristic(double spatialResolution, double angularResolution, double minTurningRadius,
+		ReedsSheppPathCost(double spatialResolution, double angularResolution, double minTurningRadius,
 			double reverseCostMultiplier, double forwardCostMultiplier, double directionSwitchingCost,
 			unsigned int numSpatialX, unsigned int numSpatialY);
 
@@ -29,11 +32,39 @@ namespace Planner {
 		const double offsetX, offsetY;
 
 	private:
+		// TODO use a double* instead of a double***
 		double*** m_values;
+	};
+
+	/// @brief A* heuristic which evaluates the cost of a Reeds-Shepp path from 
+	/// the current state to the goal.
+	class NonHolonomicHeuristic : public AStarConcreteHeuristic<Pose2d> {
+	public:
+		NonHolonomicHeuristic(const Ref<ReedsSheppPathCost>& pathCostData);
+
+		virtual double GetHeuristicValue(const Pose2d& state) override;
+
+	private:
+		Ref<ReedsSheppPathCost> m_pathCost;
+	};
+
+	/// @brief A* heuristic which evaluates the cost of a time-flipped 
+	/// Reeds-Shepp path from the current state to the goal.
+	class TimeFlippedNonHolonomicHeuristic : public AStarConcreteHeuristic<Pose2d> {
+	public:
+		TimeFlippedNonHolonomicHeuristic(const Ref<ReedsSheppPathCost>& pathCostData);
+
+		virtual double GetHeuristicValue(const Pose2d& state) override;
+
+	private:
+		Ref<ReedsSheppPathCost> m_pathCost;
 	};
 
 	class OccupancyMap;
 
+	/// @brief A* heuristic which evaluate the length of the path from the
+	/// current state to the goal (multiplied by a cost predefined cost 
+	/// multiplier) given an occupancy map.
 	class ObstaclesHeuristic : public AStarConcreteHeuristic<Pose2d> {
 	private:
 		struct CompareCell {
@@ -58,7 +89,7 @@ namespace Planner {
 		};
 
 	public:
-		ObstaclesHeuristic(const Ref<OccupancyMap>& map, double reverseCostMultiplier, double forwardCostMultiplier);
+		ObstaclesHeuristic(const Ref<OccupancyMap>& map, double costMultiplier);
 
 		void Update(const Pose2d& goal);
 

@@ -8,7 +8,7 @@ namespace Planner {
 	/// @brief Create a consistent pair of heuristic for bidirectional A*.
 	template <typename State>
 	class AverageHeuristic : public AStarConcreteHeuristic<State> {
-		template <typename S, typename A, typename HashState, typename EqualState, bool GraphSearch>
+		template <typename S, typename A, typename HashState, typename EqualState, bool GraphSearch, typename Algo>
 		friend class BidirectionalAStar;
 
 	public:
@@ -38,19 +38,22 @@ namespace Planner {
 		double m_constant;
 	};
 
-	template <typename State, typename Action, typename HashState = std::hash<State>, typename EqualState = std::equal_to<State>, bool GraphSearch = true>
+	template <
+		typename State,
+		typename Action,
+		typename HashState = std::hash<State>,
+		typename EqualState = std::equal_to<State>,
+		bool GraphSearch = true,
+		typename UnidirectionalAStar = AStar<State, Action, HashState, EqualState, GraphSearch, ExploredMap<State, Action, HashState, EqualState>>>
+		// FIXME Maybe use polymorphism here instead of adding a template argument for the unidirectional algorithm
 	class BidirectionalAStar : public PathPlanner<State> {
-	protected:
-		class UnidirectionalAStar : public AStar<State, Action, HashState, EqualState, GraphSearch, ExploredMap<State, Action, HashState, EqualState>> {
-			template <typename S, typename A, typename HashS, typename EqualS, bool>
-			friend class BidirectionalAStar;
-
-		public:
-			UnidirectionalAStar() = default;
-		};
+		static_assert(std::is_base_of<AStar<State, Action, HashState, EqualState, GraphSearch, ExploredMap<State, Action, HashState, EqualState>>, UnidirectionalAStar>::value, "The unidirectional algorithm is not an A* search");
 
 	public:
 		BidirectionalAStar() = default;
+		template <typename... Args>
+		BidirectionalAStar(Args... args) :
+			m_fSearch(std::forward<Args>(args)...), m_rSearch(std::forward<Args>(args)...) { }
 		virtual ~BidirectionalAStar() = default;
 
 		/// @brief Return a consistent pair of heuristic for bidirectional
@@ -69,6 +72,15 @@ namespace Planner {
 			auto rPath = m_rSearch.GetPath();
 			fPath.insert(fPath.end(), rPath.rbegin(), rPath.rend());
 			return fPath;
+		}
+
+		/// @brief Return the actions from the initial state to the goal state.
+		std::vector<Action> GetActions() const
+		{
+			auto fActions = m_fSearch.GetActions();
+			auto rActions = m_rSearch.GetActions();
+			fActions.insert(fActions.end(), rActions.rbegin(), rActions.rend());
+			return fActions;
 		}
 
 		/// @brief Return the set of explored states.
@@ -168,6 +180,7 @@ namespace Planner {
 
 					double fTopCost = (*m_fSearch.m_frontier.Top())->pathCost;
 					double rTopCost = (*m_rSearch.m_frontier.Top())->pathCost;
+					// TODO try replacing last 4 lines by using fNode and rNode directly
 
 					// Check the stopping criterion
 					if (fTopCost + rTopCost >= bestCost + costOffset)
@@ -178,7 +191,7 @@ namespace Planner {
 		}
 
 	protected:
-		void FindIntersection(AStarNode<State, Action>* nodeA, UnidirectionalAStar& searchA, UnidirectionalAStar& searchB, double& bestPathCost)
+		inline virtual void FindIntersection(AStarNode<State, Action>* nodeA, UnidirectionalAStar& searchA, UnidirectionalAStar& searchB, double& bestPathCost)
 		{
 			auto it = searchB.m_explored.find((*nodeA)->state);
 			if (it != searchB.m_explored.end()) {

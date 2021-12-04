@@ -6,17 +6,20 @@
 #include "core/base.h"
 #include "algo/path_planner.h"
 #include "algo/a_star.h"
+#include "algo/bidirectional_a_star.h"
 #include "algo/smoother.h"
+#include "algo/heuristics.h"
 #include "geometry/2dplane.h"
+#include "paths/path_composite.h"
+#include "state_validator/state_validator_occupancy_map.h"
+
+// FIXME replace nested class by namespace
 
 namespace Planner {
 
-	class NonHolonomicHeuristic;
-	class ObstaclesHeuristic;
 	class StateValidatorOccupancyMap;
 	class KinematicBicycleModel;
 	class GVD;
-	class PathSE2CompositeNonHolonomic;
 
 	/// @brief Conduct a Hybrid A* search to find the optimal path.
 	/// @details The continuous state-space is discretized to perform a A*
@@ -27,15 +30,15 @@ namespace Planner {
 	class HybridAStar : public PathPlannerSE2Base {
 	public:
 		struct SearchParameters {
-			const double wheelbase = 2.6; // TODO add maxSteeringAngle to choose how to propagate bicycle model
-			const double minTurningRadius = 2.0;
-			const double directionSwitchingCost = 0.0;
-			const double reverseCostMultiplier = 1.0;
-			const double forwardCostMultiplier = 1.0;
-			const double voronoiCostMultiplier = 1.0;
-			const unsigned int numGeneratedMotion = 5;
-			const double spatialResolution = 1.0;
-			const double angularResolution = 0.0872;
+			double wheelbase = 2.6; // TODO add maxSteeringAngle to choose how to propagate bicycle model
+			double minTurningRadius = 2.0;
+			double directionSwitchingCost = 0.0;
+			double reverseCostMultiplier = 1.0;
+			double forwardCostMultiplier = 1.0;
+			double voronoiCostMultiplier = 1.0;
+			unsigned int numGeneratedMotion = 5;
+			double spatialResolution = 1.0;
+			double angularResolution = 0.0872;
 
 			SearchParameters() = default;
 			SearchParameters(double minTurningRadius, double directionSwitchingCost,
@@ -54,7 +57,6 @@ namespace Planner {
 			Smoother::Status smoothingStatus = Smoother::Status::Failure;
 		};
 
-	private:
 		/// @brief State used for the A* search in the hybrid A* algorithm.
 		struct State {
 			/// @brief Direction
@@ -120,13 +122,8 @@ namespace Planner {
 			virtual std::vector<std::tuple<State, Action, double>> GetNeighborStates(const State& state) override;
 
 			/// @brief Set the goal state from the goal pose.
-			State& SetGoalState(const Pose2d& goal)
-			{
-				m_goalState = CreateStateFromPose(goal);
-				return m_goalState;
-			}
+			void SetGoalState(const State& goal) { m_goalState = goal; }
 
-			SearchParameters GetParameters() { return m_param; }
 			const SearchParameters& GetParameters() const { return m_param; }
 
 		private:
@@ -177,46 +174,155 @@ namespace Planner {
 		};
 
 		/// @brief A* based graph search for Hybrid A*
-		class GraphSearch : public AStar<State, Action, State::Hash, State::Equal, true> {
+		template <typename ExploredContainer = Explored<State, State::Hash, State::Equal>>
+		class GraphSearch : public AStar<State, Action, State::Hash, State::Equal, true, ExploredContainer> {
+			using AStarDeclType = AStar<State, Action, State::Hash, State::Equal, true, ExploredContainer>;
+
 		public:
 			GraphSearch() = default;
+
+			/// @brief Initialize the graph search
+			void Initialize(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& p, const Ref<GVD>& gvd)
+			{
+				// Initialize heuristic
+				auto reedsSheppPathCost = ReedsSheppPathCost::Build(validator->GetStateSpace()->bounds,
+					p.spatialResolution, p.angularResolution, p.minTurningRadius,
+					p.reverseCostMultiplier, p.forwardCostMultiplier, p.directionSwitchingCost);
+				m_nonHoloHeuristic = makeRef<NonHolonomicHeuristic>(reedsSheppPathCost);
+				m_obstacleHeuristic = makeRef<ObstaclesHeuristic>(validator->GetOccupancyMap(), std::min(p.reverseCostMultiplier, p.forwardCostMultiplier));
+				auto combinedHeur = makeRef<AStarCombinedHeuristic<Pose2d>>();
+				combinedHeur->Add(m_nonHoloHeuristic, m_obstacleHeuristic);
+				auto heuristic = makeRef<HeuristicAdapter>(combinedHeur);
+
+				// Initialize propagator
+				m_propagator = makeRef<StatePropagator>(p);
+				m_propagator->Initialize(validator, heuristic, gvd);
+
+				AStarDeclType::Initialize(m_propagator, heuristic);
+			}
+			using AStarDeclType::Initialize;
+
+			/// @brief Update the graph search
+			void Update(const Pose2d& init, const Pose2d& goal)
+			{
+				this->SetInitState(m_propagator->CreateStateFromPose(init));
+				this->SetGoalState(m_propagator->CreateStateFromPose(goal));
+				m_obstacleHeuristic->Update(goal);
+				m_propagator->SetGoalState(this->m_goal);
+			}
+
+			/// @brief Return the solution path connecting the initial state to
+			/// the goal state.
+			Ref<PathSE2CompositeNonHolonomic> GetCompositePath() const
+			{
+				auto path = makeRef<PathSE2CompositeNonHolonomic>();
+				const auto& actions = this->GetActions();
+				path->Reserve(actions.size());
+				for (auto& action : actions)
+					if (action.path)
+						path->PushBack(action.path);
+				return path;
+			}
+
+			/// @brief Return the set of explored path
+			std::unordered_set<Ref<PathNonHolonomicSE2Base>> GetExploredPathSet() const
+			{
+				std::unordered_set<Ref<PathNonHolonomicSE2Base>> paths;
+
+				if (!this->m_rootNode)
+					return paths;
+
+				this->m_rootNode->PreOrderTraversal([&](const AStarNode<State, Action>& node) {
+					if (node->action.path)
+						paths.insert(node->action.path);
+				});
+				return paths;
+			}
+
+			/// @brief Return the parameters used to conduct the search.
+			const SearchParameters& GetParameters() const { return const_cast<const StatePropagator&>(*m_propagator).GetParameters(); }
+			/// @brief Return the obstacle heuristic.
+			const Ref<ObstaclesHeuristic>& GetObstacleHeuristic() const { return m_obstacleHeuristic; }
+
+			/// @brief Return true if two poses are equal within some tolerance
+			inline static bool IdenticalPoses(const Pose2d& lhs, const Pose2d& rhs, double tol = 1e-3)
+			{
+				return (lhs.position - rhs.position).norm() < tol && abs(lhs.theta - rhs.theta) < tol * M_PI / 180.0;
+			}
+
+		private:
+			/// @copydoc Planner::AStar::IsSolution
+			inline virtual bool IsSolution(AStarNode<State, Action>* node) override
+			{
+				return IdenticalPoses((*node)->state.continuousPose, this->m_goal.continuousPose);
+			}
+
+			/// @copydoc Planner::AStar::ProcessPossibleShortcut
+			inline virtual void ProcessPossibleShortcut(AStarNode<State, Action>* frontierNode, Scope<AStarNode<State, Action>> childScope, AStarNode<State, Action>* node) override
+			{
+				// TODO FIXME check if a path with better cost exist between the two nodes if two poses are not identical?
+				auto child = childScope.get();
+				if (IdenticalPoses((*frontierNode)->state.continuousPose, (*child)->state.continuousPose))
+					AStarDeclType::ProcessPossibleShortcut(frontierNode, std::move(childScope), node);
+			}
+
+		private:
+			Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
+			Ref<ObstaclesHeuristic> m_obstacleHeuristic;
+
+			Ref<StatePropagator> m_propagator;
+		};
+
+		/// @brief A* based graph search for bidirectional Hybrid A*
+		class BidirectionalGraphSearch : public BidirectionalAStar<State, Action, State::Hash, State::Equal, true, GraphSearch<ExploredMap<State, Action, State::Hash, State::Equal>>> {
+			using UnidirectionalGraphSearch = GraphSearch<ExploredMap<State, Action, State::Hash, State::Equal>>;
+			using BidirectionalAStarDeclType = BidirectionalAStar<State, Action, State::Hash, State::Equal, true, UnidirectionalGraphSearch>;
+
+		public:
+			BidirectionalGraphSearch() = default;
+
+			/// @brief Initialize the graph search
+			void Initialize(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& p, const Ref<GVD>& gvd);
+
+			/// @brief Update the graph search
+			void Update(const Pose2d& init, const Pose2d& goal);
 
 			/// @brief Return the solution path connecting the initial state to
 			/// the goal state.
 			Ref<PathSE2CompositeNonHolonomic> GetCompositePath() const;
 
 			/// @brief Return the set of explored path
-			std::unordered_set<Ref<PathNonHolonomicSE2Base>> GetExploredPathSet() const;
+// 			std::unordered_set<Ref<PathNonHolonomicSE2Base>> GetExploredPathSet() const;
+			std::tuple<std::unordered_set<Ref<PathNonHolonomicSE2Base>>, std::unordered_set<Ref<PathNonHolonomicSE2Base>>> GetExploredPathSet() const;
 
-		protected:
-			/// @copydoc Planner::AStar::IsSolution
-			inline virtual bool IsSolution(Node* node) override
-			{
-				return IdenticalPoses((*node)->state.continuousPose, this->m_goal.continuousPose);
-			}
-
-			/// @copydoc Planner::AStar::ProcessPossibleShortcut
-			inline virtual void ProcessPossibleShortcut(Node* frontierNode, Scope<Node> childScope, Node* node) override
-			{
-				// TODO FIXME check if a path with better cost exist between the two nodes if two poses are not identical?
-				auto child = childScope.get();
-				if (IdenticalPoses((*frontierNode)->state.continuousPose, (*child)->state.continuousPose))
-					AStar<State, Action, State::Hash, State::Equal, true>::ProcessPossibleShortcut(frontierNode, std::move(childScope), node);
-			}
+			/// @brief Return the parameters used to conduct the search.
+			const SearchParameters& GetParameters() const { return const_cast<const StatePropagator&>(*m_fPropagator).GetParameters(); }
+			/// @brief Return the forward obstacle heuristic.
+			const Ref<ObstaclesHeuristic>& GetForwardObstacleHeuristic() const { return m_fObstacleHeuristic; }
+			/// @brief Return the reverse obstacle heuristic.
+			const Ref<ObstaclesHeuristic>& GetReverseObstacleHeuristic() const { return m_rObstacleHeuristic; }
 
 		private:
-			inline bool IdenticalPoses(const Pose2d& lhs, const Pose2d& rhs, double tol = 1e-3)
-			{
-				return (lhs.position - rhs.position).norm() < tol && abs(lhs.theta - rhs.theta) < tol * M_PI / 180.0;
-			}
+			using BidirectionalAStarDeclType::Initialize;
+
+		private:
+			Ref<NonHolonomicHeuristic> m_fNonHoloHeuristic;
+			Ref<TimeFlippedNonHolonomicHeuristic> m_rNonHoloHeuristic;
+			Ref<ObstaclesHeuristic> m_fObstacleHeuristic, m_rObstacleHeuristic;
+
+			Ref<StatePropagator> m_fPropagator, m_rPropagator;
+
 		};
 
 	public:
-		HybridAStar();
-		HybridAStar(const SearchParameters& parameters);
+		HybridAStar() = default;
 		virtual ~HybridAStar() = default;
 
-		bool Initialize(const Ref<StateValidatorOccupancyMap>& validator);
+		bool Initialize(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& p);
+		bool Initialize(const Ref<StateValidatorOccupancyMap>& validator)
+		{
+			return Initialize(validator, SearchParameters());
+		}
 
 		virtual Status SearchPath() override;
 
@@ -224,25 +330,13 @@ namespace Planner {
 
 		Ref<StateValidatorOccupancyMap>& GetStateValidator() { return m_validator; }
 
-		const SearchParameters& GetSearchParameters() const
-		{
-			return const_cast<const StatePropagator&>(*m_propagator).GetParameters();
-		}
-		const Smoother::Parameters& GetSmootherParameters() const
-		{
-			return const_cast<const Smoother&>(m_smoother).GetParameters();
-		}
-		void SetSmootherParameters(const Smoother::Parameters& param) { m_smoother.SetParameters(param); }
-
-		void VisualizeObstacleHeuristic(const std::string& filename) const;
-
 		const Stats& GetStats() const { return m_stats; }
-
-		std::unordered_set<Ref<PathNonHolonomicSE2Base>> GetGraphSearchExploredPathSet() const;
-		std::vector<Ref<PathNonHolonomicSE2Base>> GetGraphSearchPath() const;
-		double GetGraphSearchOptimalCost() const;
-
-		const std::vector<Pose2d>& GetSmoothedPath() const { return m_smoother.GetPath(); }
+// 		const GraphSearch<>& GetGraphSearch() const { return m_graphSearch; }
+// 		GraphSearch<>& GetGraphSearch() { return m_graphSearch; }
+		const BidirectionalGraphSearch& GetGraphSearch() const { return m_graphSearch; }
+		BidirectionalGraphSearch& GetGraphSearch() { return m_graphSearch; }
+		const Smoother& GetSmoother() const { return m_smoother; }
+		Smoother& GetSmoother() { return m_smoother; }
 
 	public:
 		/// @brief Distance to interpolate pose from the path
@@ -252,11 +346,11 @@ namespace Planner {
 		bool isInitialized = false;
 
 		Ref<StateValidatorOccupancyMap> m_validator;
-		Ref<StatePropagator> m_propagator;
-		Ref<NonHolonomicHeuristic> m_nonHoloHeuristic;
-		Ref<ObstaclesHeuristic> m_obstacleHeuristic;
 		Ref<GVD> m_gvd;
-		GraphSearch m_graphSearch;
+
+		// TODO create base for graph search and use a Scope
+// 		GraphSearch<> m_graphSearch;
+		BidirectionalGraphSearch m_graphSearch;
 		Smoother m_smoother;
 
 		Stats m_stats;

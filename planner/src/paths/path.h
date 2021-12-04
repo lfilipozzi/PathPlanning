@@ -48,6 +48,12 @@ namespace Planner {
 		/// @brief Truncate the path
 		virtual void Truncate(double ratio) = 0;
 
+		/// @brief Time-flip the path to swap the initial and final position.
+		virtual void TimeFlipTransform()
+		{
+			std::swap(m_init, m_final);
+		}
+
 		/// @brief Return the length of the path.
 		double GetLength() const { return m_length; }
 

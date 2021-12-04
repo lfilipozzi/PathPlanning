@@ -92,11 +92,11 @@ namespace Planner {
 
 			/// @brief Inverse the direction of motion.
 			/// @return A pointer to @this.
-			PathSegment* TimeflipTransform();
+			PathSegment& TimeflipTransform();
 
 			/// @brief Inverse the lateral direction of motion.
 			/// @return A pointer to @this.
-			PathSegment* ReflectTransform();
+			PathSegment& ReflectTransform();
 
 		private:
 			std::array<Motion, numMotion> m_motions;

@@ -4,7 +4,7 @@
 #include "geometry/reeds_shepp.h"
 
 namespace Planner {
-	NonHolonomicHeuristic::NonHolonomicHeuristic(double spatialResolution, double angularResolution, double minTurningRadius,
+	ReedsSheppPathCost::ReedsSheppPathCost(double spatialResolution, double angularResolution, double minTurningRadius,
 		double reverseCostMultiplier, double forwardCostMultiplier, double directionSwitchingCost,
 		unsigned int numSpatialX, unsigned int numSpatialY) :
 		spatialResolution(spatialResolution),
@@ -22,7 +22,7 @@ namespace Planner {
 		}
 	}
 
-	NonHolonomicHeuristic::~NonHolonomicHeuristic()
+	ReedsSheppPathCost::~ReedsSheppPathCost()
 	{
 		for (unsigned int i = 0; i < numSpatialX; i++) {
 			for (unsigned int j = 0; j < numSpatialY; j++) {
@@ -33,11 +33,11 @@ namespace Planner {
 		delete[] m_values;
 	}
 
-	Ref<NonHolonomicHeuristic> NonHolonomicHeuristic::Build(const std::array<Pose2d, 2>& bounds,
+	Ref<ReedsSheppPathCost> ReedsSheppPathCost::Build(const std::array<Pose2d, 2>& bounds,
 		double spatialResolution, double angularResolution, double minTurningRadius,
 		double reverseCostMultiplier, double forwardCostMultiplier, double directionSwitchingCost)
 	{
-		PP_INFO("Generating non-holonomic heuristic without obstacle.");
+		PP_INFO("Generating Reeds-Shepp path-cost data array.");
 
 		const double spatialSizeX = bounds[1].x() - bounds[0].x();
 		const double spatialSizeY = bounds[1].y() - bounds[0].y();
@@ -49,7 +49,7 @@ namespace Planner {
 		if (numSpatialGuessY % 2 == 0)
 			numSpatialGuessY++;
 
-		Ref<NonHolonomicHeuristic> heuristic = makeRef<MakeRefEnabler<NonHolonomicHeuristic>>(
+		Ref<ReedsSheppPathCost> heuristic = makeRef<MakeRefEnabler<ReedsSheppPathCost>>(
 			spatialResolution, angularResolution, minTurningRadius,
 			reverseCostMultiplier, forwardCostMultiplier, directionSwitchingCost,
 			numSpatialGuessX, numSpatialGuessY);
@@ -71,13 +71,13 @@ namespace Planner {
 			}
 		}
 
-		PP_INFO("Non-holonomic heuristic without obstacle generated.");
+		PP_INFO("Reeds-SHepp path-cost data array generated.");
 		return heuristic;
 	}
 
-	double NonHolonomicHeuristic::GetHeuristicValue(const Pose2d& state)
+	double ReedsSheppPathCost::GetPathCost(const Pose2d& from, const Pose2d& to)
 	{
-		auto delta = m_goal - state;
+		auto delta = to - from;
 
 		int i = (int)round((delta.x() + offsetX) / spatialResolution);
 		int j = (int)round((delta.y() + offsetY) / spatialResolution);
@@ -94,9 +94,25 @@ namespace Planner {
 		return m_values[i][j][k];
 	}
 
-	ObstaclesHeuristic::ObstaclesHeuristic(const Ref<OccupancyMap>& map, double reverseCostMultiplier, double forwardCostMultiplier) :
+	NonHolonomicHeuristic::NonHolonomicHeuristic(const Ref<ReedsSheppPathCost>& pathCostData) :
+		m_pathCost(pathCostData) { }
+
+	double NonHolonomicHeuristic::GetHeuristicValue(const Pose2d& state)
+	{
+		return m_pathCost->GetPathCost(state, m_goal);
+	}
+
+	TimeFlippedNonHolonomicHeuristic::TimeFlippedNonHolonomicHeuristic(const Ref<ReedsSheppPathCost>& pathCostData) :
+		m_pathCost(pathCostData) { }
+
+	double TimeFlippedNonHolonomicHeuristic::GetHeuristicValue(const Pose2d& state)
+	{
+		return m_pathCost->GetPathCost(state, m_goal);
+	}
+
+	ObstaclesHeuristic::ObstaclesHeuristic(const Ref<OccupancyMap>& map, double costMultiplier) :
 		diagonalResolution(std::sqrt(2) * map->resolution),
-		costMultiplier(std::min(reverseCostMultiplier, forwardCostMultiplier) * map->resolution),
+		costMultiplier(costMultiplier * map->resolution),
 		m_map(map),
 		m_cost(map->Rows(), map->Columns(), std::numeric_limits<float>::infinity()),
 		m_explored(map->Rows(), map->Columns(), false)

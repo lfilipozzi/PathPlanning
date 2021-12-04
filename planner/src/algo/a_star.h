@@ -126,6 +126,10 @@ namespace Planner {
 	public:
 		AStarHeuristicAdapter(const Ref<AStarHeuristic<S2>>& heuristic, Func func) :
 			m_heuristic(heuristic), m_funcAdapter(func) { }
+		AStarHeuristicAdapter(Func func) :
+			m_funcAdapter(func) { }
+
+		void SetHeuristic(const Ref<AStarHeuristic<S2>>& heuristic) { m_heuristic = heuristic; }
 
 		virtual double GetHeuristicValue(const S1& state) override
 		{
@@ -219,6 +223,12 @@ namespace Planner {
 		typename ExploredContainer = Explored<State, HashState, EqualState>>
 	class AStar : public PathPlanner<State> {
 		static_assert(std::is_copy_constructible<State>::value);
+
+		template <typename S, typename A, typename HashS, typename EqualS, bool, typename Algo>
+		friend class BidirectionalAStar;
+
+	public:
+		using Explored = ExploredContainer;
 
 	protected:
 		using Node = AStarNode<State, Action>;

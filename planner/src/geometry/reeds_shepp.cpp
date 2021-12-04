@@ -493,7 +493,7 @@ namespace Planner {
 			return cost;
 		}
 
-		PathSegment* PathSegment::TimeflipTransform()
+		PathSegment& PathSegment::TimeflipTransform()
 		{
 			for (auto& motion : m_motions) {
 				if (motion.direction == Direction::Backward)
@@ -501,10 +501,10 @@ namespace Planner {
 				else if (motion.direction == Direction::Forward)
 					motion.direction = Direction::Backward;
 			}
-			return this;
+			return *this;
 		}
 
-		PathSegment* PathSegment::ReflectTransform()
+		PathSegment& PathSegment::ReflectTransform()
 		{
 			for (auto& motion : m_motions) {
 				if (motion.steer == Steer::Left)
@@ -512,7 +512,7 @@ namespace Planner {
 				else if (motion.steer == Steer::Right)
 					motion.steer = Steer::Left;
 			}
-			return this;
+			return *this;
 		}
 
 		static std::array<Pose2d, 4> GetGoalArray(const Pose2d& start, const Pose2d& goal, double minTurningRadius)
@@ -597,7 +597,7 @@ namespace Planner {
 				path.ReflectTransform();
 				break;
 			case 3:
-				path.TimeflipTransform()->ReflectTransform();
+				path.TimeflipTransform().ReflectTransform();
 				break;
 			default:
 				break;

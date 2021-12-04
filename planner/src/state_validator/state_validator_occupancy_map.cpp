@@ -39,7 +39,7 @@ namespace Planner {
 
 		double lastValidLength = 0.0;
 		double length = 0.0;
-		while (length < pathLength) {
+		while (length <= pathLength) {
 			Pose2d state = path.Interpolate(length / pathLength);
 
 			// Check current state

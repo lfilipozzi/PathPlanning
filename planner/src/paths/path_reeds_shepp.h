@@ -13,6 +13,8 @@ namespace Planner {
 		using PathNonHolonomicSE2Base::Interpolate;
 		/// @copydoc Planer::Path::Truncate
 		virtual void Truncate(double ratio) override;
+		/// @copydoc Planner::Path::TimeFlipTransform
+		virtual void TimeFlipTransform() override;
 		/// @copydoc Planer::PathNonHolonomic::GetCuspPointRatios
 		virtual std::set<double> GetCuspPointRatios() const override;
 		/// @copydoc Planner::PathNonHolonomic::GetDirection

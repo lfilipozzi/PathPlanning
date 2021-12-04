@@ -93,6 +93,12 @@ namespace Planner {
 		m_length *= ratio;
 	}
 
+	void PathReedsShepp::TimeFlipTransform()
+	{
+		PathNonHolonomicSE2Base::TimeFlipTransform();
+		m_pathSegment.TimeflipTransform();
+	}
+
 	std::set<double> PathReedsShepp::GetCuspPointRatios() const
 	{
 		std::set<double> ratios;

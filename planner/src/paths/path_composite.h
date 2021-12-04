@@ -67,6 +67,20 @@ namespace Planner {
 			m_paths.erase(std::next(it), m_paths.end());
 		}
 
+		/// @copydoc Planner::Path::TimeFlipTransform
+		virtual void TimeFlipTransform() override
+		{
+			BasePath::TimeFlipTransform();
+			std::reverse(m_paths.begin(), m_paths.end());
+			double pathLength = 0;
+			for (auto& p : m_paths) {
+				p.first.initLength = pathLength;
+				p.first.finalLength = pathLength + p.second->GetLength();
+				pathLength = p.first.finalLength;
+				p.second->TimeFlipTransform();
+			}
+		}
+
 	protected:
 		std::tuple<typename Paths::const_iterator, double> FindSegment(double ratio) const
 		{

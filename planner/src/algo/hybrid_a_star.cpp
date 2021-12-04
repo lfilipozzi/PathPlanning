@@ -2,11 +2,8 @@
 
 #include "paths/path_constant_steer.h"
 #include "paths/path_reeds_shepp.h"
-#include "paths/path_composite.h"
-#include "state_validator/state_validator_occupancy_map.h"
 #include "state_validator/occupancy_map.h"
 #include "state_validator/gvd.h"
-#include "algo/heuristics.h"
 #include "models/kinematic_bicycle_model.h"
 
 namespace Planner {
@@ -172,38 +169,96 @@ namespace Planner {
 		return true;
 	}
 
-	Ref<PathSE2CompositeNonHolonomic> HybridAStar::GraphSearch::GetCompositePath() const
+	void HybridAStar::BidirectionalGraphSearch::Initialize(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& p, const Ref<GVD>& gvd)
+	{
+		// The forward propagator and heuristic are the same as the unidirectional 
+		// ones. 
+		// The reverse heuristic is a combined heuristic of the 
+		// TimeFlippedNonHolonomicHeuristic (to get the cost of a time-flipped 
+		// Reeds-Shepp path), and of an ObstaclesHeuristic whose goal is the 
+		// initial position.
+		// The reverse propagator expands the path similarly to the forward 
+		// propagator, but its forward and reverse cost multipliers are swapped.
+		// The solution path of the reverse search must then be time-flipped.
+
+		auto reedsSheppPathCost = ReedsSheppPathCost::Build(validator->GetStateSpace()->bounds,
+				p.spatialResolution, p.angularResolution, p.minTurningRadius,
+				p.reverseCostMultiplier, p.forwardCostMultiplier, p.directionSwitchingCost);
+
+		// Forward
+		Ref<AStarHeuristic<State>> fHeuristic;
+		{
+			// Initialize heuristic
+			m_fNonHoloHeuristic = makeRef<NonHolonomicHeuristic>(reedsSheppPathCost);
+			m_fObstacleHeuristic = makeRef<ObstaclesHeuristic>(validator->GetOccupancyMap(), std::min(p.reverseCostMultiplier, p.forwardCostMultiplier));
+			auto combinedHeur = makeRef<AStarCombinedHeuristic<Pose2d>>();
+			combinedHeur->Add(m_fNonHoloHeuristic, m_fObstacleHeuristic);
+			fHeuristic = makeRef<HeuristicAdapter>(combinedHeur);
+
+			// Initialize propagator
+			m_fPropagator = makeRef<StatePropagator>(p);
+			m_fPropagator->Initialize(validator, fHeuristic, gvd);
+		}
+
+		// Reverse
+		Ref<AStarHeuristic<State>> rHeuristic;
+		{
+			// Initialize heuristic
+			m_rNonHoloHeuristic = makeRef<TimeFlippedNonHolonomicHeuristic>(reedsSheppPathCost);
+			m_rObstacleHeuristic = makeRef<ObstaclesHeuristic>(validator->GetOccupancyMap(), std::min(p.reverseCostMultiplier, p.forwardCostMultiplier));
+			auto combinedHeur = makeRef<AStarCombinedHeuristic<Pose2d>>();
+			combinedHeur->Add(m_rNonHoloHeuristic, m_rObstacleHeuristic);
+			rHeuristic = makeRef<HeuristicAdapter>(combinedHeur);
+
+			// Initialize propagator
+			SearchParameters rParam = p;
+			rParam.forwardCostMultiplier = p.reverseCostMultiplier;
+			rParam.reverseCostMultiplier = p.forwardCostMultiplier;
+			m_rPropagator = makeRef<StatePropagator>(rParam);
+			m_rPropagator->Initialize(validator, rHeuristic, gvd);
+		}
+
+		// BidirectionalAStarDeclType::Initialize(m_fPropagator, m_rPropagator, fHeuristic, rHeuristic);
+		auto [fAverageHeuristic, rAverageHeuristic] = BidirectionalAStarDeclType::GetAverageHeuristicPair(fHeuristic, rHeuristic);
+		BidirectionalAStarDeclType::Initialize(m_fPropagator, m_rPropagator, fAverageHeuristic, rAverageHeuristic);
+	}
+
+	void HybridAStar::BidirectionalGraphSearch::Update(const Pose2d& init, const Pose2d& goal)
+	{
+		this->SetInitState(m_fPropagator->CreateStateFromPose(init));
+		this->SetGoalState(m_fPropagator->CreateStateFromPose(goal));
+		m_fObstacleHeuristic->Update(goal);
+		m_rObstacleHeuristic->Update(init);
+		m_fPropagator->SetGoalState(this->m_goal);
+		m_rPropagator->SetGoalState(this->m_init);
+	}
+
+	Ref<PathSE2CompositeNonHolonomic> HybridAStar::BidirectionalGraphSearch::GetCompositePath() const
 	{
 		auto path = makeRef<PathSE2CompositeNonHolonomic>();
-		const auto& actions = GetActions();
-		path->Reserve(actions.size());
-		for (auto& action : actions)
-			path->PushBack(action.path);
+		auto fPath = m_fSearch.GetCompositePath();
+		auto rPath = m_rSearch.GetCompositePath();
+		rPath->TimeFlipTransform();
+		path->PushBack(fPath);
+		path->PushBack(rPath);
 		return path;
 	}
 
-	std::unordered_set<Ref<PathNonHolonomicSE2Base>> HybridAStar::GraphSearch::GetExploredPathSet() const
+// 	std::unordered_set<Ref<PathNonHolonomicSE2Base>> HybridAStar::BidirectionalGraphSearch::GetExploredPathSet() const
+// 	{
+// 		auto fPaths = m_fSearch.GetExploredPathSet();
+// 		auto rPaths = m_rSearch.GetExploredPathSet();
+// 		fPaths.insert(rPaths.begin(), rPaths.end());
+// 		return fPaths;
+// 	}
+
+	std::tuple<std::unordered_set<Ref<PathNonHolonomicSE2Base>>, std::unordered_set<Ref<PathNonHolonomicSE2Base>>> HybridAStar::BidirectionalGraphSearch::GetExploredPathSet() const
 	{
-		std::unordered_set<Ref<PathNonHolonomicSE2Base>> paths;
-
-		if (!m_rootNode)
-			return paths;
-
-		m_rootNode->PreOrderTraversal([&](const Node& node) {
-			if (node->action.path)
-				paths.insert(node->action.path);
-		});
-		return paths;
+		return { m_fSearch.GetExploredPathSet(), m_rSearch.GetExploredPathSet() };
 	}
 
-	HybridAStar::HybridAStar() :
-		HybridAStar(SearchParameters()) { }
-	HybridAStar::HybridAStar(const SearchParameters& p)
-	{
-		m_propagator = makeRef<StatePropagator>(p);
-	}
 
-	bool HybridAStar::Initialize(const Ref<StateValidatorOccupancyMap>& validator)
+	bool HybridAStar::Initialize(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& p)
 	{
 		PP_PROFILE_FUNCTION();
 
@@ -211,25 +266,11 @@ namespace Planner {
 			return isInitialized = false;
 
 		m_validator = validator;
-		const auto& p = m_propagator->GetParameters();
 
-		// Initialize Voronoi field and smoother
+		// Initialize Voronoi field, graph search, and smoother
 		m_gvd = makeRef<GVD>(m_validator->GetOccupancyMap());
+		m_graphSearch.Initialize(m_validator, p, m_gvd);
 		m_smoother.Initialize(m_validator, m_gvd, 1.0 / p.minTurningRadius);
-
-		// Initialize heuristic
-		m_nonHoloHeuristic = NonHolonomicHeuristic::Build(m_validator->GetStateSpace()->bounds,
-			p.spatialResolution, p.angularResolution, p.minTurningRadius,
-			p.reverseCostMultiplier, p.forwardCostMultiplier, p.directionSwitchingCost);
-		m_obstacleHeuristic = makeRef<ObstaclesHeuristic>(
-			m_validator->GetOccupancyMap(), p.reverseCostMultiplier, p.forwardCostMultiplier);
-		auto combinedHeur = makeRef<AStarCombinedHeuristic<Pose2d>>();
-		combinedHeur->Add(m_nonHoloHeuristic, m_obstacleHeuristic);
-		auto heuristic = makeRef<HeuristicAdapter>(combinedHeur);
-
-		// Initialize A* search algorithm and its state propagator
-		m_propagator->Initialize(m_validator, heuristic, m_gvd);
-		m_graphSearch.Initialize(m_propagator, heuristic);
 
 		return isInitialized = true;
 	}
@@ -246,14 +287,12 @@ namespace Planner {
 		}
 
 		// Update members
-		m_obstacleHeuristic->Update(this->m_goal);
 		m_gvd->Update();
+		m_graphSearch.Update(m_init, m_goal);
 
 		// Run A* on 2D pose
-		m_graphSearch.SetInitState(m_propagator->CreateStateFromPose(this->m_init));
-		m_graphSearch.SetGoalState(m_propagator->SetGoalState(this->m_goal));
 		m_stats.graphSearchStatus = m_graphSearch.SearchPath();
-		if (m_stats.graphSearchStatus < 0)
+// 		if (m_stats.graphSearchStatus < 0) // FIXME uncomment
 			return m_stats.graphSearchStatus;
 
 		// Process path before smoothing
@@ -301,29 +340,5 @@ namespace Planner {
 		m_path = m_smoother.GetPath();
 
 		return Status::Success;
-	}
-
-	void HybridAStar::VisualizeObstacleHeuristic(const std::string& filename) const
-	{
-		m_obstacleHeuristic->Visualize(filename);
-	}
-
-	std::unordered_set<Ref<PathNonHolonomicSE2Base>> HybridAStar::GetGraphSearchExploredPathSet() const
-	{
-		return m_graphSearch.GetExploredPathSet();
-	}
-
-	std::vector<Ref<PathNonHolonomicSE2Base>> HybridAStar::GetGraphSearchPath() const
-	{
-		const auto& actions = m_graphSearch.GetActions();
-		std::vector<Ref<PathNonHolonomicSE2Base>> paths;
-		for (auto& action : actions)
-			paths.push_back(action.path);
-		return paths;
-	}
-
-	double HybridAStar::GetGraphSearchOptimalCost() const
-	{
-		return m_graphSearch.GetOptimalCost();
 	}
 }

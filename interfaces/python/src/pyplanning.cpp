@@ -109,17 +109,16 @@ PYBIND11_MODULE(pyplanning, m)
 
 	class_<HybridAStar, PathPlannerSE2Base>(m, "HybridAStar")
 		.def(init<>())
-		.def(init<const HybridAStar::SearchParameters&>())
-		.def("initialize", &HybridAStar::Initialize)
+		.def<bool (HybridAStar::*)(const Ref<StateValidatorOccupancyMap>&, const HybridAStar::SearchParameters&)>("initialize", &HybridAStar::Initialize)
+		.def<bool (HybridAStar::*)(const Ref<StateValidatorOccupancyMap>&)>("initialize", &HybridAStar::Initialize)
 		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation)
 		.def("get_stats", &HybridAStar::GetStats)
-		.def("get_graph_search_explored_path_set", &HybridAStar::GetGraphSearchExploredPathSet)
-		.def("get_graph_search_path", &HybridAStar::GetGraphSearchPath)
-		.def("get_graph_search_optimal_cost", &HybridAStar::GetGraphSearchOptimalCost)
-		.def("get_smoothed_path", &HybridAStar::GetSmoothedPath)
-		.def("get_search_parameters", &HybridAStar::GetSearchParameters)
-		.def_property("smoother_parameters", &HybridAStar::GetSmootherParameters, &HybridAStar::SetSmootherParameters)
-		.def("visualize_obstacle_heuristic", &HybridAStar::VisualizeObstacleHeuristic);
+		.def("get_graph_search_explored_path_set", [](const HybridAStar& algo){ return algo.GetGraphSearch().GetExploredPathSet(); })
+		.def("get_graph_search_path", [](const HybridAStar& algo){ return algo.GetGraphSearch().GetCompositePath(); })
+		.def("get_graph_search_optimal_cost", [](const HybridAStar& algo){ return algo.GetGraphSearch().GetOptimalCost(); })
+		.def("get_search_parameters", [](const HybridAStar& algo){ return algo.GetGraphSearch().GetParameters(); })
+		.def("get_smoothed_path", [](const HybridAStar& algo){ return algo.GetSmoother().GetPath(); })
+		.def_property("smoother_parameters", [](const HybridAStar& algo){ return algo.GetSmoother().GetParameters(); }, [](HybridAStar& algo, const Smoother::Parameters& param){ return algo.GetSmoother().SetParameters(param); });
 
 	struct PathPlannerN2BaseWrapper : PathPlannerN2Base {
 		using PathPlannerN2Base::PathPlannerN2Base;
@@ -212,7 +211,11 @@ PYBIND11_MODULE(pyplanning, m)
 		.def(self + self)
 		.def(self - self)
 		.def(self == self)
-		.def(self != self);
+		.def(self != self)
+		.def("__repr__",
+			 [](const Point2d & point) {
+				 return "<Point2d: x " + std::to_string(point.x()) + ", y: " + std::to_string(point.y()) + ">";
+			});
 
 	class_<Pose2d>(m, "Pose2d")
 		.def(init<const Point2d&, double>())
@@ -224,7 +227,11 @@ PYBIND11_MODULE(pyplanning, m)
 		.def(self + self)
 		.def(self - self)
 		.def(self == self)
-		.def(self != self);
+		.def(self != self)
+		.def("__repr__",
+			 [](const Pose2d & pose) {
+				 return "<Pose2d: x " + std::to_string(pose.x()) + ", y: " + std::to_string(pose.y()) + ", theta: " + std::to_string(pose.theta) + ">";
+			});
 
 	class_<GridCellPosition>(m, "GridCellPosition")
 		.def(init<>())
@@ -292,6 +299,9 @@ PYBIND11_MODULE(pyplanning, m)
 
 	class_<KinematicBicycleModel, Ref<KinematicBicycleModel>>(m, "KinematicBicycleModel")
 		.def(init<double, double>());
+
+	class_<PathSE2CompositeNonHolonomic, Ref<PathSE2CompositeNonHolonomic>, PathNonHolonomicSE2Base>(m, "PathSE2CompositeNonHolonomic")
+		.def(init<>());
 
 	struct PathConnectionSE2BaseWrapper : PathConnectionSE2Base {
 		using PathConnectionSE2Base::PathConnectionSE2Base;
