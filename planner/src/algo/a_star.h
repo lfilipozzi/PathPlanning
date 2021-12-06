@@ -33,6 +33,8 @@ namespace Planner {
 		friend class AStarCombinedHeuristic;
 		template <typename S1, typename S2, typename Func>
 		friend class AStarHeuristicAdapter;
+		template <typename S>
+		friend class AverageHeuristic;
 		template <typename S, typename A, typename HashState, typename EqualState, bool GraphSearch, typename ExploredContainer>
 		friend class AStar;
 
@@ -57,10 +59,20 @@ namespace Planner {
 		virtual ~AStarConcreteHeuristic() = default;
 
 	protected:
-		virtual void SetGoal(const State& goal) override { m_goal = goal; }
+		virtual void SetGoal(const State& goal) override final { m_goal = goal; }
 
 	protected:
 		State m_goal;
+	};
+
+	/// @brief A* heuristic returning zero.
+	template <typename State>
+	class AStarNullHeuristic : public AStarConcreteHeuristic<State> {
+	public:
+		AStarNullHeuristic() = default;
+		~AStarNullHeuristic() = default;
+
+		virtual double GetHeuristicValue(const State& /*state*/) { return 0.0; }
 	};
 
 	/// @brief A* heuristic from function.

@@ -29,6 +29,7 @@ namespace Planner {
 	{
 		PP_PROFILE_FUNCTION();
 
+		// Edge case: path of length zero
 		const auto& bounds = m_stateSpace->bounds;
 		const double pathLength = path.GetLength();
 		if (pathLength == 0.0) {
@@ -37,9 +38,10 @@ namespace Planner {
 			return IsStateValid(path.GetInitialState());
 		}
 
+		// Interpolate over the path progressively
 		double lastValidLength = 0.0;
 		double length = 0.0;
-		while (length <= pathLength) {
+		while (length < pathLength) {
 			Pose2d state = path.Interpolate(length / pathLength);
 
 			// Check current state
@@ -63,6 +65,13 @@ namespace Planner {
 			float deltaLength = distance - minSafeRadius;
 			deltaLength = std::min(deltaLength, distToMapBorder);
 			length += std::max(deltaLength, minPathInterpolationDistance);
+		}
+
+		// Check the final state
+		if (!IsStateValid(path.GetFinalState())) {
+			if (last)
+				*last = lastValidLength / pathLength;
+			return false;
 		}
 
 		if (last)

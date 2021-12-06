@@ -7,7 +7,7 @@ namespace Planner {
 
 	/// @brief Create a consistent pair of heuristic for bidirectional A*.
 	template <typename State>
-	class AverageHeuristic : public AStarConcreteHeuristic<State> {
+	class AverageHeuristic : public AStarHeuristic<State> {
 		template <typename S, typename A, typename HashState, typename EqualState, bool GraphSearch, typename Algo>
 		friend class BidirectionalAStar;
 
@@ -21,6 +21,9 @@ namespace Planner {
 			return m_constant + (m_toGoalHeuristic->GetHeuristicValue(state) - m_toInitHeuristic->GetHeuristicValue(state)) / 2.0;
 		}
 
+	protected:
+		virtual void SetGoal(const State& /*goal*/) override final { }
+
 	private:
 		/// @brief Update the heuristic
 		/// @param init The initial state of the search (in the direction of the search).
@@ -28,13 +31,15 @@ namespace Planner {
 		void Update(const State& init, const State& goal)
 		{
 			m_init = init;
-			this->m_goal = goal;
+			m_goal = goal;
+			m_toGoalHeuristic->SetGoal(goal);
+			m_toInitHeuristic->SetGoal(init);
 			m_constant = m_toInitHeuristic->GetHeuristicValue(goal) / 2.0;
 		}
 
 	private:
 		Ref<AStarHeuristic<State>> m_toGoalHeuristic, m_toInitHeuristic;
-		State m_init;
+		State m_init, m_goal;
 		double m_constant;
 	};
 
@@ -160,9 +165,11 @@ namespace Planner {
 			m_rSearch.InitializeSearch();
 
 			const double costOffset = m_fSearch.m_heuristic->GetHeuristicValue(this->m_goal) + m_rSearch.m_heuristic->GetHeuristicValue(this->m_goal);
+			PP_INFO("Cost offset: {}", costOffset);
 
 			double bestCost = std::numeric_limits<double>::infinity();
 			while (!m_fSearch.m_frontier.Empty() && !m_rSearch.m_frontier.Empty()) {
+				// TODO Can we avoid expanding node in one direction if they have already been expanded in the other?
 				// Forward search
 				auto fNode = m_fSearch.m_frontier.Pop();
 				m_fSearch.Expand(fNode);
@@ -178,13 +185,21 @@ namespace Planner {
 					if (m_fSearch.m_frontier.Empty() || m_rSearch.m_frontier.Empty())
 						return Status::Success;
 
-					double fTopCost = (*m_fSearch.m_frontier.Top())->pathCost;
-					double rTopCost = (*m_rSearch.m_frontier.Top())->pathCost;
+					// TODO FIXME need to check what stopping condition to use
+// 					double fTopCost = (*m_fSearch.m_frontier.Top())->pathCost;
+// 					double rTopCost = (*m_rSearch.m_frontier.Top())->pathCost;
+					double fTopCost = (*m_fSearch.m_frontier.Top())->totalCost;
+					double rTopCost = (*m_rSearch.m_frontier.Top())->totalCost;
 					// TODO try replacing last 4 lines by using fNode and rNode directly
 
 					// Check the stopping criterion
+					// TODO allow to change stopping condition more easily
+// 					if (fTopCost + rTopCost >= bestCost + costOffset)
+// 						return Status::Success;
 					if (fTopCost + rTopCost >= bestCost + costOffset)
 						return Status::Success;
+// 					if (std::max(fTopCost, rTopCost) >= bestCost)
+// 						return Status::Success;
 				}
 			}
 			return Status::Failure;

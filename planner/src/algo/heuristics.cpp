@@ -107,7 +107,7 @@ namespace Planner {
 
 	double TimeFlippedNonHolonomicHeuristic::GetHeuristicValue(const Pose2d& state)
 	{
-		return m_pathCost->GetPathCost(state, m_goal);
+		return m_pathCost->GetPathCost(m_goal, state);
 	}
 
 	ObstaclesHeuristic::ObstaclesHeuristic(const Ref<OccupancyMap>& map, double costMultiplier) :

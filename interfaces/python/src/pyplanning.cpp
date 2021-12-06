@@ -274,6 +274,7 @@ PYBIND11_MODULE(pyplanning, m)
 		.def<Pose2d (PathSE2Base::*)(double) const>("interpolate", &PathSE2Base::Interpolate)
 		.def<std::vector<Pose2d> (PathSE2Base::*)(const std::vector<double>&) const>("interpolate", &PathSE2Base::Interpolate)
 		.def("truncate", &PathSE2Base::Truncate)
+		.def("time_flip_transform", &PathSE2Base::TimeFlipTransform)
 		.def("get_length", &PathSE2Base::GetLength);
 
 	class_<PathSE2, Ref<PathSE2>, PathSE2Base>(m, "PathSE2")
@@ -301,7 +302,8 @@ PYBIND11_MODULE(pyplanning, m)
 		.def(init<double, double>());
 
 	class_<PathSE2CompositeNonHolonomic, Ref<PathSE2CompositeNonHolonomic>, PathNonHolonomicSE2Base>(m, "PathSE2CompositeNonHolonomic")
-		.def(init<>());
+		.def(init<>())
+		.def("append", &PathSE2CompositeNonHolonomic::PushBack);
 
 	struct PathConnectionSE2BaseWrapper : PathConnectionSE2Base {
 		using PathConnectionSE2Base::PathConnectionSE2Base;

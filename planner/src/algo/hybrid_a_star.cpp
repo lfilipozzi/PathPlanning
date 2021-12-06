@@ -178,8 +178,8 @@ namespace Planner {
 		// Reeds-Shepp path), and of an ObstaclesHeuristic whose goal is the 
 		// initial position.
 		// The reverse propagator expands the path similarly to the forward 
-		// propagator, but its forward and reverse cost multipliers are swapped.
-		// The solution path of the reverse search must then be time-flipped.
+		// propagator. The solution path of the reverse search must then be 
+		// time-flipped.
 
 		auto reedsSheppPathCost = ReedsSheppPathCost::Build(validator->GetStateSpace()->bounds,
 				p.spatialResolution, p.angularResolution, p.minTurningRadius,
@@ -188,6 +188,7 @@ namespace Planner {
 		// Forward
 		Ref<AStarHeuristic<State>> fHeuristic;
 		{
+// 			fHeuristic = makeRef<AStarNullHeuristic<State>>();
 			// Initialize heuristic
 			m_fNonHoloHeuristic = makeRef<NonHolonomicHeuristic>(reedsSheppPathCost);
 			m_fObstacleHeuristic = makeRef<ObstaclesHeuristic>(validator->GetOccupancyMap(), std::min(p.reverseCostMultiplier, p.forwardCostMultiplier));
@@ -203,6 +204,7 @@ namespace Planner {
 		// Reverse
 		Ref<AStarHeuristic<State>> rHeuristic;
 		{
+// 			rHeuristic = makeRef<AStarNullHeuristic<State>>();
 			// Initialize heuristic
 			m_rNonHoloHeuristic = makeRef<TimeFlippedNonHolonomicHeuristic>(reedsSheppPathCost);
 			m_rObstacleHeuristic = makeRef<ObstaclesHeuristic>(validator->GetOccupancyMap(), std::min(p.reverseCostMultiplier, p.forwardCostMultiplier));
@@ -211,14 +213,12 @@ namespace Planner {
 			rHeuristic = makeRef<HeuristicAdapter>(combinedHeur);
 
 			// Initialize propagator
-			SearchParameters rParam = p;
-			rParam.forwardCostMultiplier = p.reverseCostMultiplier;
-			rParam.reverseCostMultiplier = p.forwardCostMultiplier;
-			m_rPropagator = makeRef<StatePropagator>(rParam);
+			m_rPropagator = makeRef<StatePropagator>(p);
 			m_rPropagator->Initialize(validator, rHeuristic, gvd);
 		}
 
-		// BidirectionalAStarDeclType::Initialize(m_fPropagator, m_rPropagator, fHeuristic, rHeuristic);
+		// TODO play with stopping condition and pair of heuristic
+// 		BidirectionalAStarDeclType::Initialize(m_fPropagator, m_rPropagator, fHeuristic, rHeuristic);
 		auto [fAverageHeuristic, rAverageHeuristic] = BidirectionalAStarDeclType::GetAverageHeuristicPair(fHeuristic, rHeuristic);
 		BidirectionalAStarDeclType::Initialize(m_fPropagator, m_rPropagator, fAverageHeuristic, rAverageHeuristic);
 	}

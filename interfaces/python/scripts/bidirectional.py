@@ -86,7 +86,7 @@ for path in reverse_graph_search_explored_path_set:
 	_ = ax.plot(x, y, color='red', linewidth = 0.5, label='_')
 
 graph_search_path = algo.get_graph_search_path()
-ratios = np.linspace(0.0, 1.0, 100)
+ratios = np.linspace(0.0, 1.0, 500)
 poses = [graph_search_path.interpolate(ratio) for ratio in ratios]
 x = [p.x() for p in poses]
 y = [p.y() for p in poses]
@@ -110,4 +110,15 @@ for position in obstacle_positions:
 _ = ax.axis('equal')
 _ = ax.axis((-12,12,-12,12))
 _ = ax.legend()
+fig.show()
+
+
+
+fig, ax = plt.subplots()
+graph_search_path = algo.get_graph_search_path()
+ratios = np.linspace(0.0, 1.0, 500)
+poses = [graph_search_path.interpolate(ratio) for ratio in ratios]
+x = [p.x() for p in poses]
+y = [p.y() for p in poses]
+_ = ax.plot(x, y, color='orange', linewidth = 2, label='Graph search solution')
 fig.show()
