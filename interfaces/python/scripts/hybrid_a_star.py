@@ -55,12 +55,12 @@ algo.set_goal_state(nav.Pose2d(8.0, 8.0, 0.0))
 algo.initialize(state_validator)
 
 algo.path_interpolation = 0.8
-#algo.smoother_parameters.learning_rate = 0.01
-#algo.smoother_parameters.path_weight = 0
-#algo.smoother_parameters.smooth_weight = 0
-#algo.smoother_parameters.voronoi_weight = 0
-#algo.smoother_parameters.collision_weight = 0
-#algo.smoother_parameters.curvature_weight = 0
+#algo.smoother.parameters.learning_rate = 0.01
+#algo.smoother.parameters.path_weight = 0
+#algo.smoother.parameters.smooth_weight = 0
+#algo.smoother.parameters.voronoi_weight = 0
+#algo.smoother.parameters.collision_weight = 0
+#algo.smoother.parameters.curvature_weight = 0
 
 algo.search_path()
 
@@ -85,7 +85,7 @@ x = [p.x() for p in poses]
 y = [p.y() for p in poses]
 _ = ax.plot(x, y, color='orange', linewidth = 2, label='Graph search solution')
 
-smoothed_path = algo.get_smoothed_path()
+smoothed_path = algo.smoother.get_path()
 x = [p.x() for p in smoothed_path]
 y = [p.y() for p in smoothed_path]
 _ = ax.plot(x, y, color='yellow', linewidth = 2, label='Smoothed path')

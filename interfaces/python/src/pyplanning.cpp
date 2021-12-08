@@ -96,6 +96,10 @@ PYBIND11_MODULE(pyplanning, m)
 		.def_readwrite("collision_ratio", &Smoother::Parameters::collisionRatio)
 		.def_readonly("max_curvature", &Smoother::Parameters::maxCurvature);
 
+	class_<ObstaclesHeuristic, Ref<ObstaclesHeuristic>>(m, "ObstaclesHeuristic")
+		.def(init<const Ref<OccupancyMap>&, double>())
+		.def("visualize", &ObstaclesHeuristic::Visualize);
+
 	class_<HybridAStar::Stats>(m, "HybridAStarStats")
 		.def_readonly("graph_search_status", &HybridAStar::Stats::graphSearchStatus)
 		.def_readonly("smoothing_status", &HybridAStar::Stats::smoothingStatus);
@@ -120,7 +124,7 @@ PYBIND11_MODULE(pyplanning, m)
 	class_<HybridAStar::GraphSearchBase, HybridAStarGraphSearchWrapper>(m, "HybridAStarGraphSearchBase")
 		.def(init<>())
 		.def("get_path", &HybridAStar::GraphSearchBase::GetCompositePath)
-		.def("get_parameters", &HybridAStar::GraphSearchBase::GetParameters);
+		.def_property("parameters", &HybridAStar::GraphSearchBase::GetParameters, nullptr);
 
 	class_<HybridAStar::GraphSearch, HybridAStar::GraphSearchBase>(m, "HybridAStarGraphSearch")
 		.def(init<>())
@@ -133,7 +137,10 @@ PYBIND11_MODULE(pyplanning, m)
 		.def("get_forward_obstacle_heuristic", &HybridAStar::BidirectionalGraphSearch::GetForwardObstacleHeuristic)
 		.def("get_reverse_obstacle_heuristic", &HybridAStar::BidirectionalGraphSearch::GetReverseObstacleHeuristic);
 
-	// TODO implementation of smoother and replace function to get properties of smoother in hybrid A*
+	class_<Smoother>(m, "Smoother")
+		.def(init<>())
+		.def("get_path", &Smoother::GetPath)
+		.def_property("parameters", &Smoother::GetParameters, &Smoother::SetParameters);
 
 	class_<HybridAStar::HybridAStar, PathPlannerSE2Base>(m, "HybridAStar")
 		.def(init<>())
@@ -143,8 +150,7 @@ PYBIND11_MODULE(pyplanning, m)
 		.def_readwrite("path_interpolation", &HybridAStar::HybridAStar::pathInterpolation)
 		.def("get_stats", &HybridAStar::HybridAStar::GetStats)
 		.def_property<const HybridAStar::GraphSearchBase& (HybridAStar::HybridAStar::*)() const>("graph_search", &HybridAStar::HybridAStar::GetGraphSearch, nullptr)
-		.def("get_smoothed_path", [](const HybridAStar::HybridAStar& algo){ return algo.GetSmoother().GetPath(); })
-		.def_property("smoother_parameters", [](const HybridAStar::HybridAStar& algo){ return algo.GetSmoother().GetParameters(); }, [](HybridAStar::HybridAStar& algo, const Smoother::Parameters& param){ return algo.GetSmoother().SetParameters(param); });
+		.def_property<Smoother& (HybridAStar::HybridAStar::*)()>("smoother", &HybridAStar::HybridAStar::GetSmoother, nullptr);
 
 	struct PathPlannerN2BaseWrapper : PathPlannerN2Base {
 		using PathPlannerN2Base::PathPlannerN2Base;

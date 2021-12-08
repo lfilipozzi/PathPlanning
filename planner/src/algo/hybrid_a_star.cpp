@@ -239,7 +239,7 @@ namespace Planner::HybridAStar {
 		auto fPath = m_fSearch.GetCompositePath();
 		auto rPath = m_rSearch.GetCompositePath();
 		rPath->TimeFlipTransform();
-		// TODO need to mirror path too
+		// TODO do not timeflip composite path, instead timeflip each segment and iterate over composite path
 		path->PushBack(fPath);
 		path->PushBack(rPath);
 		return path;

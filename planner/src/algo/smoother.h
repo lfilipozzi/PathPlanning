@@ -70,7 +70,6 @@ namespace Planner {
 		/// @brief Return the path
 		const std::vector<Pose2d>& GetPath() const { return m_currentPath; }
 
-		Parameters GetParameters() { return m_param; }
 		const Parameters& GetParameters() const { return m_param; }
 		void SetParameters(const Parameters& param) { m_param = param; }
 
