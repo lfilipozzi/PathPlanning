@@ -30,7 +30,7 @@ namespace Planner {
 			double voronoiCostMultiplier = 1.0;
 			unsigned int numGeneratedMotion = 5;
 			double spatialResolution = 1.0;
-			double angularResolution = 0.0872;
+			double angularResolution = 20 * M_PI / 180.0;
 
 			SearchParameters() = default;
 			SearchParameters(double minTurningRadius, double directionSwitchingCost,

@@ -44,6 +44,9 @@ namespace Planner {
 		return t;
 	}
 
+	template <>
+	int Pose2<int>::WrapTheta() const;
+
 	/// @brief Add the Pose @rhs after @lhs.
 	/// @warning This operation is not commutative.
 	template <typename T>
