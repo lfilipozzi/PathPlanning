@@ -47,7 +47,7 @@ gvd = nav.GVD(map)
 gvd.update()
 gvd.visualize("test.ppm")
 
-algo = nav.HybridAStar()
+algo = nav.HybridAStar("bidirection")
 
 algo.set_init_state(nav.Pose2d(0.0, -9.0, 0.0))
 algo.set_goal_state(nav.Pose2d(8.0, 8.0, 0.0))
@@ -68,7 +68,7 @@ algo.path_interpolation = 0.8
 algo.search_path()
 
 path = algo.get_path()
-(forward_graph_search_explored_path_set, reverse_graph_search_explored_path_set) = algo.get_graph_search_explored_path_set();
+(forward_graph_search_explored_path_set, reverse_graph_search_explored_path_set) = algo.graph_search.get_explored_path_set();
 
 fig, ax = plt.subplots()
 ratios = np.linspace(0.0, 1.0, 10)
@@ -85,7 +85,7 @@ for path in reverse_graph_search_explored_path_set:
 	y = [p.y() for p in poses]
 	_ = ax.plot(x, y, color='red', linewidth = 0.5, label='_')
 
-graph_search_path = algo.get_graph_search_path()
+graph_search_path = algo.graph_search.get_path()
 ratios = np.linspace(0.0, 1.0, 500)
 poses = [graph_search_path.interpolate(ratio) for ratio in ratios]
 x = [p.x() for p in poses]
@@ -115,7 +115,7 @@ fig.show()
 
 
 fig, ax = plt.subplots()
-graph_search_path = algo.get_graph_search_path()
+graph_search_path = algo.graph_search.get_path()
 ratios = np.linspace(0.0, 1.0, 500)
 poses = [graph_search_path.interpolate(ratio) for ratio in ratios]
 x = [p.x() for p in poses]

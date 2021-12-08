@@ -52,9 +52,6 @@ algo = nav.HybridAStar()
 algo.set_init_state(nav.Pose2d(0.0, -9.0, 0.0))
 algo.set_goal_state(nav.Pose2d(8.0, 8.0, 0.0))
 
-#algo.set_init_state(nav.Pose2d(8.0, 8.0, 0.0))
-#algo.set_goal_state(nav.Pose2d(0.0, -9.0, 0.0))
-
 algo.initialize(state_validator)
 
 algo.path_interpolation = 0.8
@@ -68,7 +65,7 @@ algo.path_interpolation = 0.8
 algo.search_path()
 
 path = algo.get_path()
-graph_search_explored_path_set = algo.get_graph_search_explored_path_set();
+graph_search_explored_path_set = algo.graph_search.get_explored_path_set();
 
 fig, ax = plt.subplots()
 ratios = np.linspace(0.0, 1.0, 10)
@@ -81,7 +78,7 @@ for path in graph_search_explored_path_set:
 	#y = [path.get_initial_state().y(), path.get_final_state().y()]
 	#_ = ax.scatter(x, y, color='gray')
 
-graph_search_path = algo.get_graph_search_path()
+graph_search_path = algo.graph_search.get_path()
 ratios = np.linspace(0.0, 1.0, 100)
 poses = [graph_search_path.interpolate(ratio) for ratio in ratios]
 x = [p.x() for p in poses]

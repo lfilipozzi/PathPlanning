@@ -33,6 +33,8 @@ namespace Planner {
 		/// @brief Append the path to the container
 		void PushBack(const Ref<BasePath>& path)
 		{
+			if (m_paths.empty())
+				this->m_init = path->GetInitialState();
 			double pathLength = path->GetLength();
 			m_paths.push_back({ PathInfo(this->m_length, this->m_length + pathLength), path });
 			this->m_final = path->GetFinalState();
@@ -91,7 +93,7 @@ namespace Planner {
 				});
 
 			if (it == m_paths.end())
-				return { it, 1.0 };
+				return { --it, 1.0 };
 			double pathLength = it->second->GetLength();
 			if (pathLength == 0.0)
 				return { it, 0.0 };

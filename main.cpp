@@ -65,7 +65,7 @@ int Main(int /*argc*/, char** /*argv*/)
 	Ref<ObstacleListOccupancyMap> map = makeRef<ObstacleListOccupancyMap>(0.1);
 	Ref<StateValidatorOccupancyMap> stateValidator = makeRef<StateValidatorOccupancyMap>(stateSpace, map);
 
-	HybridAStar hybridAStar;
+	HybridAStar::HybridAStar hybridAStar;
 
 	Timer timer;
 	hybridAStar.Initialize(stateValidator);

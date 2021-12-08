@@ -107,18 +107,44 @@ PYBIND11_MODULE(pyplanning, m)
 		.value("FAILURE", Smoother::Status::Failure)
 		.value("COLLISION", Smoother::Status::Collision);
 
-	class_<HybridAStar, PathPlannerSE2Base>(m, "HybridAStar")
+	struct HybridAStarGraphSearchWrapper : HybridAStar::GraphSearchBase {
+		using HybridAStar::GraphSearchBase::GraphSearchBase;
+		virtual void Initialize(const Ref<StateValidatorOccupancyMap>& validator, const HybridAStar::SearchParameters& p, const Ref<GVD>& gvd) override { PYBIND11_OVERRIDE_PURE(void, HybridAStar::GraphSearchBase, Initialize, validator, p, gvd); }
+		virtual void Update(const Pose2d& init, const Pose2d& goal) override { PYBIND11_OVERRIDE_PURE(void, HybridAStar::GraphSearchBase, Update, init, goal); }
+		virtual Status SearchPath() override { PYBIND11_OVERRIDE_PURE(Status, HybridAStar::GraphSearchBase, SearchPath); }
+		virtual Ref<PathSE2CompositeNonHolonomic> GetCompositePath() const override { PYBIND11_OVERRIDE_PURE(Ref<PathSE2CompositeNonHolonomic>, HybridAStar::GraphSearchBase, GetCompositePath); }
+		virtual double GetOptimalCost() const override { PYBIND11_OVERRIDE_PURE(double, HybridAStar::GraphSearchBase, GetOptimalCost); }
+		virtual const HybridAStar::SearchParameters& GetParameters() const override { PYBIND11_OVERRIDE_PURE(const HybridAStar::SearchParameters&, HybridAStar::GraphSearchBase, GetParameters); }
+	};
+
+	class_<HybridAStar::GraphSearchBase, HybridAStarGraphSearchWrapper>(m, "HybridAStarGraphSearchBase")
 		.def(init<>())
-		.def<bool (HybridAStar::*)(const Ref<StateValidatorOccupancyMap>&, const HybridAStar::SearchParameters&)>("initialize", &HybridAStar::Initialize)
-		.def<bool (HybridAStar::*)(const Ref<StateValidatorOccupancyMap>&)>("initialize", &HybridAStar::Initialize)
-		.def_readwrite("path_interpolation", &HybridAStar::pathInterpolation)
-		.def("get_stats", &HybridAStar::GetStats)
-		.def("get_graph_search_explored_path_set", [](const HybridAStar& algo){ return algo.GetGraphSearch().GetExploredPathSet(); })
-		.def("get_graph_search_path", [](const HybridAStar& algo){ return algo.GetGraphSearch().GetCompositePath(); })
-		.def("get_graph_search_optimal_cost", [](const HybridAStar& algo){ return algo.GetGraphSearch().GetOptimalCost(); })
-		.def("get_search_parameters", [](const HybridAStar& algo){ return algo.GetGraphSearch().GetParameters(); })
-		.def("get_smoothed_path", [](const HybridAStar& algo){ return algo.GetSmoother().GetPath(); })
-		.def_property("smoother_parameters", [](const HybridAStar& algo){ return algo.GetSmoother().GetParameters(); }, [](HybridAStar& algo, const Smoother::Parameters& param){ return algo.GetSmoother().SetParameters(param); });
+		.def("get_path", &HybridAStar::GraphSearchBase::GetCompositePath)
+		.def("get_parameters", &HybridAStar::GraphSearchBase::GetParameters);
+
+	class_<HybridAStar::GraphSearch, HybridAStar::GraphSearchBase>(m, "HybridAStarGraphSearch")
+		.def(init<>())
+		.def("get_explored_path_set", &HybridAStar::GraphSearch::GetExploredPathSet)
+		.def("get_obstacle_heuristic", &HybridAStar::GraphSearch::GetObstacleHeuristic);
+
+	class_<HybridAStar::BidirectionalGraphSearch, HybridAStar::GraphSearchBase>(m, "HybridAStarBidirectionalGraphSearch")
+		.def(init<>())
+		.def("get_explored_path_set", &HybridAStar::BidirectionalGraphSearch::GetExploredPathSet)
+		.def("get_forward_obstacle_heuristic", &HybridAStar::BidirectionalGraphSearch::GetForwardObstacleHeuristic)
+		.def("get_reverse_obstacle_heuristic", &HybridAStar::BidirectionalGraphSearch::GetReverseObstacleHeuristic);
+
+	// TODO implementation of smoother and replace function to get properties of smoother in hybrid A*
+
+	class_<HybridAStar::HybridAStar, PathPlannerSE2Base>(m, "HybridAStar")
+		.def(init<>())
+		.def(init(&HybridAStar::HybridAStarFactory::Create))
+		.def<bool (HybridAStar::HybridAStar::*)(const Ref<StateValidatorOccupancyMap>&, const HybridAStar::SearchParameters&)>("initialize", &HybridAStar::HybridAStar::Initialize)
+		.def<bool (HybridAStar::HybridAStar::*)(const Ref<StateValidatorOccupancyMap>&)>("initialize", &HybridAStar::HybridAStar::Initialize)
+		.def_readwrite("path_interpolation", &HybridAStar::HybridAStar::pathInterpolation)
+		.def("get_stats", &HybridAStar::HybridAStar::GetStats)
+		.def_property<const HybridAStar::GraphSearchBase& (HybridAStar::HybridAStar::*)() const>("graph_search", &HybridAStar::HybridAStar::GetGraphSearch, nullptr)
+		.def("get_smoothed_path", [](const HybridAStar::HybridAStar& algo){ return algo.GetSmoother().GetPath(); })
+		.def_property("smoother_parameters", [](const HybridAStar::HybridAStar& algo){ return algo.GetSmoother().GetParameters(); }, [](HybridAStar::HybridAStar& algo, const Smoother::Parameters& param){ return algo.GetSmoother().SetParameters(param); });
 
 	struct PathPlannerN2BaseWrapper : PathPlannerN2Base {
 		using PathPlannerN2Base::PathPlannerN2Base;

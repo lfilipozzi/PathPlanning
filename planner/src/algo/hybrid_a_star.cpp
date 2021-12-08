@@ -6,8 +6,8 @@
 #include "state_validator/gvd.h"
 #include "models/kinematic_bicycle_model.h"
 
-namespace Planner {
-	HybridAStar::StatePropagator::StatePropagator(const SearchParameters& parameters) :
+namespace Planner::HybridAStar {
+	StatePropagator::StatePropagator(const SearchParameters& parameters) :
 		m_param(parameters)
 	{
 		// The heading of the point defining the trajectory of the vehicle must
@@ -25,7 +25,7 @@ namespace Planner {
 		}
 	}
 
-	void HybridAStar::StatePropagator::Initialize(const Ref<StateValidatorOccupancyMap>& stateValidator,
+	void StatePropagator::Initialize(const Ref<StateValidatorOccupancyMap>& stateValidator,
 		const Ref<AStarHeuristic<State>>& heuristic, const Ref<GVD>& gvd)
 	{
 		m_validator = stateValidator;
@@ -35,7 +35,7 @@ namespace Planner {
 		m_voroFieldDiagResolution = m_gvd->resolution * std::sqrt(2.0);
 	}
 
-	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPath(const Ref<PathNonHolonomicSE2Base>& path) const
+	State StatePropagator::CreateStateFromPath(const Ref<PathNonHolonomicSE2Base>& path) const
 	{
 		State state;
 		state.direction = path->GetDirection(1.0);
@@ -44,7 +44,7 @@ namespace Planner {
 		return state;
 	}
 
-	HybridAStar::State HybridAStar::StatePropagator::CreateStateFromPose(const Pose2d& pose) const
+	State StatePropagator::CreateStateFromPose(const Pose2d& pose) const
 	{
 		State state;
 		state.direction = Direction::NoMotion;
@@ -53,7 +53,7 @@ namespace Planner {
 		return state;
 	}
 
-	std::vector<std::tuple<HybridAStar::State, HybridAStar::Action, double>> HybridAStar::StatePropagator::GetNeighborStates(const State& state)
+	std::vector<std::tuple<State, Action, double>> StatePropagator::GetNeighborStates(const State& state)
 	{
 		PP_PROFILE_FUNCTION();
 
@@ -87,7 +87,7 @@ namespace Planner {
 		return neighbors;
 	}
 
-	double HybridAStar::StatePropagator::GetVoronoiCost(const PathNonHolonomicSE2Base& path) const
+	double StatePropagator::GetVoronoiCost(const PathNonHolonomicSE2Base& path) const
 	{
 		PP_PROFILE_FUNCTION();
 
@@ -105,7 +105,7 @@ namespace Planner {
 		return m_param.voronoiCostMultiplier * voronoiCost;
 	}
 
-	bool HybridAStar::StatePropagator::GetConstantSteerChild(const State& state, double delta, Direction direction, State& child, Action& action, double& cost) const
+	bool StatePropagator::GetConstantSteerChild(const State& state, double delta, Direction direction, State& child, Action& action, double& cost) const
 	{
 		PP_PROFILE_FUNCTION();
 
@@ -143,7 +143,7 @@ namespace Planner {
 		return true;
 	}
 
-	bool HybridAStar::StatePropagator::GetReedsSheppChild(const State& state, State& child, Action& action, double& cost) const
+	bool StatePropagator::GetReedsSheppChild(const State& state, State& child, Action& action, double& cost) const
 	{
 		PP_PROFILE_FUNCTION();
 
@@ -169,7 +169,7 @@ namespace Planner {
 		return true;
 	}
 
-	void HybridAStar::BidirectionalGraphSearch::Initialize(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& p, const Ref<GVD>& gvd)
+	void BiAStarSearch::Initialize(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& p, const Ref<GVD>& gvd)
 	{
 		// The forward propagator and heuristic are the same as the unidirectional 
 		// ones. 
@@ -219,11 +219,11 @@ namespace Planner {
 
 		// TODO play with stopping condition and pair of heuristic
 // 		BidirectionalAStarDeclType::Initialize(m_fPropagator, m_rPropagator, fHeuristic, rHeuristic);
-		auto [fAverageHeuristic, rAverageHeuristic] = BidirectionalAStarDeclType::GetAverageHeuristicPair(fHeuristic, rHeuristic);
-		BidirectionalAStarDeclType::Initialize(m_fPropagator, m_rPropagator, fAverageHeuristic, rAverageHeuristic);
+		auto [fAverageHeuristic, rAverageHeuristic] = BiAStarSearchDeclType::GetAverageHeuristicPair(fHeuristic, rHeuristic);
+		BiAStarSearchDeclType::Initialize(m_fPropagator, m_rPropagator, fAverageHeuristic, rAverageHeuristic);
 	}
 
-	void HybridAStar::BidirectionalGraphSearch::Update(const Pose2d& init, const Pose2d& goal)
+	void BiAStarSearch::Update(const Pose2d& init, const Pose2d& goal)
 	{
 		this->SetInitState(m_fPropagator->CreateStateFromPose(init));
 		this->SetGoalState(m_fPropagator->CreateStateFromPose(goal));
@@ -233,30 +233,22 @@ namespace Planner {
 		m_rPropagator->SetGoalState(this->m_init);
 	}
 
-	Ref<PathSE2CompositeNonHolonomic> HybridAStar::BidirectionalGraphSearch::GetCompositePath() const
+	Ref<PathSE2CompositeNonHolonomic> BiAStarSearch::GetCompositePath() const
 	{
 		auto path = makeRef<PathSE2CompositeNonHolonomic>();
 		auto fPath = m_fSearch.GetCompositePath();
 		auto rPath = m_rSearch.GetCompositePath();
 		rPath->TimeFlipTransform();
+		// TODO need to mirror path too
 		path->PushBack(fPath);
 		path->PushBack(rPath);
 		return path;
 	}
 
-// 	std::unordered_set<Ref<PathNonHolonomicSE2Base>> HybridAStar::BidirectionalGraphSearch::GetExploredPathSet() const
-// 	{
-// 		auto fPaths = m_fSearch.GetExploredPathSet();
-// 		auto rPaths = m_rSearch.GetExploredPathSet();
-// 		fPaths.insert(rPaths.begin(), rPaths.end());
-// 		return fPaths;
-// 	}
-
-	std::tuple<std::unordered_set<Ref<PathNonHolonomicSE2Base>>, std::unordered_set<Ref<PathNonHolonomicSE2Base>>> HybridAStar::BidirectionalGraphSearch::GetExploredPathSet() const
+	std::tuple<std::unordered_set<Ref<PathNonHolonomicSE2Base>>, std::unordered_set<Ref<PathNonHolonomicSE2Base>>> BiAStarSearch::GetExploredPathSet() const
 	{
 		return { m_fSearch.GetExploredPathSet(), m_rSearch.GetExploredPathSet() };
 	}
-
 
 	bool HybridAStar::Initialize(const Ref<StateValidatorOccupancyMap>& validator, const SearchParameters& p)
 	{
@@ -269,7 +261,7 @@ namespace Planner {
 
 		// Initialize Voronoi field, graph search, and smoother
 		m_gvd = makeRef<GVD>(m_validator->GetOccupancyMap());
-		m_graphSearch.Initialize(m_validator, p, m_gvd);
+		m_graphSearch->Initialize(m_validator, p, m_gvd);
 		m_smoother.Initialize(m_validator, m_gvd, 1.0 / p.minTurningRadius);
 
 		return isInitialized = true;
@@ -288,11 +280,11 @@ namespace Planner {
 
 		// Update members
 		m_gvd->Update();
-		m_graphSearch.Update(m_init, m_goal);
+		m_graphSearch->Update(m_init, m_goal);
 
 		// Run A* on 2D pose
-		m_stats.graphSearchStatus = m_graphSearch.SearchPath();
-// 		if (m_stats.graphSearchStatus < 0) // FIXME uncomment
+		m_stats.graphSearchStatus = m_graphSearch->SearchPath();
+		if (m_stats.graphSearchStatus < 0)
 			return m_stats.graphSearchStatus;
 
 		// Process path before smoothing
@@ -302,7 +294,7 @@ namespace Planner {
 			PP_PROFILE_SCOPE("Process graph search path");
 
 			// Get composite path
-			auto path = m_graphSearch.GetCompositePath();
+			auto path = m_graphSearch->GetCompositePath();
 			const double pathLength = path->GetLength();
 
 			// Generate ratio at which to sample the path and find indices of cusp points
@@ -340,5 +332,18 @@ namespace Planner {
 		m_path = m_smoother.GetPath();
 
 		return Status::Success;
+	}
+
+	Scope<HybridAStar> HybridAStarFactory::Create(const std::string& type)
+	{
+		Scope<GraphSearchBase> graphSearch;
+		if (type == "")
+			graphSearch = makeScope<GraphSearch>();
+		else if (type == "bidirection")
+			graphSearch = makeScope<BidirectionalGraphSearch>();
+		else
+			throw std::runtime_error("Invalid argument");
+
+		return makeScope<HybridAStar>(std::move(graphSearch));
 	}
 }
