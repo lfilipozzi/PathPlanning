@@ -190,7 +190,6 @@ namespace Planner {
 // 					double rTopCost = (*m_rSearch.m_frontier.Top())->pathCost;
 					double fTopCost = (*m_fSearch.m_frontier.Top())->totalCost;
 					double rTopCost = (*m_rSearch.m_frontier.Top())->totalCost;
-					// TODO try replacing last 4 lines by using fNode and rNode directly
 
 					// Check the stopping criterion
 					// TODO allow to change stopping condition more easily

@@ -25,7 +25,7 @@ namespace Planner {
 			double wheelbase = 2.6; // TODO add maxSteeringAngle to choose how to propagate bicycle model
 			double minTurningRadius = 2.0;
 			double directionSwitchingCost = 0.0;
-			double reverseCostMultiplier = 1.0;
+			double reverseCostMultiplier = 10.0;
 			double forwardCostMultiplier = 1.0;
 			double voronoiCostMultiplier = 1.0;
 			unsigned int numGeneratedMotion = 5;
@@ -42,6 +42,16 @@ namespace Planner {
 				reverseCostMultiplier(reverseCostMultiplier), forwardCostMultiplier(forwardCostMultiplier),
 				voronoiCostMultiplier(voronoiCostMultiplier), numGeneratedMotion(numGeneratedMotion),
 				spatialResolution(spatialResolution), angularResolution(angularResolution) { }
+
+			/// @brief Return the set of parameters that would provide the same
+			/// path after being time-flipped.
+			SearchParameters GetTimeFlippedParameters() const
+			{
+				SearchParameters timeFlipped = *this;
+				timeFlipped.forwardCostMultiplier = this->reverseCostMultiplier;
+				timeFlipped.reverseCostMultiplier = this->forwardCostMultiplier;
+				return timeFlipped;
+			}
 		};
 
 		struct Stats {

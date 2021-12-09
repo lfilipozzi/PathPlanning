@@ -213,7 +213,7 @@ namespace Planner::HybridAStar {
 			rHeuristic = makeRef<HeuristicAdapter>(combinedHeur);
 
 			// Initialize propagator
-			m_rPropagator = makeRef<StatePropagator>(p);
+			m_rPropagator = makeRef<StatePropagator>(p.GetTimeFlippedParameters());
 			m_rPropagator->Initialize(validator, rHeuristic, gvd);
 		}
 
@@ -239,7 +239,6 @@ namespace Planner::HybridAStar {
 		auto fPath = m_fSearch.GetCompositePath();
 		auto rPath = m_rSearch.GetCompositePath();
 		rPath->TimeFlipTransform();
-		// TODO do not timeflip composite path, instead timeflip each segment and iterate over composite path
 		path->PushBack(fPath);
 		path->PushBack(rPath);
 		return path;

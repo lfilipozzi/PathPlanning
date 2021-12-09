@@ -84,6 +84,9 @@ poses = [graph_search_path.interpolate(ratio) for ratio in ratios]
 x = [p.x() for p in poses]
 y = [p.y() for p in poses]
 _ = ax.plot(x, y, color='orange', linewidth = 2, label='Graph search solution')
+for p in [graph_search_path.interpolate(ratio) for ratio in np.linspace(0.0, 1.0, 20)]:
+	_ = ax.plot(p.x(), p.y(), marker=(3, 0, p.theta*180/math.pi - 90), 
+		markersize=10, markerfacecolor='orange', markeredgecolor='orange', linestyle='None', label='_')
 
 smoothed_path = algo.smoother.get_path()
 x = [p.x() for p in smoothed_path]

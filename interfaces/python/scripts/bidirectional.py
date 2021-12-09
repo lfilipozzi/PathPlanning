@@ -91,9 +91,9 @@ poses = [graph_search_path.interpolate(ratio) for ratio in ratios]
 x = [p.x() for p in poses]
 y = [p.y() for p in poses]
 _ = ax.plot(x, y, color='orange', linewidth = 2, label='Graph search solution')
-for p in [graph_search_path.interpolate(ratio) for ratio in np.linspace(0.0, 1.0, 15)]:
+for p in [graph_search_path.interpolate(ratio) for ratio in np.linspace(0.0, 1.0, 20)]:
 	_ = ax.plot(p.x(), p.y(), marker=(3, 0, p.theta*180/math.pi - 90), 
-		markersize=20, markerfacecolor='orange', markeredgecolor='orange', linestyle='None', label='_')
+		markersize=10, markerfacecolor='orange', markeredgecolor='orange', linestyle='None', label='_')
 
 smoothed_path = algo.smoother.get_path()
 x = [p.x() for p in smoothed_path]
@@ -113,23 +113,6 @@ for position in obstacle_positions:
 _ = ax.axis('equal')
 _ = ax.axis((-12,12,-12,12))
 _ = ax.legend()
-fig.show()
-
-
-
-fig, ax = plt.subplots()
-graph_search_path = algo.graph_search.get_path()
-ratios = np.linspace(0.0, 1.0, 500)
-poses = [graph_search_path.interpolate(ratio) for ratio in ratios]
-x = [p.x() for p in poses]
-y = [p.y() for p in poses]
-_ = ax.plot(x, y, color='orange', linewidth = 2, label='Graph search solution')
-for p in [graph_search_path.interpolate(ratio) for ratio in np.linspace(0.0, 1.0, 10)]:
-	_ = ax.plot(p.x(), p.y(), marker=(3, 0, p.theta*180/math.pi - 90), 
-		markersize=20, markerfacecolor='orange', markeredgecolor='orange', linestyle='None', label='_')
-
-_ = ax.axis('equal')
-_ = ax.axis((-12,12,-12,12))
 fig.show()
 
 
