@@ -28,7 +28,11 @@ namespace Planner {
 
 	Direction PathSE2CompositeNonHolonomic::GetDirection(double ratio) const
 	{
+		if (m_paths.empty())
+			return Direction::NoMotion;
 		auto [it, pathRatio] = FindSegment(ratio);
+		if (it == m_paths.end())
+			--it;
 		return it->second->GetDirection(pathRatio);
 	}
 }

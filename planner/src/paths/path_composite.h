@@ -93,7 +93,7 @@ namespace Planner {
 				});
 
 			if (it == m_paths.end())
-				return { --it, 1.0 };
+				return { it, 1.0 };
 			double pathLength = it->second->GetLength();
 			if (pathLength == 0.0)
 				return { it, 0.0 };

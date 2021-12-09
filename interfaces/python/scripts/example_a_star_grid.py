@@ -94,7 +94,9 @@ fig1, ax = plt.subplots()
 _ = ax.matshow(image, cmap=cmap, norm=norm, origin='lower')
 fig1.show()
 
-(heuristic_forward, heuristic_reverse) = nav.BidirectionalAStarN2.get_average_heuristic_pair(heuristic, heuristic);
+f_heuristic = nav.AStarHeuristicFcnN2(heuristic_fcn)
+r_heuristic = nav.AStarHeuristicFcnN2(heuristic_fcn)
+(heuristic_forward, heuristic_reverse) = nav.BidirectionalAStarN2.get_average_heuristic_pair(r_heuristic, f_heuristic);
 
 algo_bi = nav.BidirectionalAStarN2();
 algo_bi.set_init_state(init)

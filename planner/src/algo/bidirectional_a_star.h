@@ -13,7 +13,12 @@ namespace Planner {
 
 	public:
 		AverageHeuristic(const Ref<AStarHeuristic<State>>& toGoalHeuristic, const Ref<AStarHeuristic<State>>& toInitHeuristic) :
-			m_toGoalHeuristic(toGoalHeuristic), m_toInitHeuristic(toInitHeuristic) { }
+			m_toGoalHeuristic(toGoalHeuristic), m_toInitHeuristic(toInitHeuristic)
+		{
+			// Edge case: if the two heuristic given refer to the same object, the goal will not be updated correctly
+			if (m_toGoalHeuristic.get() == m_toInitHeuristic.get())
+				throw std::invalid_argument("The forward and reverse heuristic cannot refer to the same object.");
+		}
 
 		/// @copydoc Planner::AStar::GetHeuristicValue
 		virtual double GetHeuristicValue(const State& state) override
@@ -50,7 +55,6 @@ namespace Planner {
 		typename EqualState = std::equal_to<State>,
 		bool GraphSearch = true,
 		typename UnidirectionalAStar = AStar<State, Action, HashState, EqualState, GraphSearch, ExploredMap<State, Action, HashState, EqualState>>>
-		// FIXME Maybe use polymorphism here instead of adding a template argument for the unidirectional algorithm
 	class BidirectionalAStar : public PathPlanner<State> {
 		static_assert(std::is_base_of<AStar<State, Action, HashState, EqualState, GraphSearch, ExploredMap<State, Action, HashState, EqualState>>, UnidirectionalAStar>::value, "The unidirectional algorithm is not an A* search");
 
@@ -132,6 +136,10 @@ namespace Planner {
 		bool Initialize(const Ref<AStarStatePropagator<State, Action>>& fPropagator, const Ref<AStarStatePropagator<State, Action>>& rPropagator,
 			const Ref<AStarHeuristic<State>>& fHeuristic, const Ref<AStarHeuristic<State>>& rHeuristic)
 		{
+			// Edge case: if the two heuristic given refer to the same object, the goal will not be updated correctly
+			if (fHeuristic.get() == rHeuristic.get())
+				throw std::invalid_argument("The forward and reverse heuristic cannot refer to the same object.");
+
 			if (!m_fSearch.Initialize(fPropagator, fHeuristic))
 				return isInitialized = false;
 			if (!m_rSearch.Initialize(rPropagator, rHeuristic))
