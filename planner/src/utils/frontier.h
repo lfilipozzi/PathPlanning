@@ -40,7 +40,7 @@ namespace Planner {
 		{
 			auto [it, success] = m_set.insert(elmt);
 			if (success) {
-				auto it = FindFirstCompareIsFalse(elmt);
+				auto it = std::upper_bound(m_vec.begin(), m_vec.end(), elmt, m_compare);
 				auto insertIt = m_vec.insert(it, elmt);
 				return { &(*insertIt), true };
 			}
@@ -56,12 +56,12 @@ namespace Planner {
 			if (setIt != m_set.end()) {
 				// Erase elmt in vector
 				bool erased = false;
-				for (auto vecIt = FindLastCompareIsTrue(*setIt); vecIt != m_vec.end(); vecIt++) {
-					if (m_keyEqual(*vecIt, *setIt)) {
-						m_vec.erase(vecIt);
-						erased = true;
-						break;
-					}
+				auto first = std::lower_bound(m_vec.begin(), m_vec.end(), *setIt, m_compare);
+				auto last = m_vec.end();
+				auto vecIt = std::find_if(first, last, [&, this](const T& elmt) { return m_keyEqual(elmt, *setIt); });
+				if (vecIt != last) {
+					m_vec.erase(vecIt);
+					erased = true;
 				}
 				PP_ASSERT(erased, "Element has not been erased");
 				// Erase elmt in set
@@ -102,54 +102,6 @@ namespace Planner {
 
 		auto begin() const { return m_vec.begin(); }
 		auto end() const { return m_vec.end(); }
-
-	private:
-		/// @brief Return an iterator to the first element @elmt in the
-		/// container for which Compare(@value, @elmt) is false.
-		/// @details Implemented using a binary search.
-		/// @return An iterator to the element.
-		typename Container::iterator FindFirstCompareIsFalse(const T& value)
-		{
-			auto begin = m_vec.begin();
-			auto end = m_vec.end();
-			auto mid = begin;
-			while (begin != end) {
-				mid = std::next(begin, std::distance(begin, end) / 2);
-				auto midNext = std::next(mid, 1);
-				if (m_compare(value, *mid))
-					end = mid;
-				else if (midNext != m_vec.end() ? !m_compare(value, *midNext) : false)
-					begin = midNext;
-				else {
-					mid = midNext;
-					break;
-				}
-			}
-			return mid;
-		}
-
-		/// @brief Return an iterator to the last element @elmt in the
-		/// container for which Compare(@elmt, @value) is true.
-		/// @details Implemented using a binary search.
-		/// @return An iterator to the element.
-		typename Container::iterator FindLastCompareIsTrue(const T& value)
-		{
-			auto begin = m_vec.begin();
-			auto end = m_vec.end();
-			auto mid = begin;
-			while (begin != end) {
-				mid = std::next(begin, std::distance(begin, end) / 2);
-				auto midNext = std::next(mid, 1);
-				if (!m_compare(*mid, value))
-					end = mid;
-				else if (midNext != m_vec.end() ? m_compare(*midNext, value) : false)
-					begin = midNext;
-				else {
-					break;
-				}
-			}
-			return mid;
-		}
 
 	private:
 		Compare m_compare;
