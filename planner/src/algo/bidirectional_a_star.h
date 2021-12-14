@@ -48,6 +48,7 @@ namespace Planner {
 		double m_constant;
 	};
 
+	/// @brief Bidirectional A* search
 	template <
 		typename State,
 		typename Action,
@@ -55,14 +56,15 @@ namespace Planner {
 		typename EqualState = std::equal_to<State>,
 		bool GraphSearch = true,
 		typename UnidirectionalAStar = AStar<State, Action, HashState, EqualState, GraphSearch, ExploredMap<State, Action, HashState, EqualState>>>
-	class BidirectionalAStar : public PathPlanner<State> {
-		static_assert(std::is_base_of<AStar<State, Action, HashState, EqualState, GraphSearch, ExploredMap<State, Action, HashState, EqualState>>, UnidirectionalAStar>::value, "The unidirectional algorithm is not an A* search");
+	class BidirectionalAStar : public BidirectionalAStarBase<State, Action, HashState, EqualState, GraphSearch, UnidirectionalAStar> {
+		static_assert(std::is_same<typename UnidirectionalAStar::Explored, ExploredMap<State, Action, HashState, EqualState>>::value,
+			"Explored container of the unidirectional search must be an ExploredMap.");
 
 	public:
 		BidirectionalAStar() = default;
 		template <typename... Args>
-		BidirectionalAStar(Args... args) :
-			m_fSearch(std::forward<Args>(args)...), m_rSearch(std::forward<Args>(args)...) { }
+		BidirectionalAStar(Args... args) : 
+			BidirectionalAStarBase<State, Action, HashState, EqualState, GraphSearch, UnidirectionalAStar>(std::forward<Args>(args)...) { }
 		virtual ~BidirectionalAStar() = default;
 
 		/// @brief Return a consistent pair of heuristic for bidirectional
@@ -74,52 +76,7 @@ namespace Planner {
 			return std::make_tuple(fAverageHeuristic, rAverageHeuristic);
 		}
 
-		/// @copydoc Planner::PathPlanner::GetPath
-		virtual std::vector<State> GetPath() const override
-		{
-			auto fPath = m_fSearch.GetPath();
-			auto rPath = m_rSearch.GetPath();
-			fPath.insert(fPath.end(), rPath.rbegin(), rPath.rend());
-			return fPath;
-		}
-
-		/// @brief Return the actions from the initial state to the goal state.
-		std::vector<Action> GetActions() const
-		{
-			auto fActions = m_fSearch.GetActions();
-			auto rActions = m_rSearch.GetActions();
-			fActions.insert(fActions.end(), rActions.rbegin(), rActions.rend());
-			return fActions;
-		}
-
-		/// @brief Return the set of explored states.
-		std::tuple<ExploredMap<State, Action, HashState, EqualState>, ExploredMap<State, Action, HashState, EqualState>> GetExploredStates() const
-		{
-			return std::make_tuple(m_fSearch.GetExploredStates(), m_rSearch.GetExploredStates());
-		}
-
-		/// @brief Return the optimal cost
-		double GetOptimalCost() const
-		{
-			return m_fSearch.GetOptimalCost() + m_rSearch.GetOptimalCost();
-		}
-
-		/// @Brief Return the state-propagator used by the algorithm.
-		std::tuple<const Ref<AStarStatePropagator<State, Action>>&, const Ref<AStarStatePropagator<State, Action>>&> GetStatePropagators() const
-		{
-			return std::make_tuple(m_fSearch.GetStatePropagator(), m_rSearch.GetStatePropagator());
-		}
-		/// @brief Return the heuristic used by the algorithm
-		std::tuple<const Ref<AStarHeuristic<State>>&, const Ref<AStarHeuristic<State>>&> GetHeuristics() const
-		{
-			return std::make_tuple(m_fSearch.GetHeuristic(), m_rSearch.GetHeuristic());
-		}
-
-		/// @brief Initialize A* search.
-		/// @param fPropagator Expand the a given node in the forward search.
-		/// @param rPropagator Expand the a given node in the reverse search.
-		/// @param fHeuristic Heuristic function to guide the forward search.
-		/// @param rHeuristic Heuristic function to guide the reverse search.
+		/// @copydoc Planner::BidirectionalAStarBase::Initialize
 		/// @note The following requirements must be met to ensure optimality of
 		/// the solution:
 		/// - Admissibility: the heuristic under-evaluate the path cost
@@ -136,26 +93,18 @@ namespace Planner {
 		bool Initialize(const Ref<AStarStatePropagator<State, Action>>& fPropagator, const Ref<AStarStatePropagator<State, Action>>& rPropagator,
 			const Ref<AStarHeuristic<State>>& fHeuristic, const Ref<AStarHeuristic<State>>& rHeuristic)
 		{
-			// Edge case: if the two heuristic given refer to the same object, the goal will not be updated correctly
-			if (fHeuristic.get() == rHeuristic.get())
-				throw std::invalid_argument("The forward and reverse heuristic cannot refer to the same object.");
+			bool isInitialized = BidirectionalAStarBase<State, Action, HashState, EqualState, GraphSearch, UnidirectionalAStar>::Initialize(fPropagator, rPropagator, fHeuristic, rHeuristic);
 
-			if (!m_fSearch.Initialize(fPropagator, fHeuristic))
-				return isInitialized = false;
-			if (!m_rSearch.Initialize(rPropagator, rHeuristic))
-				return isInitialized = false;
+			m_fAverageHeuristic = dynamic_cast<AverageHeuristic<State>*>(this->m_fSearch.GetHeuristic().get());
+			m_rAverageHeuristic = dynamic_cast<AverageHeuristic<State>*>(this->m_rSearch.GetHeuristic().get());
 
-			m_fAverageHeuristic = dynamic_cast<AverageHeuristic<State>*>(m_fSearch.GetHeuristic().get());
-			m_rAverageHeuristic = dynamic_cast<AverageHeuristic<State>*>(m_rSearch.GetHeuristic().get());
-
-			return isInitialized = true;
+			return isInitialized;
 		}
 
 		/// @copydoc Planner::PathPlanner::SearchPath
 		virtual Status SearchPath() override
 		{
-			if (!isInitialized) {
-				PP_ERROR("The algorithm has not been initialized successfully.");
+			if (!this->InitializeSearch()) {
 				return Status::Failure;
 			}
 
@@ -164,46 +113,43 @@ namespace Planner {
 				m_rAverageHeuristic->Update(this->m_goal, this->m_init);
 			}
 
-			m_fSearch.SetInitState(this->m_init);
-			m_rSearch.SetInitState(this->m_goal);
-			m_fSearch.SetGoalState(this->m_goal);
-			m_rSearch.SetGoalState(this->m_init);
+			auto [fExplored, rExplored] = this->GetExploredSets();
+			auto [fFrontier, rFrontier] = this->GetFrontiers();
+			auto [fSolutionNode, rSolutionNode] = this->GetSolutionNodes();
+			auto [fHeuristic, rHeuristic] = this->GetHeuristics();
 
-			m_fSearch.InitializeSearch();
-			m_rSearch.InitializeSearch();
-
-			const double costOffset = m_fSearch.m_heuristic->GetHeuristicValue(this->m_goal) + m_rSearch.m_heuristic->GetHeuristicValue(this->m_goal);
+			const double costOffset = fHeuristic->GetHeuristicValue(this->m_goal) + rHeuristic->GetHeuristicValue(this->m_goal);
 			PP_INFO("Cost offset: {}", costOffset);
 
-			double bestCost = std::numeric_limits<double>::infinity();
-			while (!m_fSearch.m_frontier.Empty() && !m_rSearch.m_frontier.Empty()) {
+			double optimalCost = std::numeric_limits<double>::infinity();
+			while (!fFrontier.Empty() && !rFrontier.Empty()) {
 				// TODO Can we avoid expanding node in one direction if they have already been expanded in the other?
 				// Forward search
-				auto fNode = m_fSearch.m_frontier.Pop();
-				m_fSearch.Expand(fNode);
-				FindIntersection(fNode, m_fSearch, m_rSearch, bestCost);
+				auto fNode = fFrontier.Pop();
+				this->ExpandForward(fNode);
+				FindIntersection(fNode, fSolutionNode, rSolutionNode, rExplored, optimalCost);
 
 				// Reverse search
-				auto rNode = m_rSearch.m_frontier.Pop();
-				m_rSearch.Expand(rNode);
-				FindIntersection(rNode, m_rSearch, m_fSearch, bestCost);
+				auto rNode = rFrontier.Pop();
+				this->ExpandReverse(rNode);
+				FindIntersection(rNode, rSolutionNode, fSolutionNode, fExplored, optimalCost);
 
 				// Check an intersection has been found
-				if (m_fSearch.m_solutionNode && m_rSearch.m_solutionNode) {
-					if (m_fSearch.m_frontier.Empty() || m_rSearch.m_frontier.Empty())
+				if (fSolutionNode && rSolutionNode) {
+					if (fFrontier.Empty() || rFrontier.Empty())
 						return Status::Success;
 
 					// TODO FIXME need to check what stopping condition to use
-// 					double fTopCost = (*m_fSearch.m_frontier.Top())->pathCost;
-// 					double rTopCost = (*m_rSearch.m_frontier.Top())->pathCost;
-					double fTopCost = (*m_fSearch.m_frontier.Top())->totalCost;
-					double rTopCost = (*m_rSearch.m_frontier.Top())->totalCost;
+// 					double fTopCost = (*fFrontier.Top())->pathCost;
+// 					double rTopCost = (*rFrontier.Top())->pathCost;
+					double fTopCost = (*fFrontier.Top())->totalCost;
+					double rTopCost = (*rFrontier.Top())->totalCost;
 
 					// Check the stopping criterion
 					// TODO allow to change stopping condition more easily
-// 					if (fTopCost + rTopCost >= bestCost + costOffset)
+// 					if (fTopCost + rTopCost >= optimalCost + costOffset)
 // 						return Status::Success;
-					if (fTopCost + rTopCost >= bestCost + costOffset)
+					if (fTopCost + rTopCost >= optimalCost + costOffset)
 						return Status::Success;
 // 					if (std::max(fTopCost, rTopCost) >= bestCost)
 // 						return Status::Success;
@@ -213,29 +159,27 @@ namespace Planner {
 		}
 
 	protected:
-		inline virtual void FindIntersection(AStarNode<State, Action>* nodeA, UnidirectionalAStar& searchA, UnidirectionalAStar& searchB, double& bestPathCost)
+		inline virtual void FindIntersection(AStarNode<State, Action>* nodeA, typename UnidirectionalAStar::Node*& solutionNodeA, 
+			typename UnidirectionalAStar::Node*& solutionNodeB, typename UnidirectionalAStar::Explored& exploredB, double& optimalPathCost)
 		{
-			auto it = searchB.m_explored.find((*nodeA)->state);
-			if (it != searchB.m_explored.end()) {
+			// TODO should the intersection be in explored or in frontier
+			auto it = exploredB.find((*nodeA)->state);
+			if (it != exploredB.end()) {
 				auto nodeB = it->second;
 
 				// Check the path of the new candidate path
 				double candidatePathCost = (*nodeA)->pathCost + (*nodeB)->pathCost;
-				if (candidatePathCost < bestPathCost) {
+				if (candidatePathCost < optimalPathCost) {
 					// This is the new best path
-					bestPathCost = candidatePathCost;
-					searchA.m_solutionNode = nodeA;
-					searchB.m_solutionNode = nodeB;
+					optimalPathCost = candidatePathCost;
+					solutionNodeA = nodeA;
+					solutionNodeB = nodeB;
 				}
 			}
 		}
 
 	protected:
-		UnidirectionalAStar m_fSearch, m_rSearch;
 		AverageHeuristic<State>*m_fAverageHeuristic = nullptr, *m_rAverageHeuristic = nullptr;
-
-	private:
-		bool isInitialized = false;
 	};
 
 }

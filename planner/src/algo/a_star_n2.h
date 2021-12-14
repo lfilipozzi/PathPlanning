@@ -3,6 +3,7 @@
 #include "algo/path_planner.h"
 #include "algo/a_star.h"
 #include "algo/bidirectional_a_star.h"
+#include "algo/nbs.h"
 #include "utils/grid.h"
 #include <functional>
 
@@ -39,5 +40,13 @@ namespace Planner {
 
 	public:
 		BidirectionalAStarN2() = default;
+	};
+
+	/// @brief Path planner using a bidirectional A* search over a grid.
+	class NBSN2 : public NBS<GridCellPosition, NullAction, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>, true> {
+		using AStarDeclType = NBS<GridCellPosition, NullAction, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>, true>;
+
+	public:
+		NBSN2() = default;
 	};
 }

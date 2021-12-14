@@ -227,6 +227,29 @@ PYBIND11_MODULE(pyplanning, m)
 		.def("get_explored_states", &PyBidirectionalAStarN2::GetExploredStates)
 		.def("get_optimal_cost", &BidirectionalAStarN2::GetOptimalCost);
 
+	// Create GetExploredStates to return a std::unordered_set
+	struct PyNBSN2 : public NBSN2 {
+		using NBSN2::NBSN2;
+		std::tuple<std::unordered_set<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>>,
+			std::unordered_set<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>>>
+		GetExploredStates()
+		{
+			std::unordered_set<GridCellPosition, std::hash<GridCellPosition>, std::equal_to<GridCellPosition>> fExplored, rExplored;
+			auto [fExploredMap, rExploredMap] = NBSN2::GetExploredStates();
+			for (auto kv : fExploredMap)
+				fExplored.insert(kv.first);
+			for (auto kv : rExploredMap)
+				rExplored.insert(kv.first);
+			return std::make_tuple(fExplored, rExplored);
+		}
+	};
+
+	class_<PyNBSN2, PathPlannerN2Base>(m, "NBSN2")
+		.def(init<>())
+		.def("initialize", &NBSN2::Initialize)
+		.def("get_explored_states", &PyNBSN2::GetExploredStates)
+		.def("get_optimal_cost", &NBSN2::GetOptimalCost);
+
 	//     _____                           _
 	//    / ____|                         | |
 	//   | |  __  ___  ___  _ __ ___   ___| |_ _ __ _   _

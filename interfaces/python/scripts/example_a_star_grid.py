@@ -131,5 +131,39 @@ fig2, ax = plt.subplots()
 _ = ax.matshow(image, cmap=cmap, norm=norm, origin='lower')
 fig2.show()
 
+algo_nbs = nav.NBSN2();
+algo_nbs.set_init_state(init)
+algo_nbs.set_goal_state(goal)
+algo_nbs.initialize(path_cost, path_cost, heuristic_forward, heuristic_reverse)
+algo_nbs.search_path()
+
+path_nbs = algo_nbs.get_path()
+(explored_forward, explored_reverse) = algo_nbs.get_explored_states();
+
+nrows = map.rows();
+ncols = map.columns()
+image = np.zeros((ncols, nrows))
+
+for cell in explored_forward:
+	image[cell.col][cell.row] = EXPLORED_FORWARD_COLOR
+
+for cell in explored_reverse:
+	if image[cell.col][cell.row] != EXPLORED_FORWARD_COLOR:
+		image[cell.col][cell.row] = EXPLORED_REVERSE_COLOR
+	else:
+		image[cell.col][cell.row] = EXPLORED_COLOR
+
+for cell in path_nbs:
+	image[cell.col][cell.row] = PATH_COLOR
+
+for cells in obstacle_cells:
+	for cell in cells:
+		image[cell.col][cell.row] = OBSTACLE_COLOR;
+
+fig2, ax = plt.subplots()
+_ = ax.matshow(image, cmap=cmap, norm=norm, origin='lower')
+fig2.show()
+
 algo_uni.get_optimal_cost()
 algo_bi.get_optimal_cost()
+algo_nbs.get_optimal_cost()

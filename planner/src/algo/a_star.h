@@ -35,7 +35,7 @@ namespace Planner {
 		friend class AStarHeuristicAdapter;
 		template <typename S>
 		friend class AverageHeuristic;
-		template <typename S, typename A, typename HashState, typename EqualState, bool GraphSearch, typename ExploredContainer>
+		template <typename S, typename A, typename HashState, typename EqualState, bool GraphSearch, typename ExploredContainer, typename FrontierContainer>
 		friend class AStar;
 
 	public:
@@ -176,6 +176,41 @@ namespace Planner {
 	template <typename State, typename Action = NullAction>
 	using AStarNode = Node<AStarNodeData<State, Action>>;
 
+	/// @brief Comparator to sort A* node in descending f-cost order, where f=g+h.
+	template <typename State, typename Action>
+	struct CompareAStarNodeFCost {
+		bool operator()(AStarNode<State, Action>* lhs, AStarNode<State, Action>* rhs) const
+		{
+			return (*lhs)->totalCost > (*rhs)->totalCost;
+		}
+	};
+
+	/// @brief Hasher to hash A* node
+	template <typename State, typename Action, typename HashState>
+	struct HashAStarNode {
+		std::size_t operator()(AStarNode<State, Action>* node) const
+		{
+			return hasher((*node)->state);
+		}
+
+		HashState hasher;
+	};
+
+	/// @brief Comparator so that A* node are equal if they refer to the same state.
+	template <typename State, typename Action, typename EqualState>
+	struct EqualAStarNode {
+		bool operator()(AStarNode<State, Action>* lhs, AStarNode<State, Action>* rhs) const
+		{
+			return equal((*lhs)->state, (*rhs)->state);
+		}
+
+		EqualState equal;
+	};
+
+	/// @brief Frontier for A* search
+	template <typename State, typename Action, typename HashState, typename EqualState>
+	using AStarFrontier = Frontier<AStarNode<State, Action>*, CompareAStarNodeFCost<State, Action>, HashAStarNode<State, Action, HashState>, EqualAStarNode<State, Action, EqualState>>;
+
 	/// @brief Implementation of an explored set for A* search using a
 	/// std::unordered_set.
 	template <typename State, typename HashState, typename EqualState>
@@ -225,6 +260,27 @@ namespace Planner {
 		inline bool Contains(AStarNode<State, Action>* const /*node*/) { return false; }
 	};
 
+	/// @brief Interface for A* algorithm
+	/// @details This class is only inehrited by AStar and is used so that we 
+	/// can infer if an algorithm is an A* search independently of the explored
+	/// and frontier containers.
+	template <typename State, typename Action, typename HashState, typename EqualState, bool GraphSearch>
+	class AStarBase : public PathPlanner<State>{
+	public:
+		virtual ~AStarBase() = default;
+
+	protected:
+		AStarBase() = default;
+		template <typename S, typename A, typename HashS, typename EqualS, bool, typename ExploredContainer, typename FrontierContainer>
+		friend class AStar;
+	};
+
+	/// @brief Trait for A* search algorithm.
+	template <typename Search, typename State, typename Action, typename HashState, typename EqualState, bool GraphSearch>
+	struct IsAStar {
+		static const bool value = std::is_base_of<AStarBase<State, Action, HashState, EqualState, GraphSearch>, Search>::value;
+	};
+
 	/// @brief Implementation of the A* algorithm.
 	template <
 		typename State,
@@ -232,39 +288,18 @@ namespace Planner {
 		typename HashState = std::hash<State>,
 		typename EqualState = std::equal_to<State>,
 		bool GraphSearch = true,
-		typename ExploredContainer = Explored<State, HashState, EqualState>>
-	class AStar : public PathPlanner<State> {
+		typename ExploredContainer = Explored<State, HashState, EqualState>,
+		typename FrontierContainer = AStarFrontier<State, Action, HashState, EqualState>>
+	class AStar : public AStarBase<State, Action, HashState, EqualState, GraphSearch> {
 		static_assert(std::is_copy_constructible<State>::value);
 
 		template <typename S, typename A, typename HashS, typename EqualS, bool, typename Algo>
-		friend class BidirectionalAStar;
+		friend class BidirectionalAStarBase;
 
 	public:
 		using Explored = ExploredContainer;
-
-	protected:
+		using Frontier = FrontierContainer;
 		using Node = AStarNode<State, Action>;
-
-		struct CompareNode {
-			bool operator()(Node* lhs, Node* rhs) const
-			{
-				return (*lhs)->totalCost > (*rhs)->totalCost;
-			}
-		};
-
-		struct HashNode {
-			std::size_t operator()(Node* node) const
-			{
-				return HashState()((*node)->state);
-			}
-		};
-
-		struct EqualNode {
-			bool operator()(Node* lhs, Node* rhs) const
-			{
-				return EqualState()((*lhs)->state, (*rhs)->state);
-			}
-		};
 
 	public:
 		/// @brief Constructor.
@@ -452,7 +487,7 @@ namespace Planner {
 		Ref<AStarStatePropagator<State, Action>> m_propagator;
 		Ref<AStarHeuristic<State>> m_heuristic;
 
-		Frontier<Node*, CompareNode, HashNode, EqualNode> m_frontier;
+		FrontierContainer m_frontier;
 		ExploredContainer m_explored;
 
 		Scope<Node> m_rootNode;
@@ -460,5 +495,123 @@ namespace Planner {
 
 	private:
 		bool isInitialized = false;
+	};
+
+	/// @brief Interface for bidirectional search
+	template <
+		typename State,
+		typename Action,
+		typename HashState = std::hash<State>,
+		typename EqualState = std::equal_to<State>,
+		bool GraphSearch = true,
+		typename UnidirectionalAStar = AStar<State, Action, HashState, EqualState, GraphSearch>>
+	class BidirectionalAStarBase : public PathPlanner<State> {
+		static_assert(IsAStar<UnidirectionalAStar, State, Action, HashState, EqualState, GraphSearch>::value, "The unidirectional search algorithm is not an A* algorithm.");
+
+	public:
+		using Explored = typename UnidirectionalAStar::Explored;
+		using Frontier = typename UnidirectionalAStar::Frontier;
+		using Node = typename UnidirectionalAStar::Node;
+
+	public:
+		BidirectionalAStarBase() = default;
+		template <typename... Args>
+		BidirectionalAStarBase(Args... args) :
+			m_fSearch(std::forward<Args>(args)...), m_rSearch(std::forward<Args>(args)...) { }
+		virtual ~BidirectionalAStarBase() = default;
+
+		/// @copydoc Planner::PathPlanner::GetPath
+		virtual std::vector<State> GetPath() const override
+		{
+			auto fPath = m_fSearch.GetPath();
+			auto rPath = m_rSearch.GetPath();
+			fPath.insert(fPath.end(), rPath.rbegin(), rPath.rend());
+			return fPath;
+		}
+
+		/// @brief Return the actions from the initial state to the goal state.
+		std::vector<Action> GetActions() const
+		{
+			auto fActions = m_fSearch.GetActions();
+			auto rActions = m_rSearch.GetActions();
+			fActions.insert(fActions.end(), rActions.rbegin(), rActions.rend());
+			return fActions;
+		}
+
+		/// @brief Return the set of explored states.
+		std::tuple<const Explored&, const Explored&> GetExploredStates() const
+		{
+			return std::tie(m_fSearch.GetExploredStates(), m_rSearch.GetExploredStates());
+		}
+
+		/// @brief Return the optimal cost
+		double GetOptimalCost() const
+		{
+			return m_fSearch.GetOptimalCost() + m_rSearch.GetOptimalCost();
+		}
+
+		/// @Brief Return the state-propagator used by the algorithm.
+		std::tuple<const Ref<AStarStatePropagator<State, Action>>&, const Ref<AStarStatePropagator<State, Action>>&> GetStatePropagators() const
+		{
+			return std::tie(m_fSearch.GetStatePropagator(), m_rSearch.GetStatePropagator());
+		}
+
+		/// @brief Return the heuristic used by the algorithm
+		std::tuple<const Ref<AStarHeuristic<State>>&, const Ref<AStarHeuristic<State>>&> GetHeuristics() const
+		{
+			return std::tie(m_fSearch.GetHeuristic(), m_rSearch.GetHeuristic());
+		}
+
+		/// @brief Initialize A* search.
+		/// @param fPropagator Expand the a given node in the forward search.
+		/// @param rPropagator Expand the a given node in the reverse search.
+		/// @param fHeuristic Heuristic function to guide the forward search.
+		/// @param rHeuristic Heuristic function to guide the reverse search.
+		bool Initialize(const Ref<AStarStatePropagator<State, Action>>& fPropagator, const Ref<AStarStatePropagator<State, Action>>& rPropagator,
+			const Ref<AStarHeuristic<State>>& fHeuristic, const Ref<AStarHeuristic<State>>& rHeuristic)
+		{
+			// Edge case: if the two heuristic given refer to the same object, the goal will not be updated correctly
+			if (fHeuristic.get() == rHeuristic.get())
+				throw std::invalid_argument("The forward and reverse heuristic cannot refer to the same object.");
+
+			if (!m_fSearch.Initialize(fPropagator, fHeuristic))
+				return m_isInitialized = false;
+			if (!m_rSearch.Initialize(rPropagator, rHeuristic))
+				return m_isInitialized = false;
+
+			return m_isInitialized = true;
+		}
+
+	protected:
+		bool InitializeSearch()
+		{
+			if (!m_isInitialized) {
+				PP_ERROR("The algorithm has not been initialized successfully.");
+				return false;
+			}
+
+			m_fSearch.SetInitState(this->m_init);
+			m_rSearch.SetInitState(this->m_goal);
+			m_fSearch.SetGoalState(this->m_goal);
+			m_rSearch.SetGoalState(this->m_init);
+
+			m_fSearch.InitializeSearch();
+			m_rSearch.InitializeSearch();
+
+			return true;
+		}
+
+		inline void ExpandForward(Node* node) { m_fSearch.Expand(node); }
+		inline void ExpandReverse(Node* node) { m_rSearch.Expand(node); }
+
+		inline std::tuple<Explored&, Explored&> GetExploredSets() { return std::tie(m_fSearch.m_explored, m_rSearch.m_explored); }
+		inline std::tuple<Frontier&, Frontier&> GetFrontiers() { return std::tie(m_fSearch.m_frontier, m_rSearch.m_frontier); }
+		inline std::tuple<Node*&, Node*&> GetSolutionNodes() { return std::tie(m_fSearch.m_solutionNode, m_rSearch.m_solutionNode); }
+
+	protected:
+		UnidirectionalAStar m_fSearch, m_rSearch;
+
+	private:
+		bool m_isInitialized = false;
 	};
 }

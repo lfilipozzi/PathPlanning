@@ -5,6 +5,44 @@
 #include <unordered_set>
 
 namespace Planner {
+	namespace FrontierImpl {
+		template <typename T, typename HashSet, typename Container, typename Compare>
+		inline std::pair<const T*, bool> Push(const T& elmt, HashSet& set, Container& data, const Compare& compare)
+		{
+			auto [it, success] = set.insert(elmt);
+			if (success) {
+				auto it = std::upper_bound(data.begin(), data.end(), elmt, compare);
+				auto insertIt = data.insert(it, elmt);
+				return { &(*insertIt), true };
+			}
+			return { &(*it), false };
+		}
+
+		template <typename T, typename Container, typename Compare, typename KeyEqual>
+		inline bool Remove(const T& elmt, Container& data, const Compare& compare, const KeyEqual& keyEqual)
+		{
+			auto first = std::lower_bound(data.begin(), data.end(), elmt, compare);
+			auto last = std::upper_bound(data.begin(), data.end(), elmt, compare);
+			auto vecIt = std::find_if(first, last, [&](const T& elmt) { return keyEqual(elmt, elmt); });
+			if (vecIt != last) {
+				data.erase(vecIt);
+				return true;
+			}
+			return false;
+		}
+
+		template <typename T, typename HashSet, typename Container>
+		inline T Pop(HashSet& set, Container& data)
+		{
+			// Access last element
+			T elmt = data.back();
+			// Remove it
+			data.pop_back();
+			set.erase(elmt);
+			return elmt;
+		}
+	}
+
 	/// @brief Implement a priority list which allows unique membership. It
 	/// combines the capabilities of a priority queue and a hash table.
 	/// @details The list is sorted by increasing order. A user-provided Compare
@@ -17,7 +55,7 @@ namespace Planner {
 		Frontier(const Compare& compare) :
 			m_compare(compare) { }
 		Frontier(const Compare& compare, size_t bucketCount, const Hash& hash, const KeyEqual& equal) :
-			m_compare(compare), m_keyEqual(equal), m_set(bucketCount, hash, equal) { }
+			m_compare(compare), m_set(bucketCount, hash, equal) { }
 
 		/// @brief Return the number of elements in the container.
 		size_t Size() const { return m_vec.size(); }
@@ -36,16 +74,7 @@ namespace Planner {
 		/// @return Returns a pair consisting of a pointer to the inserted
 		/// element (or to the element that prevented the insertion) and a bool
 		/// value set to true if the insertion took place.
-		std::pair<const T*, bool> Push(const T& elmt)
-		{
-			auto [it, success] = m_set.insert(elmt);
-			if (success) {
-				auto it = std::upper_bound(m_vec.begin(), m_vec.end(), elmt, m_compare);
-				auto insertIt = m_vec.insert(it, elmt);
-				return { &(*insertIt), true };
-			}
-			return { &(*it), false };
-		}
+		std::pair<const T*, bool> Push(const T& elmt) { return FrontierImpl::Push(elmt, m_set, m_vec, m_compare); }
 
 		/// @brief Remove an element equal to @elmt from the container (if it exists).
 		/// @return Number of elements removed (0 or 1).
@@ -54,15 +83,9 @@ namespace Planner {
 			// Find the elmt in the set
 			auto setIt = m_set.find(elmt);
 			if (setIt != m_set.end()) {
-				// Erase elmt in vector
 				bool erased = false;
-				auto first = std::lower_bound(m_vec.begin(), m_vec.end(), *setIt, m_compare);
-				auto last = m_vec.end();
-				auto vecIt = std::find_if(first, last, [&, this](const T& elmt) { return m_keyEqual(elmt, *setIt); });
-				if (vecIt != last) {
-					m_vec.erase(vecIt);
-					erased = true;
-				}
+				// Erase elmt in vector
+				erased = FrontierImpl::Remove(*setIt, m_vec, m_compare, m_set.key_eq());
 				PP_ASSERT(erased, "Element has not been erased");
 				// Erase elmt in set
 				m_set.erase(setIt);
@@ -73,22 +96,11 @@ namespace Planner {
 		}
 
 		/// @brief Access the last element of the container.
-		const T& Top() const
-		{
-			return m_vec.back();
-		}
+		const T& Top() const { return m_vec.back(); }
 
 		/// @brief Removes the last element of the container.
 		/// @return The removed element.
-		T Pop()
-		{
-			// Access last element
-			T elmt = m_vec.back();
-			// Remove it
-			m_vec.pop_back();
-			m_set.erase(elmt);
-			return elmt;
-		}
+		T Pop() { return FrontierImpl::Pop<T>(m_set, m_vec); }
 
 		/// @brief Find the element in the container that is equal to @elmt.
 		/// @return A pointer to the element, nullptr if the element does not exist.
@@ -105,7 +117,6 @@ namespace Planner {
 
 	private:
 		Compare m_compare;
-		KeyEqual m_keyEqual;
 		Container m_vec;
 		std::unordered_set<T, Hash, KeyEqual> m_set;
 	};
