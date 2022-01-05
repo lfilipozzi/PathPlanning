@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+#%%
 import os, sys
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -57,13 +58,13 @@ goal = nav.GridCellPosition(35, 35)
 path_cost = nav.AStarStatePropagatorFcnN2(map, path_cost_fcn)
 heuristic = nav.AStarHeuristicFcnN2(heuristic_fcn)
 
-algo_uni = nav.AStarN2();
+algo_uni = nav.AStarN2()
 algo_uni.set_init_state(init)
 algo_uni.set_goal_state(goal)
 algo_uni.initialize(path_cost, heuristic)
 algo_uni.search_path()
 path_uni = algo_uni.get_path()
-explored = algo_uni.get_explored_states();
+explored = algo_uni.get_explored_states()
 
 EMPTY_COLOR = 0
 EXPLORED_COLOR = 1
@@ -76,7 +77,7 @@ cmap = colors.ListedColormap(['white', 'dimgray', 'darkgray', 'lightgray', 'dark
 cmap_bounds = [EMPTY_COLOR, EXPLORED_COLOR, EXPLORED_FORWARD_COLOR, EXPLORED_REVERSE_COLOR, PATH_COLOR, OBSTACLE_COLOR, OBSTACLE_COLOR+1]
 norm = colors.BoundaryNorm(cmap_bounds, cmap.N)
 
-nrows = map.rows();
+nrows = map.rows()
 ncols = map.columns()
 image = np.zeros((ncols, nrows))
 
@@ -88,7 +89,7 @@ for cell in path_uni:
 
 for cells in obstacle_cells:
 	for cell in cells:
-		image[cell.col][cell.row] = OBSTACLE_COLOR;
+		image[cell.col][cell.row] = OBSTACLE_COLOR
 
 fig1, ax = plt.subplots()
 _ = ax.matshow(image, cmap=cmap, norm=norm, origin='lower')
@@ -96,18 +97,18 @@ fig1.show()
 
 f_heuristic = nav.AStarHeuristicFcnN2(heuristic_fcn)
 r_heuristic = nav.AStarHeuristicFcnN2(heuristic_fcn)
-(heuristic_forward, heuristic_reverse) = nav.BidirectionalAStarN2.get_average_heuristic_pair(r_heuristic, f_heuristic);
+(heuristic_forward, heuristic_reverse) = nav.BidirectionalAStarN2.get_average_heuristic_pair(r_heuristic, f_heuristic)
 
-algo_bi = nav.BidirectionalAStarN2();
+algo_bi = nav.BidirectionalAStarN2()
 algo_bi.set_init_state(init)
 algo_bi.set_goal_state(goal)
 algo_bi.initialize(path_cost, path_cost, heuristic_forward, heuristic_reverse)
 algo_bi.search_path()
 
 path_bi = algo_bi.get_path()
-(explored_forward, explored_reverse) = algo_bi.get_explored_states();
+(explored_forward, explored_reverse) = algo_bi.get_explored_states()
 
-nrows = map.rows();
+nrows = map.rows()
 ncols = map.columns()
 image = np.zeros((ncols, nrows))
 
@@ -125,22 +126,22 @@ for cell in path_bi:
 
 for cells in obstacle_cells:
 	for cell in cells:
-		image[cell.col][cell.row] = OBSTACLE_COLOR;
+		image[cell.col][cell.row] = OBSTACLE_COLOR
 
 fig2, ax = plt.subplots()
 _ = ax.matshow(image, cmap=cmap, norm=norm, origin='lower')
 fig2.show()
 
-algo_nbs = nav.NBSN2();
+algo_nbs = nav.NBSN2()
 algo_nbs.set_init_state(init)
 algo_nbs.set_goal_state(goal)
 algo_nbs.initialize(path_cost, path_cost, heuristic_forward, heuristic_reverse)
 algo_nbs.search_path()
 
 path_nbs = algo_nbs.get_path()
-(explored_forward, explored_reverse) = algo_nbs.get_explored_states();
+(explored_forward, explored_reverse) = algo_nbs.get_explored_states()
 
-nrows = map.rows();
+nrows = map.rows()
 ncols = map.columns()
 image = np.zeros((ncols, nrows))
 
@@ -158,7 +159,7 @@ for cell in path_nbs:
 
 for cells in obstacle_cells:
 	for cell in cells:
-		image[cell.col][cell.row] = OBSTACLE_COLOR;
+		image[cell.col][cell.row] = OBSTACLE_COLOR
 
 fig2, ax = plt.subplots()
 _ = ax.matshow(image, cmap=cmap, norm=norm, origin='lower')

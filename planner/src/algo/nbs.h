@@ -82,13 +82,15 @@ namespace Planner {
 		}
 
 		/// @brief Access the last element of the container.
-		const T& Top() const { return m_ready.back(); }
+		const T& Top() const { return !m_ready.empty() ? m_ready.back() : m_waiting.back(); }
 		const T& TopWaiting() const { return m_waiting.back(); }
+		const T& TopReady() const { return m_ready.back(); }
 
 		/// @brief Removes the last element of the container.
 		/// @return The removed element.
-		T Pop() { return FrontierImpl::Pop<T>(m_set, m_ready); }
+		T Pop() { return !m_ready.empty() ? FrontierImpl::Pop<T>(m_set, m_ready) : FrontierImpl::Pop<T>(m_set, m_waiting); }
 		T PopWaiting() { return FrontierImpl::Pop<T>(m_set, m_waiting); }
+		T PopReady() { return FrontierImpl::Pop<T>(m_set, m_ready); }
 
 		/// @brief Find the element in the container that is equal to @elmt.
 		/// @return A pointer to the element, nullptr if the element does not exist.
@@ -178,13 +180,13 @@ namespace Planner {
 			double optimalCost = std::numeric_limits<double>::infinity();
 			while (!fFrontier.Empty() && !rFrontier.Empty()) {
 				// Sort frontier and raise m_lbCost
-				while ((*fFrontier.TopWaiting())->totalCost < m_lbCost) {
+				while (!fFrontier.EmptyWaiting() && (*fFrontier.TopWaiting())->totalCost < m_lbCost) {
 					fFrontier.PushReady(fFrontier.PopWaiting());
 				}
-				while ((*rFrontier.TopWaiting())->totalCost < m_lbCost) {
+				while (!rFrontier.EmptyWaiting() && (*rFrontier.TopWaiting())->totalCost < m_lbCost) {
 					rFrontier.PushReady(rFrontier.PopWaiting());
 				}
-				while ((*fFrontier.Top())->pathCost + (*rFrontier.Top())->pathCost > m_lbCost) {
+				while (!fFrontier.EmptyReady() && !rFrontier.EmptyReady() && (*fFrontier.TopReady())->pathCost + (*rFrontier.TopReady())->pathCost > m_lbCost) {
 					if ((*fFrontier.TopWaiting())->totalCost <= m_lbCost) {
 						fFrontier.PushReady(fFrontier.PopWaiting());
 						continue;
@@ -196,7 +198,7 @@ namespace Planner {
 					m_lbCost = std::min<double>({
 						(*fFrontier.TopWaiting())->totalCost,
 						(*rFrontier.TopWaiting())->totalCost,
-						(*fFrontier.Top())->pathCost + (*rFrontier.Top())->pathCost,
+						(*fFrontier.TopReady())->pathCost + (*rFrontier.TopReady())->pathCost,
 					});
 				}
 
@@ -210,7 +212,8 @@ namespace Planner {
 				this->ExpandReverse(rNode);
 				FindIntersection(rNode, rSolutionNode, fSolutionNode, fExplored, optimalCost);
 
-				if ((*fFrontier.Top())->pathCost + (*rFrontier.Top())->pathCost <= m_lbCost) {
+				if (fSolutionNode && rSolutionNode) {// && (*fSolutionNode)->pathCost + (*rSolutionNode)->pathCost <= m_lbCost) {
+				// if ((*fFrontier.Top())->pathCost + (*rFrontier.Top())->pathCost <= m_lbCost) {
 					return Status::Success;
 				}
 			}
